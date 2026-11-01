@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculator</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game!) -->
+  <div id="calculator-layer" class="calc-overlay">
+    <div class="calc-shell">
+      <div class="calc-top-bar">
+        <div class="calc-window-dots">
+          <span class="dot-red"></span>
+          <span class="dot-yellow"></span>
+          <span class="dot-green"></span>
+        </div>
+        <span class="calc-title">Standard Calculator</span>
+      </div>
+
+      <div class="calc-screen">
+        <div class="calc-history" id="calc-history"></div>
+        <div class="calc-display" id="calc-display">0</div>
+      </div>
+
+      <div class="calc-keypad">
+        <button class="calc-btn calc-fn" data-calc="AC">AC</button>
+        <button class="calc-btn calc-fn" data-calc="SIGN">±</button>
+        <button class="calc-btn calc-fn" data-calc="%">%</button>
+        <button class="calc-btn calc-op" data-calc="/">÷</button>
+
+        <button class="calc-btn calc-num" data-calc="7">7</button>
+        <button class="calc-btn calc-num" data-calc="8">8</button>
+        <button class="calc-btn calc-num" data-calc="9">9</button>
+        <button class="calc-btn calc-op" data-calc="*">×</button>
+
+        <button class="calc-btn calc-num" data-calc="4">4</button>
+        <button class="calc-btn calc-num" data-calc="5">5</button>
+        <button class="calc-btn calc-num" data-calc="6">6</button>
+        <button class="calc-btn calc-op" data-calc="-">−</button>
+
+        <button class="calc-btn calc-num" data-calc="1">1</button>
+        <button class="calc-btn calc-num" data-calc="2">2</button>
+        <button class="calc-btn calc-num" data-calc="3">3</button>
+        <button class="calc-btn calc-op" data-calc="+">+</button>
+
+        <button class="calc-btn calc-num calc-zero" data-calc="0">0</button>
+        <button class="calc-btn calc-num" data-calc=".">.</button>
+        <button class="calc-btn calc-eq" data-calc="=">=</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D WebGL Viewport -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Subtle Vignette -->
+  <div id="fx-vignette"></div>
+
+  <!-- Minimalist Pure Driving HUD -->
+  <div id="hud">
+    <!-- TOP LEFT: Single Game Menu Button + Quick Calculator Boss-Key Button -->
+    <div class="hud-top-left" style="display: flex; gap: 8px;">
+      <button class="menu-trigger-btn" id="btn-open-menu">
+        <span>⚙️ MENU & GARAGE</span>
+        <kbd>ESC</kbd>
+      </button>
+      <button class="menu-trigger-btn" id="btn-lock-calc" title="Return to Calculator Disguise [`]">
+        <span>🧮</span>
+        <kbd>`</kbd>
+      </button>
+    </div>
+
+    <!-- BOTTOM LEFT: Road Radar Minimap -->
+    <div class="hud-bottom-left">
+      <div class="biome-tag">
+        <span id="biome-name">VALLEY COASTAL HIGHWAY</span>
+      </div>
+      <div class="minimap-wrapper">
+        <div class="minimap-compass">N</div>
+        <canvas id="minimap-canvas" width="210" height="210"></canvas>
+      </div>
+    </div>
+
+    <!-- BOTTOM RIGHT: Tachometer, Exact Speedometer & Telemetry -->
+    <div class="hud-bottom-right">
+      <div class="car-badge-pill">
+        <span id="hud-car-name">KOENIGSEGG 2023 JESKO ABSOLUT</span>
+        <span id="hud-car-specs-mini">1,600 HP • RWD • 531 KM/H</span>
+      </div>
+
+      <!-- Live Performance Timer & G-Force Telemetry Row -->
+      <div class="perf-telemetry-bar">
+        <div class="g-meter-box" title="Live Lateral & Longitudinal G-Force">
+          <div class="g-meter-circle">
+            <div class="g-meter-dot" id="hud-g-dot"></div>
+          </div>
+          <span class="g-meter-val" id="hud-g-val">0.0G</span>
+        </div>
+        <div class="perf-splits">
+          <div class="perf-split-item"><span>0–100</span><strong id="perf-0-100">--.-s</strong></div>
+          <div class="perf-split-item"><span>0–200</span><strong id="perf-0-200">--.-s</strong></div>
+          <div class="perf-split-item"><span>0–300</span><strong id="perf-0-300">--.-s</strong></div>
+          <div class="perf-split-item"><span>VMAX</span><strong id="perf-vmax">0</strong></div>
+        </div>
+      </div>
+
+      <div class="tacho-cluster">
+        <svg class="tacho-svg" viewBox="0 0 220 220">
+          <defs>
+            <linearGradient id="tachoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#38bdf8" />
+              <stop offset="72%" stop-color="#fbbf24" />
+              <stop offset="100%" stop-color="#e11d48" />
+            </linearGradient>
+          </defs>
+          <circle
+            class="tacho-track"
+            cx="110"
+            cy="110"
+            r="70"
+            stroke-dasharray="310 440"
+            transform="rotate(135 110 110)"
+          ></circle>
+          <circle
+            id="tacho-rpm-arc"
+            cx="110"
+            cy="110"
+            r="70"
+            transform="rotate(135 110 110)"
+          ></circle>
+          <circle
+            id="tacho-nitro-arc"
+            cx="110"
+            cy="110"
+            r="56"
+            transform="rotate(135 110 110)"
+          ></circle>
+        </svg>
+
+        <div class="tacho-center-readout">
+          <div id="hud-gear">1</div>
+          <div id="hud-speed">0</div>
+          <div class="tacho-sub-row">
+            <span id="hud-speed-unit" title="Click to toggle KM/H or MPH">KM/H</span>
+            <span id="hud-rpm-num">1,000 RPM</span>
+          </div>
+          <div class="telemetry-pills">
+            <span class="tele-pill surface-tarmac" id="hud-surface-pill">TARMAC</span>
+            <span class="tele-pill" id="hud-mode-pill">SIM_GRIP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNIFIED GAME MENU MODAL [ESC / TAB / MENU BUTTON] -->
+  <div class="fh-modal-backdrop" id="modal-menu">
+    <div class="fh-modal-card">
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <button class="menu-tab-btn active" data-tab="tab-garage">GARAGE (10 CARS)</button>
+          <button class="menu-tab-btn" data-tab="tab-settings">PHYSICS & SETTINGS</button>
+          <button class="menu-tab-btn" data-tab="tab-world">ROADS & TELEPORT</button>
+        </div>
+        <button class="modal-close-btn" id="btn-close-menu">RESUME DRIVING [ESC]</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- TAB 1: GARAGE & REAL-WORLD SPECS -->
+        <div class="menu-tab-pane active" id="tab-garage">
+          <div class="garage-grid" id="garage-car-grid"></div>
+
+          <div class="garage-customizer-row">
+            <div class="swatch-group">
+              <span class="swatch-label">FACTORY & CUSTOM PAINT:</span>
+              <div class="color-swatch paint-swatch" data-hex="0xf1f5f9" style="background:#f1f5f9" title="Pearl White"></div>
+              <div class="color-swatch paint-swatch" data-hex="0xd8dee9" style="background:#d8dee9" title="Liquid Silver"></div>
+              <div class="color-swatch paint-swatch" data-hex="0x11151c" style="background:#11151c" title="Carbon Black"></div>
+              <div class="color-swatch paint-swatch" data-hex="0xd90429" style="background:#d90429" title="Rosso Corsa"></div>
+              <div class="color-swatch paint-swatch" data-hex="0xfbbf24" style="background:#fbbf24" title="Giallo Modena"></div>
+              <div class="color-swatch paint-swatch" data-hex="0x10b981" style="background:#10b981" title="Python Green"></div>
+              <div class="color-swatch paint-swatch" data-hex="0x2563eb" style="background:#2563eb" title="Bayside Blue"></div>
+              <div class="color-swatch paint-swatch" data-hex="0xf97316" style="background:#f97316" title="Arancio Borealis"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: PHYSICS, ASSISTS & SETTINGS -->
+        <div class="menu-tab-pane" id="tab-settings">
+          <div class="settings-grid">
+            <div class="setting-card">
+              <h4>HANDLING & TRACTION DYNAMICS</h4>
+              <p>Switch between Simulation Grip (TCS active, maximum apex stability), Sport (threshold slip), and Drift Mode (full oversteer).</p>
+              <button class="setting-action-btn" id="btn-setting-handling">MODE: SIM_GRIP [F]</button>
+            </div>
+
+            <div class="setting-card">
+              <h4>TRANSMISSION GEARBOX</h4>
+              <p>Choose Sport Automatic shifting or Sequential Manual Paddle Shifting using [Q] (Downshift) and [E] (Upshift).</p>
+              <button class="setting-action-btn" id="btn-setting-trans">GEARBOX: AUTO</button>
+            </div>
+
+            <div class="setting-card">
+              <h4>SPEEDOMETER UNITS</h4>
+              <p>Display vehicle speed and top-speed telemetry in Kilometers per Hour (KM/H) or Miles per Hour (MPH).</p>
+              <button class="setting-action-btn" id="btn-setting-units">UNITS: KM/H</button>
+            </div>
+
+            <div class="setting-card">
+              <h4>CAMERA PERSPECTIVE</h4>
+              <p>Cycle between Chase Near, Chase Far, Hood/Bonnet Camera, and Low Bumper Camera.</p>
+              <button class="setting-action-btn" id="btn-setting-camera">CAMERA: CHASE NEAR [C]</button>
+            </div>
+
+            <div class="setting-card">
+              <h4>TIME OF DAY & ROAD SURFACE</h4>
+              <p>Cycle between Golden Hour, Clear Noon, Wet Overcast Roads, and Night Drive.</p>
+              <button class="setting-action-btn" id="btn-setting-weather">WEATHER: GOLDEN HOUR [T]</button>
+            </div>
+
+            <div class="setting-card">
+              <h4>ENGINE AUDIO</h4>
+              <p>Toggle procedural multi-harmonic engine synthesis, turbo blow-off valve, and tire slip audio.</p>
+              <button class="setting-action-btn" id="btn-setting-audio">AUDIO: ON [M]</button>
+            </div>
+          </div>
+
+          <div class="controls-grid">
+            <div class="ctrl-item"><span>Throttle / Brake & Reverse</span><span class="ctrl-key">W / S or ↑ / ↓</span></div>
+            <div class="ctrl-item"><span>Steer Left / Right</span><span class="ctrl-key">A / D or ← / →</span></div>
+            <div class="ctrl-item"><span>Handbrake / Initiate Slide</span><span class="ctrl-key">SPACEBAR</span></div>
+            <div class="ctrl-item"><span>ERS / Overboost</span><span class="ctrl-key">SHIFT</span></div>
+            <div class="ctrl-item"><span>Manual Shift Down / Up</span><span class="ctrl-key">Q / E</span></div>
+            <div class="ctrl-item"><span>Cycle Handling Mode</span><span class="ctrl-key">F</span></div>
+            <div class="ctrl-item"><span>Reset Car to Nearest Road</span><span class="ctrl-key">R</span></div>
+            <div class="ctrl-item"><span>Cycle Camera / Weather</span><span class="ctrl-key">C / T</span></div>
+          </div>
+        </div>
+
+        <!-- TAB 3: WORLD ROADS & TELEPORT -->
+        <div class="menu-tab-pane" id="tab-world">
+          <p style="margin-bottom: 14px; color: #94a3b8; font-size: 0.82rem;">
+            Select any road section below to teleport immediately (choose <strong>Interstate Top-Speed Straight</strong> to test 450–531 KM/H hypercar runs):
+          </p>
+          <div class="fast-travel-grid" id="fast-travel-grid"></div>
+          <div style="margin-top: 18px;">
+            <button class="setting-action-btn" id="btn-setting-reset" style="width: 100%;">
+              🔄 RESET VEHICLE ONTO NEAREST ROAD LANE [R]
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js & Pure Driving Simulator Modules -->
+  <script src="vendor/three.min.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/cars.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

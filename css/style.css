@@ -1,0 +1,904 @@
+/* ==========================================================================
+   OPEN ROAD DRIVING SIMULATOR — CLEAN HUD & UNIFIED GAME MENU STYLESHEET
+   ========================================================================== */
+
+:root {
+  --accent-red: #e11d48;
+  --accent-cyan: #38bdf8;
+  --accent-gold: #fbbf24;
+  --accent-green: #10b981;
+  --panel-dark: rgba(12, 15, 23, 0.84);
+  --panel-darker: rgba(8, 10, 16, 0.95);
+  --font-display: 'Impact', 'Arial Black', 'Avenir Next Condensed', sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #07080d;
+  color: #ffffff;
+  font-family: var(--font-ui);
+}
+
+#game-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 1;
+}
+
+#fx-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(circle at center, transparent 62%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   TOP LEFT: SINGLE GAME MENU BUTTON
+   ========================================================================== */
+.hud-top-left {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  pointer-events: auto;
+}
+
+.menu-trigger-btn {
+  background: var(--panel-dark);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-left: 4px solid var(--accent-cyan);
+  color: #f8fafc;
+  padding: 10px 18px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition: all 0.18s ease;
+}
+
+.menu-trigger-btn:hover {
+  background: rgba(24, 30, 46, 0.95);
+  border-color: var(--accent-cyan);
+  transform: translateY(-1px);
+}
+
+.menu-trigger-btn kbd {
+  background: rgba(255, 255, 255, 0.14);
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   BOTTOM LEFT: ROAD MINIMAP
+   ========================================================================== */
+.hud-bottom-left {
+  position: absolute;
+  bottom: 24px;
+  left: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.biome-tag {
+  background: var(--panel-dark);
+  border-left: 3px solid var(--accent-cyan);
+  padding: 5px 12px;
+  width: 210px;
+}
+
+#biome-name {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.minimap-wrapper {
+  position: relative;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: rgba(10, 14, 22, 0.86);
+  border: 2.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+#minimap-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.minimap-compass {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   BOTTOM RIGHT: TACHOMETER, EXACT SPEEDOMETER & TELEMETRY
+   ========================================================================== */
+.hud-bottom-right {
+  position: absolute;
+  bottom: 22px;
+  right: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.car-badge-pill {
+  background: var(--panel-dark);
+  border-right: 3px solid var(--accent-red);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#hud-car-name {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+#hud-car-specs-mini {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.tacho-cluster {
+  position: relative;
+  width: 245px;
+  height: 245px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tacho-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.65));
+}
+
+.tacho-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+#tacho-rpm-arc {
+  fill: none;
+  stroke: url(#tachoGrad);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 440;
+  transition: stroke-dashoffset 0.03s linear;
+}
+
+#tacho-nitro-arc {
+  fill: none;
+  stroke: var(--accent-cyan);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 130;
+  opacity: 0.85;
+}
+
+.tacho-center-readout {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+#hud-gear {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.12);
+  border: 1.5px solid var(--accent-cyan);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3px;
+}
+
+#hud-gear.redline {
+  color: #ffffff;
+  background: var(--accent-red);
+  border-color: #ffffff;
+}
+
+#hud-speed {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-style: italic;
+  line-height: 0.95;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.75);
+}
+
+.tacho-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+#hud-speed-unit {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent-gold);
+  cursor: pointer;
+}
+
+#hud-rpm-num {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.telemetry-pills {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.tele-pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  letter-spacing: 0.8px;
+}
+
+.tele-pill.surface-tarmac { color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.35); }
+.tele-pill.surface-offroad { color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }
+.tele-pill.surface-air { color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+/* Live G-Force Meter & Performance Sprint Timer Bar */
+.perf-telemetry-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.g-meter-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.g-meter-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(8, 11, 18, 0.85) 100%);
+  position: relative;
+}
+
+.g-meter-circle::before,
+.g-meter-circle::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.15);
+}
+.g-meter-circle::before {
+  top: 50%; left: 2px; right: 2px; height: 1px;
+}
+.g-meter-circle::after {
+  left: 50%; top: 2px; bottom: 2px; width: 1px;
+}
+
+.g-meter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  box-shadow: 0 0 6px var(--accent-gold);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.g-meter-val {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+  min-width: 34px;
+}
+
+.perf-splits {
+  display: flex;
+  gap: 11px;
+}
+
+.perf-split-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.perf-split-item span {
+  font-size: 0.54rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+}
+
+.perf-split-item strong {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   UNIFIED GAME SETTINGS & GARAGE MENU MODAL
+   ========================================================================== */
+.fh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(6, 8, 14, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fh-modal-backdrop.open {
+  display: flex;
+}
+
+.fh-modal-card {
+  width: min(1100px, 95vw);
+  max-height: 90vh;
+  background: var(--panel-darker);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 4px solid var(--accent-cyan);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.88);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 26px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.menu-tab-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  padding: 8px 18px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.menu-tab-btn:hover, .menu-tab-btn.active {
+  background: var(--accent-cyan);
+  color: #060911;
+  border-color: var(--accent-cyan);
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 8px 16px;
+  font-weight: 800;
+  font-size: 0.76rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  background: var(--accent-red);
+  border-color: #fff;
+}
+
+.modal-body {
+  padding: 22px 26px;
+  overflow-y: auto;
+}
+
+.menu-tab-pane {
+  display: none;
+}
+
+.menu-tab-pane.active {
+  display: block;
+}
+
+/* GARAGE CAR GRID */
+.garage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(305px, 1fr));
+  gap: 14px;
+}
+
+.car-select-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.car-select-card:hover, .car-select-card.selected {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+}
+
+.car-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.car-card-brand {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: var(--accent-cyan);
+}
+
+.car-card-name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.8px;
+  color: #fff;
+}
+
+.car-category-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent-gold);
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 3px;
+}
+
+.car-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.spec-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-label {
+  font-size: 0.58rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.spec-val {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.spec-val.highlight {
+  color: var(--accent-gold);
+}
+
+.car-card-desc {
+  font-size: 0.73rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Paint Swatches */
+.garage-customizer-row {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.swatch-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-label {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #cbd5e1;
+  margin-right: 6px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.18);
+  border-color: #ffffff;
+}
+
+/* SETTINGS & TELEPORT GRIDS */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.setting-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setting-card h4 {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+}
+
+.setting-card p {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.setting-action-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  padding: 9px 14px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.setting-action-btn:hover {
+  background: var(--accent-cyan);
+  color: #060911;
+  border-color: var(--accent-cyan);
+}
+
+.fast-travel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.ft-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ft-card:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+}
+
+.ft-card h4 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 5px;
+}
+
+.ft-card p {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Controls Reference List inside Menu */
+.controls-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.ctrl-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent-cyan);
+  font-size: 0.75rem;
+}
+
+.ctrl-key {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--accent-gold);
+  font-weight: 800;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+
+/* ==========================================================================
+   WORKING CALCULATOR DISGUISE LAYER (UNLOCK CODE: 190311 + =)
+   ========================================================================== */
+.calc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle at 50% 25%, #1e293b 0%, #0f172a 60%, #090d16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  user-select: none;
+}
+
+.calc-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(1.04);
+}
+
+.calc-shell {
+  width: 340px;
+  background: rgba(24, 24, 27, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  padding: 16px;
+}
+
+.calc-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 2px 4px;
+}
+
+.calc-window-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.calc-window-dots span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red { background: #ff5f56; }
+.dot-yellow { background: #ffbd2e; }
+.dot-green { background: #27c93f; }
+
+.calc-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.4px;
+}
+
+.calc-screen {
+  background: rgba(9, 11, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 16px 18px 14px;
+  margin-bottom: 14px;
+  text-align: right;
+  min-height: 98px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.calc-history {
+  font-size: 0.88rem;
+  color: #94a3b8;
+  min-height: 20px;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calc-display {
+  font-size: 2.55rem;
+  font-weight: 300;
+  color: #f8fafc;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calc-keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.calc-btn {
+  height: 62px;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.35rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.1s ease, transform 0.06s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.calc-btn:active {
+  transform: scale(0.95);
+  filter: brightness(1.25);
+}
+
+.calc-num {
+  background: #333338;
+}
+
+.calc-num:hover {
+  background: #3f3f46;
+}
+
+.calc-fn {
+  background: #a1a1aa;
+  color: #09090b;
+  font-weight: 600;
+}
+
+.calc-fn:hover {
+  background: #b4b4bd;
+}
+
+.calc-op, .calc-eq {
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.calc-op:hover, .calc-eq:hover {
+  background: #fbbf24;
+}
+
+.calc-zero {
+  grid-column: span 2;
+  justify-content: flex-start;
+  padding-left: 26px;
+}
