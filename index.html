@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=bsr3" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game!) -->
@@ -60,8 +60,9 @@
 
   <!-- Minimalist Pure Driving HUD -->
   <div id="hud">
-    <!-- TOP LEFT: Single Game Menu Button + Quick Calculator Boss-Key Button -->
-    <div class="hud-top-left" style="display: flex; gap: 8px;">
+    <!-- TOP LEFT: Championship Brand + Garage/Stages & Boss-Key Buttons -->
+    <div class="hud-top-left" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <div class="championship-pill">🏁 BACKSEAT RALLY // WRC</div>
       <button class="menu-trigger-btn" id="btn-open-menu">
         <span>⚙️ GARAGE & STAGES</span>
         <kbd>ESC</kbd>
@@ -72,24 +73,32 @@
       </button>
     </div>
 
+    <!-- CENTER STAGE START 3-2-1-GO COUNTDOWN OVERLAY -->
+    <div id="stage-countdown-overlay" class="stage-countdown-overlay hidden">
+      <div class="countdown-stage-tag" id="countdown-stage-tag">PINE FOREST STAGE // GRAVEL</div>
+      <div class="countdown-num" id="countdown-num">3</div>
+      <div class="countdown-sub" id="countdown-sub">GET READY • CO-DRIVER ACTIVE</div>
+    </div>
+
     <!-- TOP CENTER: Backseat Rally Co-Driver Pacenote Banner -->
     <div id="pacenote-hud" class="pacenote-hud">
       <div class="pacenote-icon-box" id="pacenote-icon">▲</div>
       <div class="pacenote-text-group">
-        <div class="pacenote-callout" id="pacenote-callout">STRAIGHT</div>
+        <div class="pacenote-callout" id="pacenote-callout">FLAT OUT • JUMP CREST</div>
         <div class="pacenote-meta">
-          <span id="pacenote-dist">CLEAR AHEAD</span>
+          <span id="pacenote-dist">135M</span>
           <span class="pacenote-badge" id="pacenote-sev">6</span>
+          <span class="pacenote-next" id="pacenote-next">THEN 4 RIGHT</span>
         </div>
       </div>
       <button class="pacenote-voice-btn" id="btn-toggle-voice" title="Toggle Co-Driver Voice [V]">🔊</button>
     </div>
 
-    <!-- TOP RIGHT: Stage Rally Timer, CR Currency & Hardware Tier HUD -->
+    <!-- TOP RIGHT: Stage Rally Timer, Progress Bar, CR Currency & Hardware Tier HUD -->
     <div class="hud-top-right">
       <div class="stage-hud-card" id="stage-hud">
         <div class="stage-top-row">
-          <span class="cr-pill" id="hud-cr-pill">💰 15,000 CR</span>
+          <span class="cr-pill" id="hud-cr-pill">💰 25,000 CR</span>
           <span class="hw-pill" id="hud-hw-pill" title="Click to cycle Hardware Graphics Preset">GPU: AUTO • 60 FPS</span>
         </div>
         <div class="stage-run-row">
@@ -98,9 +107,12 @@
             <strong class="stage-clock" id="hud-stage-timer">00:00.00</strong>
           </div>
           <div class="stage-cp-box">
-            <span id="hud-stage-cp">CP 0/12</span>
+            <span id="hud-stage-cp">CP 0/11</span>
             <span id="hud-stage-medal-target">GOLD --:--</span>
           </div>
+        </div>
+        <div class="stage-progress-bar">
+          <div class="stage-progress-fill" id="stage-progress-fill"></div>
         </div>
         <div class="stage-btn-row">
           <button class="stage-btn" id="btn-start-stage">🏁 START STAGE RUN</button>
@@ -119,11 +131,18 @@
       </div>
     </div>
 
-    <!-- BOTTOM RIGHT: Tachometer, Exact Speedometer & Telemetry -->
+    <!-- BOTTOM RIGHT: WRC 12-LED Shift Strip, Tachometer & Telemetry -->
     <div class="hud-bottom-right">
       <div class="car-badge-pill">
-        <span id="hud-car-name">KOENIGSEGG 2023 JESKO ABSOLUT</span>
-        <span id="hud-car-specs-mini">1,600 HP • RWD • 531 KM/H</span>
+        <span id="hud-car-name">SUBARU IMPREZA 22B STi (RAIJIN GS)</span>
+        <span id="hud-car-specs-mini">380 HP • AWD • 265 KM/H</span>
+      </div>
+
+      <!-- 12-LED WRC RPM Shift Light Bar -->
+      <div class="rpm-led-strip" id="rpm-led-strip">
+        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
+        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
+        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
       </div>
 
       <!-- Live Performance Timer & G-Force Telemetry Row -->
@@ -314,13 +333,13 @@
     </div>
   </div>
 
-  <!-- Three.js & Backseat Rally Engine Modules -->
-  <script src="vendor/three.min.js"></script>
-  <script src="js/hardware.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/world.js"></script>
-  <script src="js/cars.js"></script>
-  <script src="js/physics.js"></script>
-  <script src="js/main.js"></script>
+  <!-- Three.js & Backseat Rally Engine Modules (Cache-Busted v=bsr3) -->
+  <script src="vendor/three.min.js?v=bsr3"></script>
+  <script src="js/hardware.js?v=bsr3"></script>
+  <script src="js/audio.js?v=bsr3"></script>
+  <script src="js/world.js?v=bsr3"></script>
+  <script src="js/cars.js?v=bsr3"></script>
+  <script src="js/physics.js?v=bsr3"></script>
+  <script src="js/main.js?v=bsr3"></script>
 </body>
 </html>

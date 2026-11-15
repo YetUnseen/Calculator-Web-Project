@@ -795,12 +795,27 @@
         active: true,
         stageId: data.stage.id,
         stageName: data.stage.name,
+        surface: data.stage.surface || 'GRAVEL',
         checkpoints,
         cpIndex: 1,
         elapsed: 0,
+        countdown: 2.4,
+        lastBeepStep: 4,
         medalTimes: data.stage.medalTimes,
         finishBannerTimer: 0
       };
+
+      const cdOverlay = document.getElementById('stage-countdown-overlay');
+      const cdTag = document.getElementById('countdown-stage-tag');
+      const cdNum = document.getElementById('countdown-num');
+      const cdSub = document.getElementById('countdown-sub');
+      if (cdOverlay) cdOverlay.classList.remove('hidden');
+      if (cdTag) cdTag.textContent = `${data.stage.name} // ${data.stage.surface || 'GRAVEL'}`;
+      if (cdNum) cdNum.textContent = '3';
+      if (cdSub) cdSub.textContent = 'GET READY • CO-DRIVER ACTIVE';
+
+      const progFill = document.getElementById('stage-progress-fill');
+      if (progFill) progFill.style.width = '0%';
 
       if (this.cpMarkerGroup) {
         this.cpMarkerGroup.position.set(cp1.x, cp1.y, cp1.z);
@@ -818,7 +833,10 @@
 
     stopStageRun() {
       this.stageRun.active = false;
+      this.stageRun.countdown = -1;
       if (this.cpMarkerGroup) this.cpMarkerGroup.visible = false;
+      const cdOverlay = document.getElementById('stage-countdown-overlay');
+      if (cdOverlay) cdOverlay.classList.add('hidden');
       const stageBtn = document.getElementById('btn-start-stage');
       if (stageBtn) {
         stageBtn.textContent = '🏁 START STAGE RUN';
@@ -832,6 +850,7 @@
       const clockEl = document.getElementById('hud-stage-timer');
       const cpEl = document.getElementById('hud-stage-cp');
       const targetEl = document.getElementById('hud-stage-medal-target');
+      const progFill = document.getElementById('stage-progress-fill');
 
       if (!sr.active) {
         if (sr.finishBannerTimer > 0) {
@@ -841,6 +860,34 @@
           nameEl.textContent = nearStage;
         }
         return;
+      }
+
+      // Handle 3-2-1-GO Stage Launch Countdown Banner
+      const cdOverlay = document.getElementById('stage-countdown-overlay');
+      const cdNum = document.getElementById('countdown-num');
+      const cdSub = document.getElementById('countdown-sub');
+      if (sr.countdown > -0.65) {
+        sr.countdown -= dt;
+        const step = sr.countdown > 1.6 ? 3 : sr.countdown > 0.8 ? 2 : sr.countdown > 0 ? 1 : 0;
+        if (step !== sr.lastBeepStep) {
+          sr.lastBeepStep = step;
+          if (window.HorizonAudio && window.HorizonAudio.playPacenoteChime) {
+            window.HorizonAudio.playPacenoteChime(step === 0 ? 1 : 4);
+          }
+        }
+        if (cdOverlay && cdNum) {
+          if (sr.countdown > 0) {
+            cdOverlay.classList.remove('hidden');
+            cdNum.textContent = String(Math.max(1, step));
+            if (cdSub) cdSub.textContent = 'LAUNCH ON GREEN';
+          } else {
+            cdOverlay.classList.remove('hidden');
+            cdNum.textContent = 'GO!';
+            if (cdSub) cdSub.textContent = 'FULL SEND // FLAT OUT!';
+          }
+        }
+      } else if (cdOverlay) {
+        cdOverlay.classList.add('hidden');
       }
 
       sr.elapsed += dt;
@@ -866,6 +913,7 @@
 
           sr.cpIndex += 1;
           if (sr.cpIndex >= sr.checkpoints.length) {
+            if (progFill) progFill.style.width = '100%';
             // Stage Complete! Evaluate medal & award CR
             const mt = sr.medalTimes || { platinum: 45, gold: 56, silver: 72, bronze: 95 };
             let medal = 'BRONZE';
@@ -906,6 +954,10 @@
         }
       }
 
+      if (progFill && sr.checkpoints.length > 1) {
+        const pct = Math.min(100, Math.round(((sr.cpIndex - 1) / (sr.checkpoints.length - 1)) * 100));
+        progFill.style.width = `${pct}%`;
+      }
       if (nameEl) nameEl.textContent = sr.stageName;
       if (clockEl) clockEl.textContent = this.formatStageTime(sr.elapsed);
       if (cpEl) cpEl.textContent = `CP ${sr.cpIndex}/${sr.checkpoints.length - 1}`;
@@ -925,6 +977,7 @@
       const callEl = document.getElementById('pacenote-callout');
       const distEl = document.getElementById('pacenote-dist');
       const sevEl = document.getElementById('pacenote-sev');
+      const nextEl = document.getElementById('pacenote-next');
 
       if (iconEl) {
         iconEl.textContent = note.icon;
@@ -934,6 +987,15 @@
       if (callEl) callEl.textContent = note.callout;
       if (distEl) distEl.textContent = note.distMeters > 0 ? `${note.distMeters}M` : 'NOW';
       if (sevEl) sevEl.textContent = String(note.severity);
+      if (nextEl) {
+        if (this.stageRun.active && this.stageRun.checkpoints[this.stageRun.cpIndex]) {
+          const cp = this.stageRun.checkpoints[this.stageRun.cpIndex];
+          const cpDist = Math.round(Math.hypot(v.x - cp.x, v.z - cp.z));
+          nextEl.textContent = `• GATE ${this.stageRun.cpIndex}: ${cpDist}M`;
+        } else {
+          nextEl.textContent = `• ${v.surfaceType} SPEC`;
+        }
+      }
       if (hud) {
         hud.style.borderBottomColor = note.color;
         hud.classList.toggle('urgent', !!note.urgent);
@@ -1201,9 +1263,17 @@
       built.chassis.rotation.z = v.chassisRoll;
       built.chassis.position.y = v.chassisHeave;
 
-      // Animate cockpit steering wheel
+      // Animate cockpit steering wheel, driver apex look & co-driver reading pacenotes
       if (built.steeringWheel) {
         built.steeringWheel.rotation.z = -v.steerAngle * 1.45;
+      }
+      if (built.driverHelmet) {
+        built.driverHelmet.rotation.y = v.steerAngle * 0.45;
+        built.driverHelmet.rotation.z = -v.chassisRoll * 0.55;
+      }
+      if (built.coDriverHelmet) {
+        built.coDriverHelmet.rotation.x = 0.08 + Math.sin(this.elapsedTime * 5.2) * 0.07;
+        built.coDriverHelmet.rotation.y = -0.14 + Math.sin(this.elapsedTime * 2.1) * 0.06;
       }
 
       // Animate Active Aerodynamics (Speed Deployment, DRS Boost & Airbrake!)
@@ -1470,6 +1540,26 @@
       if (gearEl) {
         gearEl.textContent = v.gear;
         gearEl.classList.toggle('redline', v.rpm > 0.88);
+      }
+
+      if (!this.rpmLeds) {
+        this.rpmLeds = Array.prototype.slice.call(document.querySelectorAll('.rpm-led'));
+      }
+      if (this.rpmLeds && this.rpmLeds.length > 0) {
+        const litCount = Math.round(Math.max(0, Math.min(1, (v.rpm - 0.25) / 0.72)) * this.rpmLeds.length);
+        const shiftFlash = v.rpm > 0.92 && Math.floor(this.elapsedTime * 16) % 2 === 0;
+        for (let i = 0; i < this.rpmLeds.length; i++) {
+          const led = this.rpmLeds[i];
+          if (!led || !led.classList) continue;
+          led.classList.remove('active-green', 'active-amber', 'active-red', 'flash');
+          if (shiftFlash) {
+            led.classList.add('flash');
+          } else if (i < litCount) {
+            if (i < 5) led.classList.add('active-green');
+            else if (i < 9) led.classList.add('active-amber');
+            else led.classList.add('active-red');
+          }
+        }
       }
 
       const rpmArc = document.getElementById('tacho-rpm-arc');
@@ -1867,8 +1957,13 @@
 
       const layer = document.getElementById('calculator-layer');
       if (layer) layer.classList.add('hidden');
-      document.title = 'OPEN ROAD DRIVING SIMULATOR';
+      document.title = 'BACKSEAT RALLY // 3D STAGE CHAMPIONSHIP';
       window.HorizonAudio.init();
+
+      if (!this.hasStartedFirstStage) {
+        this.hasStartedFirstStage = true;
+        this.startStageRun('coastal_start');
+      }
     }
 
     lockToCalculator() {

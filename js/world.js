@@ -98,6 +98,7 @@
       this.buildTerrainMesh();
       this.buildRoadMeshes();
       this.buildBridgesAndGuardrails();
+      this.buildRallyStageVillages();
       this.buildNaturalScenery();
     }
 
@@ -391,6 +392,12 @@
         lakeDepression -
         iceBasin * 0.5;
 
+      // 7. Two signature Pine Forest Stage Table-Top Rally Jump Crests!
+      const j1 = Math.hypot(x - 0, z - (-135));
+      h += 3.2 * Math.exp(-(j1 * j1) / (28 * 28));
+      const j2 = Math.hypot(x - 45, z - (-310));
+      h += 2.8 * Math.exp(-(j2 * j2) / (30 * 30));
+
       if (lakeDist < 420) {
         h = Math.max(5.98, h);
       }
@@ -407,12 +414,15 @@
        5 BACKSEAT RALLY STAGE NETWORKS (46.3 KM TOTAL)
        ---------------------------------------------------------------------- */
     initRoadNetwork() {
-      // 1. PINE FOREST STAGE (16.0 km Gravel Special Stage)
+      // 1. PINE FOREST STAGE (Technical Loose-Gravel Rally Special Stage)
       const mainLoopWaypoints = [
-        new THREE.Vector3(0, 0, 320),
+        new THREE.Vector3(0, 0, 180),
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -340),
-        new THREE.Vector3(140, 0, -780),
+        new THREE.Vector3(0, 0, -140),
+        new THREE.Vector3(55, 0, -310),
+        new THREE.Vector3(-65, 0, -490),
+        new THREE.Vector3(120, 0, -690),
+        new THREE.Vector3(310, 0, -960),
         new THREE.Vector3(460, 0, -1240),
         new THREE.Vector3(380, 0, -1780),
         new THREE.Vector3(740, 0, -2350),
@@ -432,7 +442,7 @@
         new THREE.Vector3(-760, 0, 820),
         new THREE.Vector3(-280, 0, 560)
       ];
-      this.buildSmoothRoadSpline('main_loop', mainLoopWaypoints, 16, true, 2400, 'GRAVEL');
+      this.buildSmoothRoadSpline('main_loop', mainLoopWaypoints, 12.5, true, 2400, 'GRAVEL');
 
       // 2. FROZEN LAKE & SNOW PASS (7.8 km Packed Snow & Ice Corridor)
       const snowPassWaypoints = [
@@ -1295,6 +1305,171 @@
       poleInst.count = lampCount;
       lampInst.count = lampCount;
       this.scene.add(poleInst, lampInst);
+    }
+
+    /* ----------------------------------------------------------------------
+       3D RALLY STAGE START GANTRY VILLAGES, TENTS, BALES, TAPE & SPECTATORS
+       ---------------------------------------------------------------------- */
+    buildRallyStageVillages() {
+      // Procedural canvas banner for the overhead truss gantry
+      const bannerCanvas = document.createElement('canvas');
+      bannerCanvas.width = 512;
+      bannerCanvas.height = 128;
+      const bctx = bannerCanvas.getContext('2d');
+      bctx.fillStyle = '#0f172a';
+      bctx.fillRect(0, 0, 512, 128);
+      bctx.fillStyle = '#f97316';
+      bctx.fillRect(0, 0, 512, 18);
+      bctx.fillRect(0, 110, 512, 18);
+      bctx.fillStyle = '#facc15';
+      bctx.font = 'bold 42px sans-serif';
+      bctx.fillText('BACKSEAT RALLY // START', 24, 78);
+      const bannerTex = new THREE.CanvasTexture(bannerCanvas);
+
+      // Red/white checkered rally tape texture
+      const tapeCanvas = document.createElement('canvas');
+      tapeCanvas.width = 256;
+      tapeCanvas.height = 32;
+      const tctx = tapeCanvas.getContext('2d');
+      for (let x = 0; x < 256; x += 32) {
+        tctx.fillStyle = (x / 32) % 2 === 0 ? '#ef4444' : '#f8fafc';
+        tctx.fillRect(x, 0, 32, 32);
+      }
+      const tapeTex = new THREE.CanvasTexture(tapeCanvas);
+      tapeTex.wrapS = THREE.RepeatWrapping;
+      tapeTex.repeat.set(16, 1);
+
+      const trussMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.75, roughness: 0.3 });
+      const bannerMat = new THREE.MeshBasicMaterial({ map: bannerTex });
+      const tapeMat = new THREE.MeshBasicMaterial({ map: tapeTex, side: THREE.DoubleSide });
+      const baleMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.92 });
+      const tentRoofMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.65 });
+      const tentWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7 });
+      const lampRedMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const lampGreenMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+
+      const dummy = new THREE.Object3D();
+      const specGeo = new THREE.BoxGeometry(0.46, 1.55, 0.34);
+      specGeo.translate(0, 0.78, 0);
+      const specMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.8 });
+      const specHeadGeo = new THREE.SphereGeometry(0.18, 7, 7);
+      specHeadGeo.translate(0, 1.72, 0);
+      const specHeadMat = new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.6 });
+
+      const totalSpecsMax = 320;
+      const specBodyInst = new THREE.InstancedMesh(specGeo, specMat, totalSpecsMax);
+      const specHeadInst = new THREE.InstancedMesh(specHeadGeo, specHeadMat, totalSpecsMax);
+      const palette = [0xef4444, 0x3b82f6, 0xfacc15, 0x10b981, 0xf97316, 0xe2e8f0];
+      const tempCol = new THREE.Color();
+      let specCount = 0;
+
+      this.spawnLocations.forEach((stage) => {
+        const road = this.roadSplines.find((r) => r.id === stage.splineId) || this.roadSplines[0];
+        const halfW = (road ? road.width * 0.5 : 7.0) + 1.4;
+        const baseY = this.getTerrainHeight(stage.x, stage.z);
+
+        const village = new THREE.Group();
+        village.position.set(stage.x, baseY, stage.z);
+        village.rotation.y = stage.heading;
+
+        // 1. Overhead Rally Start Truss Gantry Arch
+        const towerGeo = new THREE.BoxGeometry(0.65, 6.2, 0.65);
+        [-halfW, halfW].forEach((tx) => {
+          const tower = new THREE.Mesh(towerGeo, trussMat);
+          tower.position.set(tx, 3.1, 4.0);
+          tower.castShadow = true;
+          village.add(tower);
+        });
+
+        const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2 + 1.4, 1.35, 0.65), trussMat);
+        crossBeam.position.set(0, 5.75, 4.0);
+        crossBeam.castShadow = true;
+        village.add(crossBeam);
+
+        const frontSign = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 1.9, 1.25), bannerMat);
+        frontSign.position.set(0, 5.75, 4.35);
+        village.add(frontSign);
+
+        const backSign = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 1.9, 1.25), bannerMat);
+        backSign.position.set(0, 5.75, 3.65);
+        backSign.rotation.y = Math.PI;
+        village.add(backSign);
+
+        // 5 Starting Countdown Lights on Gantry
+        for (let l = -2; l <= 2; l++) {
+          const lightOrb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 10, 10),
+            l === 2 ? lampGreenMat : lampRedMat
+          );
+          lightOrb.position.set(l * 0.95, 4.82, 4.0);
+          village.add(lightOrb);
+        }
+
+        // 2. Twin Rally Service Park Canopies & Timing Tent beside Start Line
+        [-halfW - 4.2, halfW + 4.2].forEach((sideX, idx) => {
+          const canopyGroup = new THREE.Group();
+          canopyGroup.position.set(sideX, 0, -6 + idx * 9);
+          const pole = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.5, 3.4), tentWhiteMat);
+          pole.position.y = 1.25;
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(2.8, 1.25, 4), tentRoofMat);
+          roof.position.y = 3.05;
+          roof.rotation.y = Math.PI * 0.25;
+          canopyGroup.add(pole, roof);
+          village.add(canopyGroup);
+        });
+
+        // 3. Round Gold Hay Bales along outer start chute shoulders
+        const baleGeo = new THREE.CylinderGeometry(0.68, 0.68, 1.05, 10);
+        baleGeo.rotateZ(Math.PI * 0.5);
+        for (let b = 0; b < 6; b++) {
+          [-halfW - 0.5, halfW + 0.5].forEach((bx) => {
+            const bale = new THREE.Mesh(baleGeo, baleMat);
+            bale.position.set(bx, 0.58, 12 + b * 11);
+            bale.rotation.y = (b % 2) * 0.2;
+            village.add(bale);
+          });
+        }
+
+        // 4. Red/White Rally Barrier Tape Ribbons flanking the first 85m
+        const tapeGeo = new THREE.PlaneGeometry(85, 0.24);
+        tapeGeo.rotateY(Math.PI * 0.5);
+        [-halfW - 0.6, halfW + 0.6].forEach((rx) => {
+          const ribbon = new THREE.Mesh(tapeGeo, tapeMat);
+          ribbon.position.set(rx, 0.92, 42);
+          village.add(ribbon);
+        });
+
+        this.scene.add(village);
+
+        // 5. Stylized Low-Poly Spectator Crowds behind barrier tape
+        const sinH = Math.sin(stage.heading);
+        const cosH = Math.cos(stage.heading);
+        for (let s = 0; s < 56; s++) {
+          if (specCount >= totalSpecsMax) break;
+          const side = s % 2 === 0 ? -1 : 1;
+          const localX = side * (halfW + 1.8 + (s % 4) * 0.85);
+          const localZ = -4 + Math.floor(s / 2) * 3.1;
+          const wx = stage.x + localX * cosH + localZ * sinH;
+          const wz = stage.z - localX * sinH + localZ * cosH;
+          const wy = this.getTerrainHeight(wx, wz);
+
+          dummy.position.set(wx, wy, wz);
+          dummy.rotation.set(0, stage.heading + (side > 0 ? -Math.PI * 0.5 : Math.PI * 0.5), 0);
+          const sc = 0.88 + (s % 5) * 0.06;
+          dummy.scale.set(sc, sc, sc);
+          dummy.updateMatrix();
+          specBodyInst.setMatrixAt(specCount, dummy.matrix);
+          specHeadInst.setMatrixAt(specCount, dummy.matrix);
+          tempCol.setHex(palette[s % palette.length]);
+          if (specBodyInst.setColorAt) specBodyInst.setColorAt(specCount, tempCol);
+          specCount++;
+        }
+      });
+
+      specBodyInst.count = specCount;
+      specHeadInst.count = specCount;
+      if (specBodyInst.instanceColor) specBodyInst.instanceColor.needsUpdate = true;
+      this.scene.add(specBodyInst, specHeadInst);
     }
 
     /* ----------------------------------------------------------------------

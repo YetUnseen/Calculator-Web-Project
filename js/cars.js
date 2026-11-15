@@ -770,7 +770,11 @@
     digitalCluster.position.set(0.32, 0.83, halfL * 0.12);
     chassis.add(digitalCluster);
 
-    // Driver & Co-Driver Bucket Seats (Two-seat Backseat Rally setup!)
+    // Driver & Co-Driver Bucket Seats + 3D Helmeted Crew (Backseat Rally!)
+    const suitMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.65 });
+    const visorMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.3 });
+
     [-0.32, 0.32].forEach((seatX) => {
       const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.10), interiorMat);
       seatBack.position.set(seatX, 0.78, -0.22);
@@ -780,7 +784,39 @@
       const headrestTrim = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.11), accentMat);
       headrestTrim.position.set(seatX, 0.96, -0.25);
       chassis.add(headrestTrim);
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.30, 0.16), suitMat);
+      torso.position.set(seatX, 0.80, -0.14);
+      torso.rotation.x = -0.14;
+      chassis.add(torso);
     });
+
+    // Driver Helmet (turns into apexes)
+    const driverHelmet = new THREE.Group();
+    driverHelmet.position.set(0.32, 1.04, -0.16);
+    const dShell = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), helmetMat);
+    const dStripe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.23, 0.22), accentMat);
+    const dVisor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.055, 0.08), visorMat);
+    dVisor.position.set(0, 0.01, 0.09);
+    driverHelmet.add(dShell, dStripe, dVisor);
+    chassis.add(driverHelmet);
+
+    // Co-Driver Helmet + Pacenote Notebook & Intercom Boom Mic
+    const coDriverHelmet = new THREE.Group();
+    coDriverHelmet.position.set(-0.32, 1.03, -0.16);
+    const cShell = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 10), accentMat);
+    const cVisor = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.055, 0.08), visorMat);
+    cVisor.position.set(0, 0.01, 0.085);
+    coDriverHelmet.add(cShell, cVisor);
+    chassis.add(coDriverHelmet);
+
+    const pacenoteBook = new THREE.Mesh(
+      new THREE.BoxGeometry(0.19, 0.02, 0.14),
+      new THREE.MeshBasicMaterial({ color: 0xfef9c3 })
+    );
+    pacenoteBook.position.set(-0.32, 0.85, 0.02);
+    pacenoteBook.rotation.x = 0.45;
+    chassis.add(pacenoteBook);
 
     const steeringWheel = new THREE.Group();
     steeringWheel.position.set(0.32, 0.81, halfL * 0.04);
@@ -1278,12 +1314,14 @@
       activeWing,
       rotorMat,
       wheels,
-      mudflaps: chassis.userData.mudflaps || []
+      mudflaps: chassis.userData.mudflaps || [],
+      driverHelmet,
+      coDriverHelmet
     };
   }
 
   /* ------------------------------------------------------------------------
-     14 RALLY RIVALS & STAGE TRAFFIC WITH COLLISION RESPONSE
+     6 ONE-WAY STAGE RALLY RIVALS WITH COLLISION RESPONSE
      ------------------------------------------------------------------------ */
   class AIDrivatarManager {
     constructor(scene, world) {
@@ -1293,22 +1331,22 @@
 
       const mainRoad = this.world.roadSplines[0];
 
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 6; i++) {
         const spec = CAR_ROSTER[(i + 1) % CAR_ROSTER.length];
         const road = this.world.roadSplines[i % this.world.roadSplines.length] || mainRoad;
         const built = createCarMesh(spec, spec.color, false);
         this.scene.add(built.root);
 
-        const dir = i % 2 === 0 ? 1 : -1;
+        const dir = 1;
         this.drivatars.push({
           id: i,
           spec: spec,
           built: built,
           road: road,
           dir: dir,
-          t: ((i + 1) / 15) % 1,
-          speed: 26 + (i % 5) * 5,
-          laneOffset: dir * (road.width * 0.24),
+          t: (0.14 + (i / 6) * 0.78) % 1,
+          speed: 30 + (i % 4) * 5,
+          laneOffset: (i % 2 === 0 ? -1 : 1) * (road.width * 0.16),
           x: 0,
           y: 0,
           z: 0,
