@@ -63,6 +63,9 @@
       this.lastThrottle = 0;
       this.lastPopTime = 0;
       this.shiftCutEndTime = 0;
+      this.voiceMuted = false;
+      this.lastPacenoteText = '';
+      this.lastPacenoteTime = 0;
     }
 
     /* ----------------------------------------------------------------------
@@ -630,15 +633,29 @@
         this.gearWhineGain.gain.setTargetAtTime(0, now, 0.04);
       }
 
-      // Dual-Band Tire Scrub & High-Slip Tire Squeal
+      // Dual-Band Tire Scrub, Loose-Surface Chatter & High-Slip Tire Squeal
       const isTarmac = surfaceType === 'TARMAC';
-      if (!this.muted && speedMph > 10 && slipAmount > 0.10) {
-        const scrubLevel = Math.min(0.18, (slipAmount - 0.10) * (isTarmac ? 0.28 : 0.14));
-        const screechLevel = slipAmount > 0.24
-          ? Math.min(0.16, (slipAmount - 0.24) * (isTarmac ? 0.26 : 0.08))
-          : 0;
+      const isGravel = surfaceType === 'GRAVEL';
+      const isMud = surfaceType === 'MUD';
+      const isSnow = surfaceType === 'SNOW';
+      const isLoose = isGravel || isMud || isSnow || surfaceType === 'OFFROAD';
+
+      if (!this.muted && speedMph > 6 && (slipAmount > 0.08 || isLoose)) {
+        const scrubMult = isTarmac ? 0.28 : isGravel ? 0.24 : isMud ? 0.20 : 0.16;
+        const looseFloor = isLoose ? Math.min(0.09, (speedMph / 120) * 0.08) : 0;
+        const scrubLevel = Math.min(0.22, Math.max(looseFloor, (slipAmount - 0.08) * scrubMult));
+        const screechLevel = slipAmount > 0.24 && isTarmac
+          ? Math.min(0.16, (slipAmount - 0.24) * 0.26)
+          : (isSnow && slipAmount > 0.22 ? Math.min(0.06, (slipAmount - 0.22) * 0.10) : 0);
+        const scrubFreq = isMud
+          ? 210 + Math.min(180, speedMph * 1.2)
+          : isSnow
+          ? 520 + Math.min(360, speedMph * 2.1)
+          : isGravel
+          ? 440 + Math.min(340, speedMph * 2.0)
+          : 340 + Math.min(300, speedMph * 1.8);
         this.tireScrubGain.gain.setTargetAtTime(scrubLevel, now, 0.04);
-        this.tireScrubFilter.frequency.setTargetAtTime(340 + Math.min(300, speedMph * 1.8), now, 0.04);
+        this.tireScrubFilter.frequency.setTargetAtTime(scrubFreq, now, 0.04);
         this.screechGain.gain.setTargetAtTime(screechLevel, now, 0.04);
         this.screechFilter.frequency.setTargetAtTime(1150 + Math.min(650, speedMph * 3.2), now, 0.04);
       } else {
@@ -646,10 +663,11 @@
         this.screechGain.gain.setTargetAtTime(0, now, 0.05);
       }
 
-      // Off-road Gravel & Dirt Chassis Rumble
+      // Off-road Gravel, Mud, Snow & Dirt Chassis Rumble
       const isOffroad = surfaceType !== 'TARMAC' && surfaceType !== 'AIR';
+      const surfaceRumbleScale = isMud ? 1.32 : isGravel ? 1.18 : isSnow ? 0.85 : 1.0;
       const rumbleLevel = (!this.muted && isOffroad && speedMph > 4)
-        ? Math.min(0.24, (speedMph / 110) * 0.22)
+        ? Math.min(0.28, (speedMph / 110) * 0.22 * surfaceRumbleScale)
         : 0;
       this.rumbleGain.gain.setTargetAtTime(rumbleLevel, now, 0.05);
 
@@ -735,6 +753,55 @@
 
       popSrc.start(now);
       popSrc.stop(now + dur + 0.01);
+    }
+
+    /* ----------------------------------------------------------------------
+       CO-DRIVER RALLY INTERCOM CHIME & VOICE PACENOTE CALLOUT
+       ---------------------------------------------------------------------- */
+    playPacenoteChime(severity) {
+      if (!this.initialized || this.muted || this.voiceMuted) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const baseFreq = severity <= 2 ? 980 : severity <= 4 ? 820 : 680;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.setValueAtTime(baseFreq * 1.18, now + 0.045);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.055, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.11);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (e) {}
+    }
+
+    speakPacenote(text, severity) {
+      if (!text || this.muted || this.voiceMuted) return;
+      const nowMs = Date.now();
+      if (text === this.lastPacenoteText && nowMs - this.lastPacenoteTime < 4200) return;
+      if (nowMs - this.lastPacenoteTime < 1500 && severity > 2) return;
+
+      this.lastPacenoteText = text;
+      this.lastPacenoteTime = nowMs;
+      this.playPacenoteChime(severity);
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function') {
+        try {
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+          }
+          const utter = new window.SpeechSynthesisUtterance(text);
+          utter.rate = 1.16;
+          utter.pitch = 1.0;
+          utter.volume = 0.85;
+          window.speechSynthesis.speak(utter);
+        } catch (e) {}
+      }
     }
   }
 

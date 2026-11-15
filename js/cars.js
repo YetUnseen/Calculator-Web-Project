@@ -1,343 +1,413 @@
 /* ==========================================================================
-   REAL-WORLD CAR ROSTER (10 ACCURATE CARS) & SHOWROOM-GRADE 3D CAR BUILDER
-   - Unmistakable Car-by-Car Silhouettes, Liveries, Grilles, Lights & Wings
+   BACKSEAT RALLY — 10 ICONIC RALLY & HILLCLIMB CARS + 3D RALLY BUILDER
+   - Backseat Rally Legends (RAIJIN GS, FRECCIA HF, KAZE RS, FALKE E3,
+     OCELOT R1, ORSO 4, KUMO R1, SAFARI RS, CHIRON SS, APEX R1)
+   - Authentic 3D Rally Equipment: Hood Quad Light Pods, Roof Air Scoops,
+     Mudflaps, Door Number Plates, Liveries & Rally OZ/Gold Wheels
    - Detailed Cockpit Interior with Animated Steering Wheel & Digital Dash
-   - Working Active Aerodynamics (Speed Wing Deployment, DRS & Airbrake Tilt!)
-   - Glowing Molten-Orange Carbon-Ceramic Brake Rotors Under Heavy Braking
-   - Exhaust Overrun Backfire Flames & Point-Light Flash on Shifts/Decel
-   - 14 Two-Way AI Highway Traffic Cars with Collision Detection
+   - Working Active Aerodynamics, Glowing Brake Rotors & Exhaust Backfire
    ========================================================================== */
 
 (function () {
   const CAR_ROSTER = [
     {
-      id: 'jesko_absolut',
-      brand: 'KOENIGSEGG',
-      name: '2023 JESKO ABSOLUT',
-      category: 'HYPERCAR',
-      drivetrain: 'RWD',
-      hp: 1600,
-      weightKg: 1390,
-      topSpeedKmh: 531,
-      topSpeedMph: 330,
-      zeroTo100: '2.5s',
-      redlineRpm: 8500,
-      gears: 9,
-      color: 0xf1f5f9,
-      accentColor: 0x10b981,
-      engineProfile: 'v8_flatplane_tt',
-      desc: '5.0L Twin-Turbo Flat-Plane V8 (1,600 HP on E85) with wrap-around jet canopy and twin rear dorsal fins.',
+      id: 'raijin_gs',
+      codeName: 'RAIJIN GS',
+      numberPlate: '05',
+      brand: 'SUBARU',
+      name: 'IMPREZA WRC98 (RAIJIN GS)',
+      category: 'WRC RALLY',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 380,
+      weightKg: 1230,
+      topSpeedKmh: 268,
+      topSpeedMph: 167,
+      zeroTo100: '3.2s',
+      redlineRpm: 8000,
+      gears: 6,
+      color: 0x1d4ed8,
+      accentColor: 0xfacc15,
+      rimColor: 0xfbbf24,
+      mudflapColor: 0x1d4ed8,
+      engineProfile: 'flat6_gt3_na',
+      basePriceCr: 0,
+      desc: 'Flat-4 Boxer Turbo AWD rally icon in World Rally Blue & Gold wheels. Signature hood scoop, quad light pod & tall box wing.',
       shapeProfile: {
-        archType: 'mid_hyper',
-        width: 2.04,
-        length: 4.82,
-        hoodHeight: 0.60,
-        cabinHeight: 1.12,
-        rearHeight: 0.74,
-        wheelRadius: 0.39
+        archType: 'jdm_box_coupe',
+        width: 1.84,
+        length: 4.38,
+        hoodHeight: 0.78,
+        cabinHeight: 1.38,
+        rearHeight: 0.86,
+        wheelRadius: 0.37
+      },
+      physics: {
+        gripBase: 1.30,
+        downforceCoeff: 0.24,
+        brakeG: 1.38,
+        turnResponse: 2.95,
+        gravelBoost: 1.18
+      }
+    },
+    {
+      id: 'kaze_rs',
+      codeName: 'KAZE RS',
+      numberPlate: '01',
+      brand: 'MITSUBISHI',
+      name: 'LANCER EVO VI (KAZE RS)',
+      category: 'GROUP A',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 395,
+      weightKg: 1260,
+      topSpeedKmh: 272,
+      topSpeedMph: 169,
+      zeroTo100: '3.1s',
+      redlineRpm: 8200,
+      gears: 6,
+      color: 0xdc2626,
+      accentColor: 0xf8fafc,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0xef4444,
+      engineProfile: 'i6_big_turbo',
+      basePriceCr: 4500,
+      desc: 'Active Yaw Control AWD tarmac & gravel weapon with razor-sharp Scandinavian-flick turn-in and ferocious anti-lag.',
+      shapeProfile: {
+        archType: 'jdm_box_coupe',
+        width: 1.85,
+        length: 4.36,
+        hoodHeight: 0.78,
+        cabinHeight: 1.39,
+        rearHeight: 0.88,
+        wheelRadius: 0.37
+      },
+      physics: {
+        gripBase: 1.34,
+        downforceCoeff: 0.25,
+        brakeG: 1.40,
+        turnResponse: 3.05,
+        gravelBoost: 1.20
+      }
+    },
+    {
+      id: 'freccia_hf',
+      codeName: 'FRECCIA HF',
+      numberPlate: '04',
+      brand: 'LANCIA',
+      name: 'DELTA HF INTEGRALE (FRECCIA HF)',
+      category: 'GROUP A',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 365,
+      weightKg: 1120,
+      topSpeedKmh: 262,
+      topSpeedMph: 163,
+      zeroTo100: '3.3s',
+      redlineRpm: 7800,
+      gears: 6,
+      color: 0xf1f5f9,
+      accentColor: 0xe11d48,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0x1e293b,
+      engineProfile: 'v8_flatplane_tt',
+      basePriceCr: 6000,
+      desc: '6-time World Rally Champion boxy widebody Italian hatch with twin round lamps, tricolor stripes & roof spoiler.',
+      shapeProfile: {
+        archType: 'jdm_box_coupe',
+        width: 1.82,
+        length: 4.02,
+        hoodHeight: 0.77,
+        cabinHeight: 1.38,
+        rearHeight: 0.88,
+        wheelRadius: 0.36
       },
       physics: {
         gripBase: 1.32,
-        downforceCoeff: 0.42,
-        brakeG: 1.45,
-        turnResponse: 2.65
+        downforceCoeff: 0.22,
+        brakeG: 1.36,
+        turnResponse: 3.00,
+        gravelBoost: 1.19
+      }
+    },
+    {
+      id: 'falke_e3',
+      codeName: 'FALKE E3',
+      numberPlate: '02',
+      brand: 'AUDI',
+      name: 'SPORT QUATTRO S1 E2 (FALKE E3)',
+      category: 'GROUP B',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 591,
+      weightKg: 1090,
+      topSpeedKmh: 285,
+      topSpeedMph: 177,
+      zeroTo100: '2.5s',
+      redlineRpm: 8800,
+      gears: 6,
+      color: 0xf8fafc,
+      accentColor: 0xfacc15,
+      rimColor: 0xf1f5f9,
+      mudflapColor: 0xeab308,
+      engineProfile: 'i6_big_turbo',
+      basePriceCr: 9500,
+      desc: 'Unleashed Group B 5-cylinder turbo monster featuring massive snowplow front aero, box arches & giant bi-plane wing.',
+      shapeProfile: {
+        archType: 'jdm_box_coupe',
+        width: 1.92,
+        length: 4.24,
+        hoodHeight: 0.76,
+        cabinHeight: 1.35,
+        rearHeight: 0.88,
+        wheelRadius: 0.37
+      },
+      physics: {
+        gripBase: 1.28,
+        downforceCoeff: 0.32,
+        brakeG: 1.38,
+        turnResponse: 2.86,
+        gravelBoost: 1.24
+      }
+    },
+    {
+      id: 'ocelot_r1',
+      codeName: 'OCELOT R1',
+      numberPlate: '03',
+      brand: 'PEUGEOT',
+      name: '205 T16 EVO 2 (OCELOT R1)',
+      category: 'GROUP B',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 540,
+      weightKg: 910,
+      topSpeedKmh: 278,
+      topSpeedMph: 173,
+      zeroTo100: '2.4s',
+      redlineRpm: 8500,
+      gears: 5,
+      color: 0xf1f5f9,
+      accentColor: 0x2563eb,
+      rimColor: 0xf1f5f9,
+      mudflapColor: 0x2563eb,
+      engineProfile: 'f1_hybrid',
+      basePriceCr: 11000,
+      desc: '910 kg featherweight mid-engine AWD Group B champion with towering rear wing & agile hairpin rotation.',
+      shapeProfile: {
+        archType: 'jdm_box_coupe',
+        width: 1.88,
+        length: 3.92,
+        hoodHeight: 0.74,
+        cabinHeight: 1.34,
+        rearHeight: 0.86,
+        wheelRadius: 0.36
+      },
+      physics: {
+        gripBase: 1.31,
+        downforceCoeff: 0.30,
+        brakeG: 1.40,
+        turnResponse: 3.15,
+        gravelBoost: 1.22
+      }
+    },
+    {
+      id: 'orso_4',
+      codeName: 'ORSO 4',
+      numberPlate: '07',
+      brand: 'LANCIA',
+      name: '037 RALLY EVO (ORSO 4)',
+      category: 'GROUP B RWD',
+      drivetrain: 'RWD',
+      isRallySpec: true,
+      hp: 380,
+      weightKg: 960,
+      topSpeedKmh: 265,
+      topSpeedMph: 165,
+      zeroTo100: '3.2s',
+      redlineRpm: 8400,
+      gears: 5,
+      color: 0xf8fafc,
+      accentColor: 0x0ea5e9,
+      rimColor: 0xe2e8f0,
+      mudflapColor: 0x0ea5e9,
+      engineProfile: 'v8_flatplane_tt',
+      basePriceCr: 8000,
+      desc: 'The last RWD WRC champion. Featherweight supercharged mid-engine wedge built for thrilling opposite-lock slides.',
+      shapeProfile: {
+        archType: 'wedge_super',
+        width: 1.88,
+        length: 4.10,
+        hoodHeight: 0.62,
+        cabinHeight: 1.18,
+        rearHeight: 0.78,
+        wheelRadius: 0.37
+      },
+      physics: {
+        gripBase: 1.22,
+        downforceCoeff: 0.28,
+        brakeG: 1.38,
+        turnResponse: 3.12,
+        gravelBoost: 1.12
+      }
+    },
+    {
+      id: 'kumo_r1',
+      codeName: 'KUMO R1',
+      numberPlate: '08',
+      brand: 'TOYOTA',
+      name: 'CELICA GT-FOUR ST205 (KUMO R1)',
+      category: 'GROUP A',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 410,
+      weightKg: 1240,
+      topSpeedKmh: 274,
+      topSpeedMph: 170,
+      zeroTo100: '3.0s',
+      redlineRpm: 8100,
+      gears: 6,
+      color: 0xf8fafc,
+      accentColor: 0x16a34a,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0xdc2626,
+      engineProfile: 'i6_big_turbo',
+      basePriceCr: 7500,
+      desc: 'Safari-proven AWD fastback featuring signature quad round lamps, Castrol stripes & high-mount ST205 riser wing.',
+      shapeProfile: {
+        archType: 'gt_fastback',
+        width: 1.86,
+        length: 4.44,
+        hoodHeight: 0.74,
+        cabinHeight: 1.30,
+        rearHeight: 0.84,
+        wheelRadius: 0.37
+      },
+      physics: {
+        gripBase: 1.33,
+        downforceCoeff: 0.26,
+        brakeG: 1.38,
+        turnResponse: 2.90,
+        gravelBoost: 1.20
+      }
+    },
+    {
+      id: 'safari_rs',
+      codeName: 'SAFARI RS',
+      numberPlate: '11',
+      brand: 'PORSCHE',
+      name: '911 DAKAR RALLY (SAFARI RS)',
+      category: 'RALLY RAID',
+      drivetrain: 'AWD',
+      isRallySpec: true,
+      hp: 480,
+      weightKg: 1480,
+      topSpeedKmh: 296,
+      topSpeedMph: 184,
+      zeroTo100: '2.9s',
+      redlineRpm: 8400,
+      gears: 8,
+      color: 0xf8fafc,
+      accentColor: 0x1e40af,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0xdc2626,
+      engineProfile: 'flat6_gt3_na',
+      basePriceCr: 14000,
+      desc: 'Long-travel AWD 911 Dakar Raid racer with roof equipment rack, quad frog lamps & singing 8,400 RPM Flat-6.',
+      shapeProfile: {
+        archType: 'porsche_911',
+        width: 1.94,
+        length: 4.52,
+        hoodHeight: 0.68,
+        cabinHeight: 1.32,
+        rearHeight: 0.84,
+        wheelRadius: 0.40
+      },
+      physics: {
+        gripBase: 1.36,
+        downforceCoeff: 0.30,
+        brakeG: 1.44,
+        turnResponse: 2.94,
+        gravelBoost: 1.22
       }
     },
     {
       id: 'chiron_ss',
-      brand: 'BUGATTI',
-      name: '2021 CHIRON SUPER SPORT 300+',
-      category: 'HYPERCAR',
+      codeName: 'BLITZ S1',
+      numberPlate: '01',
+      brand: 'AUDI',
+      name: 'SPORT QUATTRO S1 E2 (BLITZ S1)',
+      category: 'GROUP B',
       drivetrain: 'AWD',
-      hp: 1578,
-      weightKg: 1978,
-      topSpeedKmh: 490,
-      topSpeedMph: 304,
-      zeroTo100: '2.3s',
-      redlineRpm: 7100,
-      gears: 7,
-      color: 0x11151c,
-      accentColor: 0xf97316,
-      engineProfile: 'w16_quadturbo',
-      desc: '8.0L Quad-Turbo W16 (1,578 HP) longtail hypercar with Jet Orange twin stripes, horseshoe grille & active airbrake.',
+      isRallySpec: true,
+      hp: 598,
+      weightKg: 1090,
+      topSpeedKmh: 288,
+      topSpeedMph: 179,
+      zeroTo100: '2.4s',
+      redlineRpm: 8500,
+      gears: 6,
+      color: 0xf8fafc,
+      accentColor: 0xfacc15,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0xdc2626,
+      engineProfile: 'i6_big_turbo',
+      basePriceCr: 22000,
+      desc: '5-Cylinder Big-Turbo Group B legend with massive snowplow aero apron, box fenders & colossal dual-plane rear wing.',
       shapeProfile: {
-        archType: 'mid_hyper',
-        width: 2.06,
-        length: 4.88,
-        hoodHeight: 0.68,
-        cabinHeight: 1.16,
-        rearHeight: 0.78,
-        wheelRadius: 0.40
+        archType: 'boxy_sedan',
+        width: 1.92,
+        length: 4.32,
+        hoodHeight: 0.76,
+        cabinHeight: 1.38,
+        rearHeight: 0.88,
+        wheelRadius: 0.37
       },
       physics: {
         gripBase: 1.38,
-        downforceCoeff: 0.48,
-        brakeG: 1.42,
-        turnResponse: 2.45
+        downforceCoeff: 0.42,
+        brakeG: 1.44,
+        turnResponse: 2.95,
+        gravelBoost: 1.26
       }
     },
     {
-      id: 'venom_f5',
-      brand: 'HENNESSEY',
-      name: '2022 VENOM F5',
-      category: 'HYPERCAR',
-      drivetrain: 'RWD',
-      hp: 1817,
-      weightKg: 1385,
-      topSpeedKmh: 485,
-      topSpeedMph: 301,
-      zeroTo100: '2.6s',
-      redlineRpm: 8200,
-      gears: 7,
-      color: 0xfbbf24,
-      accentColor: 0x18181b,
-      engineProfile: 'v8_crossplane_fury',
-      desc: '6.6L "Fury" Twin-Turbo V8 producing 1,817 HP with roof snorkel intake and high-mount quad exhaust.',
-      shapeProfile: {
-        archType: 'mid_hyper',
-        width: 2.02,
-        length: 4.68,
-        hoodHeight: 0.62,
-        cabinHeight: 1.12,
-        rearHeight: 0.76,
-        wheelRadius: 0.39
-      },
-      physics: {
-        gripBase: 1.28,
-        downforceCoeff: 0.38,
-        brakeG: 1.40,
-        turnResponse: 2.60
-      }
-    },
-    {
-      id: 'amg_one',
-      brand: 'MERCEDES-AMG',
-      name: '2023 AMG ONE',
-      category: 'TRACK HYPERCAR',
+      id: 'jesko_absolut',
+      codeName: 'FUJI PP',
+      numberPlate: '99',
+      brand: 'SUZUKI',
+      name: 'ESCUDO PIKES PEAK (FUJI PP)',
+      category: 'UNLIMITED RALLY',
       drivetrain: 'AWD',
-      hp: 1049,
-      weightKg: 1695,
-      topSpeedKmh: 352,
-      topSpeedMph: 219,
-      zeroTo100: '2.9s',
-      redlineRpm: 11000,
-      gears: 7,
-      color: 0xd8dee9,
-      accentColor: 0x00d2be,
-      engineProfile: 'f1_hybrid',
-      desc: '1.6L Formula 1 E-Turbo V6 Hybrid revving to 11,000 RPM with F1 roof airbox, LMP shark fin & active DRS wing.',
-      shapeProfile: {
-        archType: 'mid_hyper',
-        width: 2.02,
-        length: 4.76,
-        hoodHeight: 0.60,
-        cabinHeight: 1.13,
-        rearHeight: 0.78,
-        wheelRadius: 0.39
-      },
-      physics: {
-        gripBase: 1.52,
-        downforceCoeff: 0.82,
-        brakeG: 1.62,
-        turnResponse: 2.95
-      }
-    },
-    {
-      id: 'revuelto',
-      brand: 'LAMBORGHINI',
-      name: '2024 REVUELTO LP1015-4',
-      category: 'SUPERCAR',
-      drivetrain: 'AWD',
-      hp: 1001,
-      weightKg: 1772,
-      topSpeedKmh: 350,
-      topSpeedMph: 217,
-      zeroTo100: '2.5s',
-      redlineRpm: 9500,
-      gears: 8,
-      color: 0xf97316,
-      accentColor: 0x18181b,
-      engineProfile: 'v12_na_screamer',
-      desc: '6.5L Naturally Aspirated V12 screaming to 9,500 RPM with Y-lights, exposed V12 bay & high hex exhausts.',
-      shapeProfile: {
-        archType: 'wedge_super',
-        width: 2.06,
-        length: 4.76,
-        hoodHeight: 0.56,
-        cabinHeight: 1.10,
-        rearHeight: 0.78,
-        wheelRadius: 0.40
-      },
-      physics: {
-        gripBase: 1.44,
-        downforceCoeff: 0.58,
-        brakeG: 1.50,
-        turnResponse: 2.82
-      }
-    },
-    {
-      id: 'sf90',
-      brand: 'FERRARI',
-      name: '2022 SF90 STRADALE',
-      category: 'SUPERCAR',
-      drivetrain: 'AWD',
-      hp: 986,
-      weightKg: 1570,
-      topSpeedKmh: 340,
-      topSpeedMph: 211,
-      zeroTo100: '2.5s',
-      redlineRpm: 8000,
-      gears: 8,
-      color: 0xd90429,
-      accentColor: 0x18181b,
-      engineProfile: 'v8_flatplane_tt',
-      desc: '4.0L Twin-Turbo V8 PHEV producing 986 HP with black two-tone cabin, flying buttresses & quad rings.',
-      shapeProfile: {
-        archType: 'wedge_super',
-        width: 1.98,
-        length: 4.70,
-        hoodHeight: 0.60,
-        cabinHeight: 1.13,
-        rearHeight: 0.76,
-        wheelRadius: 0.39
-      },
-      physics: {
-        gripBase: 1.46,
-        downforceCoeff: 0.62,
-        brakeG: 1.54,
-        turnResponse: 2.88
-      }
-    },
-    {
-      id: 'gt3_rs',
-      brand: 'PORSCHE',
-      name: '2023 911 GT3 RS (992)',
-      category: 'TRACK WEAPON',
-      drivetrain: 'RWD',
-      hp: 518,
-      weightKg: 1450,
-      topSpeedKmh: 296,
-      topSpeedMph: 184,
-      zeroTo100: '3.2s',
-      redlineRpm: 9000,
-      gears: 7,
-      color: 0x10b981,
-      accentColor: 0x111318,
-      engineProfile: 'flat6_gt3_na',
-      desc: '4.0L Flat-6 Naturally Aspirated (9,000 RPM) with carbon hood nostrils, frog-eye lamps & towering DRS swan-neck wing.',
-      shapeProfile: {
-        archType: 'porsche_911',
-        width: 1.98,
-        length: 4.58,
-        hoodHeight: 0.68,
-        cabinHeight: 1.24,
-        rearHeight: 0.82,
-        wheelRadius: 0.39
-      },
-      physics: {
-        gripBase: 1.58,
-        downforceCoeff: 0.96,
-        brakeG: 1.68,
-        turnResponse: 3.15
-      }
-    },
-    {
-      id: 'r34_gtr',
-      brand: 'NISSAN',
-      name: '2002 SKYLINE GT-R R34 V-SPEC II',
-      category: 'JDM LEGEND',
-      drivetrain: 'AWD',
-      hp: 650,
-      weightKg: 1540,
+      isRallySpec: true,
+      hp: 985,
+      weightKg: 800,
       topSpeedKmh: 315,
       topSpeedMph: 196,
-      zeroTo100: '3.3s',
-      redlineRpm: 8200,
+      zeroTo100: '2.1s',
+      redlineRpm: 9000,
       gears: 6,
-      color: 0x2563eb,
-      accentColor: 0xe2e8f0,
-      engineProfile: 'i6_big_turbo',
-      desc: '2.6L RB26DETT Twin-Turbo Inline-6 boxy JDM icon with front intercooler & 4 round afterburner taillights.',
-      shapeProfile: {
-        archType: 'jdm_box_coupe',
-        width: 1.88,
-        length: 4.60,
-        hoodHeight: 0.78,
-        cabinHeight: 1.30,
-        rearHeight: 0.84,
-        wheelRadius: 0.38
-      },
-      physics: {
-        gripBase: 1.36,
-        downforceCoeff: 0.44,
-        brakeG: 1.38,
-        turnResponse: 2.72
-      }
-    },
-    {
-      id: 'supra_rz',
-      brand: 'TOYOTA',
-      name: '1998 SUPRA RZ (A80) 620HP',
-      category: 'JDM TOUGE / DRIFT',
-      drivetrain: 'RWD',
-      hp: 620,
-      weightKg: 1490,
-      topSpeedKmh: 308,
-      topSpeedMph: 191,
-      zeroTo100: '3.6s',
-      redlineRpm: 7800,
-      gears: 6,
-      color: 0xf8fafc,
-      accentColor: 0x18181b,
-      engineProfile: 'i6_big_turbo',
-      desc: '3.0L 2JZ-GTE single-turbo legend with iconic tall rounded hoop wing & 4-pod Supra tail lamps.',
+      color: 0xdc2626,
+      accentColor: 0xf8fafc,
+      rimColor: 0xf8fafc,
+      mudflapColor: 0x11151c,
+      engineProfile: 'v8_flatplane_tt',
+      basePriceCr: 25000,
+      desc: '985 HP / 800 kg Twin-Turbo Unlimited Hillclimb monster built to destroy alpine switchbacks & dirt hairpins.',
       shapeProfile: {
         archType: 'gt_fastback',
-        width: 1.90,
-        length: 4.54,
-        hoodHeight: 0.74,
-        cabinHeight: 1.25,
-        rearHeight: 0.84,
-        wheelRadius: 0.38
-      },
-      physics: {
-        gripBase: 1.26,
-        downforceCoeff: 0.38,
-        brakeG: 1.35,
-        turnResponse: 2.85
-      }
-    },
-    {
-      id: 'm4_csl',
-      brand: 'BMW',
-      name: '2023 M4 CSL (G82)',
-      category: 'SPORTS COUPE',
-      drivetrain: 'RWD',
-      hp: 543,
-      weightKg: 1625,
-      topSpeedKmh: 307,
-      topSpeedMph: 191,
-      zeroTo100: '3.7s',
-      redlineRpm: 7200,
-      gears: 8,
-      color: 0x64748b,
-      accentColor: 0xd90429,
-      engineProfile: 'i6_big_turbo',
-      desc: '3.0L S58 Twin-Turbo Inline-6 coupe with red-outlined vertical kidney grilles, carbon roof & CSL ducktail.',
-      shapeProfile: {
-        archType: 'jdm_box_coupe',
-        width: 1.92,
-        length: 4.78,
-        hoodHeight: 0.76,
-        cabinHeight: 1.29,
+        width: 1.96,
+        length: 4.38,
+        hoodHeight: 0.70,
+        cabinHeight: 1.30,
         rearHeight: 0.86,
         wheelRadius: 0.39
       },
       physics: {
-        gripBase: 1.34,
-        downforceCoeff: 0.40,
-        brakeG: 1.42,
-        turnResponse: 2.78
+        gripBase: 1.44,
+        downforceCoeff: 0.56,
+        brakeG: 1.50,
+        turnResponse: 3.10,
+        gravelBoost: 1.30
       }
     }
   ];
@@ -401,9 +471,6 @@
     return { carbonTex: sharedCarbonTex, shadowTex: sharedShadowTex, grilleTex: sharedGrilleTex };
   }
 
-  /* ------------------------------------------------------------------------
-     SCULPTED MULTI-STATION BEVELED CHASSIS BUILDER
-     ------------------------------------------------------------------------ */
   function buildProfiledHullGeo(stations) {
     const positions = [];
     const indices = [];
@@ -477,13 +544,36 @@
     inner.position.set(x, y, z - 0.01);
     chassis.add(inner);
 
-    const flameGeo = new THREE.ConeGeometry(radius * 1.55, 1.05, 10);
+    const flameGeo = new THREE.ConeGeometry(radius * 1.65, 1.10, 10);
     flameGeo.rotateX(-Math.PI / 2);
     const flame = new THREE.Mesh(flameGeo, flameMat);
     flame.position.set(x, y, z - 0.56);
     flame.visible = false;
     chassis.add(flame);
     exhaustFlames.push(flame);
+  }
+
+  function addQuadRallyLightPod(chassis, carbonMat, headlightMat, y, z) {
+    const podBar = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.14, 0.16), carbonMat);
+    podBar.position.set(0, y, z);
+    chassis.add(podBar);
+
+    [-0.34, -0.115, 0.115, 0.34].forEach((lx) => {
+      const lampHousing = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.088, 0.095, 0.12, 16),
+        carbonMat
+      );
+      lampHousing.rotation.x = Math.PI / 2;
+      lampHousing.position.set(lx, y + 0.02, z + 0.04);
+      chassis.add(lampHousing);
+
+      const lampLens = new THREE.Mesh(
+        new THREE.CircleGeometry(0.075, 14),
+        headlightMat
+      );
+      lampLens.position.set(lx, y + 0.02, z + 0.105);
+      chassis.add(lampLens);
+    });
   }
 
   function createCarMesh(spec, customColor, isPlayerCar) {
@@ -501,7 +591,7 @@
     const bodyMat = new MatClass({
       color: bodyPaintHex,
       roughness: 0.14,
-      metalness: 0.70,
+      metalness: 0.65,
       clearcoat: 1.0,
       clearcoatRoughness: 0.04,
       envMapIntensity: 1.95,
@@ -550,16 +640,14 @@
     });
 
     const headlightMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-    const drlYellowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
     const brakelightMat = new THREE.MeshBasicMaterial({ color: 0xe11d48 });
     const flameMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
+      color: 0xf97316,
       transparent: true,
       opacity: 0.92,
       blending: THREE.AdditiveBlending
     });
 
-    // Soft Ambient Contact Shadow underneath
     const shadowPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(sp.width * 1.44, sp.length * 1.26),
       new THREE.MeshBasicMaterial({
@@ -573,23 +661,21 @@
     shadowPlane.position.y = 0.03;
     root.add(shadowPlane);
 
-    // ----------------------------------------------------------------------
-    // 1. BUILD DISTINCT LOWER BODY & CABIN SILHOUETTE BY ARCHITECTURE TYPE
-    // ----------------------------------------------------------------------
+    // 1. Sculpted Body Hull & Cabin
     const arch = sp.archType;
     let bodyStations;
     let cabinStations;
 
     if (arch === 'jdm_box_coupe') {
       bodyStations = [
-        { z: -halfL * 0.98, bottomY: 0.24, beltY: 0.68, topY: 0.82, halfW: halfW * 0.88, topHalfW: halfW * 0.80 },
-        { z: -halfL * 0.82, bottomY: 0.20, beltY: 0.74, topY: 0.86, halfW: halfW * 0.96, topHalfW: halfW * 0.84 },
-        { z: -halfL * 0.56, bottomY: 0.18, beltY: 0.78, topY: 0.86, halfW: halfW * 1.04, topHalfW: halfW * 0.88 },
-        { z: -halfL * 0.25, bottomY: 0.17, beltY: 0.76, topY: 0.84, halfW: halfW * 0.96, topHalfW: halfW * 0.85 },
-        { z: halfL * 0.22, bottomY: 0.17, beltY: 0.74, topY: 0.81, halfW: halfW * 0.96, topHalfW: halfW * 0.85 },
-        { z: halfL * 0.58, bottomY: 0.18, beltY: 0.75, topY: 0.80, halfW: halfW * 1.04, topHalfW: halfW * 0.86 },
-        { z: halfL * 0.88, bottomY: 0.19, beltY: 0.66, topY: 0.73, halfW: halfW * 0.94, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.99, bottomY: 0.20, beltY: 0.52, topY: 0.64, halfW: halfW * 0.86, topHalfW: halfW * 0.76 }
+        { z: -halfL * 0.98, bottomY: 0.24, beltY: 0.68, topY: 0.84, halfW: halfW * 0.88, topHalfW: halfW * 0.80 },
+        { z: -halfL * 0.82, bottomY: 0.20, beltY: 0.74, topY: 0.86, halfW: halfW * 0.98, topHalfW: halfW * 0.84 },
+        { z: -halfL * 0.56, bottomY: 0.19, beltY: 0.78, topY: 0.86, halfW: halfW * 1.06, topHalfW: halfW * 0.88 },
+        { z: -halfL * 0.25, bottomY: 0.18, beltY: 0.76, topY: 0.84, halfW: halfW * 0.96, topHalfW: halfW * 0.85 },
+        { z: halfL * 0.22, bottomY: 0.18, beltY: 0.74, topY: 0.81, halfW: halfW * 0.96, topHalfW: halfW * 0.85 },
+        { z: halfL * 0.58, bottomY: 0.19, beltY: 0.75, topY: 0.80, halfW: halfW * 1.06, topHalfW: halfW * 0.86 },
+        { z: halfL * 0.88, bottomY: 0.20, beltY: 0.66, topY: 0.73, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.99, bottomY: 0.21, beltY: 0.52, topY: 0.64, halfW: halfW * 0.88, topHalfW: halfW * 0.76 }
       ];
       cabinStations = [
         { z: -halfL * 0.60, bottomY: 0.80, beltY: 0.85, topY: 0.86, halfW: halfW * 0.76, topHalfW: halfW * 0.70 },
@@ -599,13 +685,13 @@
       ];
     } else if (arch === 'porsche_911') {
       bodyStations = [
-        { z: -halfL * 0.98, bottomY: 0.24, beltY: 0.64, topY: 0.76, halfW: halfW * 0.86, topHalfW: halfW * 0.74 },
-        { z: -halfL * 0.62, bottomY: 0.18, beltY: 0.76, topY: 0.85, halfW: halfW * 1.06, topHalfW: halfW * 0.88 },
-        { z: -halfL * 0.15, bottomY: 0.16, beltY: 0.72, topY: 0.80, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.28, bottomY: 0.16, beltY: 0.70, topY: 0.76, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.60, bottomY: 0.17, beltY: 0.72, topY: 0.76, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
-        { z: halfL * 0.90, bottomY: 0.18, beltY: 0.48, topY: 0.56, halfW: halfW * 0.88, topHalfW: halfW * 0.74 },
-        { z: halfL * 0.99, bottomY: 0.20, beltY: 0.36, topY: 0.44, halfW: halfW * 0.76, topHalfW: halfW * 0.62 }
+        { z: -halfL * 0.98, bottomY: 0.26, beltY: 0.64, topY: 0.76, halfW: halfW * 0.86, topHalfW: halfW * 0.74 },
+        { z: -halfL * 0.62, bottomY: 0.20, beltY: 0.76, topY: 0.85, halfW: halfW * 1.06, topHalfW: halfW * 0.88 },
+        { z: -halfL * 0.15, bottomY: 0.19, beltY: 0.72, topY: 0.80, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.28, bottomY: 0.19, beltY: 0.70, topY: 0.76, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.60, bottomY: 0.20, beltY: 0.72, topY: 0.76, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
+        { z: halfL * 0.90, bottomY: 0.21, beltY: 0.48, topY: 0.56, halfW: halfW * 0.88, topHalfW: halfW * 0.74 },
+        { z: halfL * 0.99, bottomY: 0.22, beltY: 0.36, topY: 0.44, halfW: halfW * 0.76, topHalfW: halfW * 0.62 }
       ];
       cabinStations = [
         { z: -halfL * 0.82, bottomY: 0.74, beltY: 0.78, topY: 0.80, halfW: halfW * 0.68, topHalfW: halfW * 0.56 },
@@ -616,12 +702,12 @@
     } else if (arch === 'gt_fastback') {
       bodyStations = [
         { z: -halfL * 0.98, bottomY: 0.23, beltY: 0.68, topY: 0.82, halfW: halfW * 0.88, topHalfW: halfW * 0.78 },
-        { z: -halfL * 0.60, bottomY: 0.18, beltY: 0.78, topY: 0.86, halfW: halfW * 1.05, topHalfW: halfW * 0.88 },
-        { z: -halfL * 0.15, bottomY: 0.17, beltY: 0.74, topY: 0.82, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.25, bottomY: 0.17, beltY: 0.72, topY: 0.78, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.60, bottomY: 0.18, beltY: 0.72, topY: 0.76, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
-        { z: halfL * 0.90, bottomY: 0.19, beltY: 0.54, topY: 0.62, halfW: halfW * 0.90, topHalfW: halfW * 0.76 },
-        { z: halfL * 0.99, bottomY: 0.20, beltY: 0.42, topY: 0.50, halfW: halfW * 0.78, topHalfW: halfW * 0.66 }
+        { z: -halfL * 0.60, bottomY: 0.19, beltY: 0.78, topY: 0.86, halfW: halfW * 1.05, topHalfW: halfW * 0.88 },
+        { z: -halfL * 0.15, bottomY: 0.18, beltY: 0.74, topY: 0.82, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.25, bottomY: 0.18, beltY: 0.72, topY: 0.78, halfW: halfW * 0.95, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.60, bottomY: 0.19, beltY: 0.72, topY: 0.76, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
+        { z: halfL * 0.90, bottomY: 0.20, beltY: 0.54, topY: 0.62, halfW: halfW * 0.90, topHalfW: halfW * 0.76 },
+        { z: halfL * 0.99, bottomY: 0.21, beltY: 0.42, topY: 0.50, halfW: halfW * 0.78, topHalfW: halfW * 0.66 }
       ];
       cabinStations = [
         { z: -halfL * 0.74, bottomY: 0.78, beltY: 0.82, topY: 0.84, halfW: halfW * 0.70, topHalfW: halfW * 0.58 },
@@ -632,12 +718,12 @@
     } else if (arch === 'wedge_super') {
       bodyStations = [
         { z: -halfL * 0.98, bottomY: 0.26, beltY: 0.66, topY: 0.78, halfW: halfW * 0.92, topHalfW: halfW * 0.82 },
-        { z: -halfL * 0.58, bottomY: 0.17, beltY: 0.74, topY: 0.82, halfW: halfW * 1.06, topHalfW: halfW * 0.88 },
-        { z: -halfL * 0.08, bottomY: 0.15, beltY: 0.66, topY: 0.74, halfW: halfW * 0.94, topHalfW: halfW * 0.80 },
-        { z: halfL * 0.42, bottomY: 0.15, beltY: 0.62, topY: 0.68, halfW: halfW * 0.98, topHalfW: halfW * 0.82 },
-        { z: halfL * 0.64, bottomY: 0.16, beltY: 0.60, topY: 0.64, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
-        { z: halfL * 0.92, bottomY: 0.17, beltY: 0.36, topY: 0.42, halfW: halfW * 0.88, topHalfW: halfW * 0.74 },
-        { z: halfL * 1.00, bottomY: 0.18, beltY: 0.26, topY: 0.32, halfW: halfW * 0.72, topHalfW: halfW * 0.58 }
+        { z: -halfL * 0.58, bottomY: 0.18, beltY: 0.74, topY: 0.82, halfW: halfW * 1.06, topHalfW: halfW * 0.88 },
+        { z: -halfL * 0.08, bottomY: 0.17, beltY: 0.66, topY: 0.74, halfW: halfW * 0.94, topHalfW: halfW * 0.80 },
+        { z: halfL * 0.42, bottomY: 0.17, beltY: 0.62, topY: 0.68, halfW: halfW * 0.98, topHalfW: halfW * 0.82 },
+        { z: halfL * 0.64, bottomY: 0.18, beltY: 0.60, topY: 0.64, halfW: halfW * 1.02, topHalfW: halfW * 0.84 },
+        { z: halfL * 0.92, bottomY: 0.18, beltY: 0.38, topY: 0.46, halfW: halfW * 0.88, topHalfW: halfW * 0.74 },
+        { z: halfL * 1.00, bottomY: 0.19, beltY: 0.30, topY: 0.36, halfW: halfW * 0.74, topHalfW: halfW * 0.60 }
       ];
       cabinStations = [
         { z: -halfL * 0.58, bottomY: 0.72, beltY: 0.76, topY: 0.78, halfW: halfW * 0.64, topHalfW: halfW * 0.50 },
@@ -672,13 +758,10 @@
     cabinMesh.castShadow = true;
     chassis.add(cabinMesh);
 
-    // ----------------------------------------------------------------------
-    // 1B. DETAILED COCKPIT INTERIOR (RACING BUCKET SEATS, DASH & STEERING WHEEL)
-    // ----------------------------------------------------------------------
+    // 2. Detailed Cockpit Interior & Animated Rally Steering Wheel
     const interiorMat = new THREE.MeshStandardMaterial({ color: 0x12151c, roughness: 0.75 });
-    const dashGlowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const dashGlowMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
 
-    // Dashboard binnacle & digital cluster
     const dashBinnacle = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.64, 0.16, 0.38), interiorMat);
     dashBinnacle.position.set(0, 0.74, halfL * 0.20);
     chassis.add(dashBinnacle);
@@ -687,7 +770,7 @@
     digitalCluster.position.set(0.32, 0.83, halfL * 0.12);
     chassis.add(digitalCluster);
 
-    // Driver & Passenger Carbon Racing Bucket Seats
+    // Driver & Co-Driver Bucket Seats (Two-seat Backseat Rally setup!)
     [-0.32, 0.32].forEach((seatX) => {
       const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.10), interiorMat);
       seatBack.position.set(seatX, 0.78, -0.22);
@@ -699,7 +782,6 @@
       chassis.add(headrestTrim);
     });
 
-    // Animated Driver Steering Wheel (turns in real time with vehicle steering!)
     const steeringWheel = new THREE.Group();
     steeringWheel.position.set(0.32, 0.81, halfL * 0.04);
     const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.022, 8, 20), interiorMat);
@@ -709,28 +791,27 @@
     steeringWheel.add(wheelRing, topCenterMarker, wheelHub);
     chassis.add(steeringWheel);
 
-    // Painted Roof Cap on top of the glass cabin
-    const hasCarbonOrBlackRoof = spec.id === 'gt3_rs' || spec.id === 'm4_csl' || spec.id === 'sf90';
+    // Painted Roof Cap
     const roofZLen = (cabinStations[2].z - cabinStations[1].z) * 0.95;
     const roofZMid = (cabinStations[1].z + cabinStations[2].z) * 0.5;
     const roofCap = new THREE.Mesh(
       new THREE.BoxGeometry(halfW * 1.12, 0.045, roofZLen),
-      hasCarbonOrBlackRoof ? carbonMat : bodyMat
+      spec.id === 'safari_rs' ? carbonMat : bodyMat
     );
     roofCap.position.set(0, sp.cabinHeight - 0.01, roofZMid);
     chassis.add(roofCap);
 
-    // Front Carbon Splitter & Side Skirts + Rear Carbon Diffuser
+    // Front Splitter, Side Skirts & Rear Diffuser
     const frontSplitter = new THREE.Mesh(
-      new THREE.BoxGeometry(sp.width * 0.94, 0.055, 0.36),
+      new THREE.BoxGeometry(sp.width * 0.96, 0.055, 0.36),
       carbonMat
     );
-    frontSplitter.position.set(0, 0.17, halfL * 0.92);
+    frontSplitter.position.set(0, 0.18, halfL * 0.92);
     chassis.add(frontSplitter);
 
     [-halfW * 0.96, halfW * 0.96].forEach((sx) => {
       const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, sp.length * 0.52), carbonMat);
-      skirt.position.set(sx, 0.18, 0);
+      skirt.position.set(sx, 0.19, 0);
       chassis.add(skirt);
 
       const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.10, 0.16), bodyMat);
@@ -739,428 +820,352 @@
     });
 
     const rearDiffuser = new THREE.Mesh(
-      new THREE.BoxGeometry(sp.width * 0.86, 0.22, 0.38),
+      new THREE.BoxGeometry(sp.width * 0.86, 0.22, 0.36),
       carbonMat
     );
     rearDiffuser.position.set(0, 0.24, -halfL * 0.93);
     chassis.add(rearDiffuser);
 
-    [-0.56, -0.20, 0.20, 0.56].forEach((fx) => {
-      const strake = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.42), accentMat);
-      strake.position.set(fx, 0.22, -halfL * 0.95);
-      chassis.add(strake);
-    });
+    // Rally Equipment Package for all WRC/Group A/Group B/Raid cars
+    if (spec.isRallySpec) {
+      // Hood-mounted Quad Rally Light Pod
+      addQuadRallyLightPod(chassis, carbonMat, headlightMat, 0.68, halfL * 0.88);
+
+      // Rally Roof Air Intake Scoop
+      const rallyRoofScoop = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.10, 0.36), carbonMat);
+      rallyRoofScoop.position.set(0, sp.cabinHeight + 0.05, roofZMid + 0.18);
+      chassis.add(rallyRoofScoop);
+
+      // Door Rally Number Plate Squares
+      [-halfW * 0.98, halfW * 0.98].forEach((sideX) => {
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.30, 0.42), headlightMat);
+        plate.position.set(sideX, 0.56, 0.04);
+        chassis.add(plate);
+
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.06, 0.42), accentMat);
+        trim.position.set(sideX, 0.69, 0.04);
+        chassis.add(trim);
+      });
+
+      // Flexible Rally Mudflaps behind all 4 wheel arches
+      const mudflaps = [];
+      const mudflapMat = new THREE.MeshStandardMaterial({
+        color: spec.mudflapColor || spec.accentColor,
+        roughness: 0.72,
+        side: THREE.DoubleSide
+      });
+      [
+        { x: -halfW * 0.94, z: halfL * 0.42 },
+        { x: halfW * 0.94, z: halfL * 0.42 },
+        { x: -halfW * 0.95, z: -halfL * 0.76 },
+        { x: halfW * 0.95, z: -halfL * 0.76 }
+      ].forEach((mf) => {
+        const flap = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.025), mudflapMat);
+        flap.position.set(mf.x, 0.18, mf.z);
+        flap.rotation.x = 0.18;
+        flap.userData = { baseRotX: 0.18 };
+        chassis.add(flap);
+        mudflaps.push(flap);
+      });
+      chassis.userData.mudflaps = mudflaps;
+    }
 
     const exhaustFlames = [];
     let activeWing = null;
 
-    // ----------------------------------------------------------------------
-    // 2. BESPOKE, UNMISTAKABLE CAR-BY-CAR STYLING & ACTIVE AERODYNAMICS
-    // ----------------------------------------------------------------------
-    if (spec.id === 'jesko_absolut') {
-      const noseStripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, halfL * 0.65), accentMat);
-      noseStripe.position.set(0, 0.56, halfL * 0.62);
-      noseStripe.rotation.x = 0.28;
-      chassis.add(noseStripe);
+    // 3. Bespoke Car-by-Car Aero, Grilles, Headlights & Wings
+    if (spec.id === 'raijin_gs') {
+      const hoodScoop = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.11, 0.42), bodyMat);
+      hoodScoop.position.set(0, 0.78, halfL * 0.52);
+      chassis.add(hoodScoop);
 
-      const dorsalSpine = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, halfL * 0.75), carbonMat);
-      dorsalSpine.position.set(0, 0.86, -halfL * 0.55);
-      chassis.add(dorsalSpine);
+      const scoopOpening = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.07, 0.06), darkGrilleMat);
+      scoopOpening.position.set(0, 0.79, halfL * 0.72);
+      chassis.add(scoopOpening);
 
-      [-0.38, 0.38].forEach((fx) => {
-        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.34, 1.05), accentMat);
-        fin.position.set(fx, 0.92, -halfL * 0.68);
-        fin.rotation.x = -0.14;
-        chassis.add(fin);
-      });
-
-      [-halfW * 0.68, halfW * 0.68].forEach((sx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.07, 0.36), headlightMat);
-        hl.position.set(sx, 0.48, halfL * 0.84);
-        hl.rotation.y = sx > 0 ? -0.3 : 0.3;
+      [-halfW * 0.52, halfW * 0.52].forEach((sx) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.14), headlightMat);
+        hl.position.set(sx, 0.56, halfL * 0.96);
         chassis.add(hl);
 
-        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.08), brakelightMat);
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.08), brakelightMat);
+        tl.position.set(sx * 1.15, 0.68, -halfL * 0.98);
+        chassis.add(tl);
+      });
+
+      const subaruWing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.90, 0.05, 0.28), bodyMat);
+      subaruWing.position.set(0, 1.12, -halfL * 0.88);
+      chassis.add(subaruWing);
+      [-halfW * 0.72, halfW * 0.72].forEach((px) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.26), bodyMat);
+        post.position.set(px, 0.98, -halfL * 0.88);
+        chassis.add(post);
+      });
+
+      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.50, 0.24, -halfL * 0.99, 0.105, false);
+
+    } else if (spec.id === 'kaze_rs') {
+      const evoVent = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.05, 0.36), carbonMat);
+      evoVent.position.set(0, 0.76, halfL * 0.56);
+      chassis.add(evoVent);
+
+      const intercooler = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.22, 0.08), chromeMat);
+      intercooler.position.set(0, 0.30, halfL * 0.99);
+      chassis.add(intercooler);
+
+      [-halfW * 0.62, halfW * 0.62].forEach((sx) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.11, 0.14), headlightMat);
+        hl.position.set(sx, 0.56, halfL * 0.96);
+        chassis.add(hl);
+
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.08), brakelightMat);
         tl.position.set(sx * 0.95, 0.68, -halfL * 0.98);
         chassis.add(tl);
       });
 
-      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, 0, 0.54, -halfL * 0.99, 0.11, false);
-
-    } else if (spec.id === 'chiron_ss') {
-      [-0.17, 0.17].forEach((stX) => {
-        const frontStripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, halfL * 0.85), accentMat);
-        frontStripe.position.set(stX, 0.58, halfL * 0.52);
-        frontStripe.rotation.x = 0.25;
-        chassis.add(frontStripe);
-
-        const roofStripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, roofZLen * 1.02), accentMat);
-        roofStripe.position.set(stX, sp.cabinHeight + 0.015, roofZMid);
-        chassis.add(roofStripe);
-
-        const rearStripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, halfL * 0.72), accentMat);
-        rearStripe.position.set(stX, 0.80, -halfL * 0.60);
-        chassis.add(rearStripe);
+      // Signature Evo VI Bi-Plane Rear Wing
+      const wTop = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.90, 0.045, 0.26), bodyMat);
+      wTop.position.set(0, 1.16, -halfL * 0.88);
+      const wMid = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.035, 0.20), carbonMat);
+      wMid.position.set(0, 1.02, -halfL * 0.86);
+      chassis.add(wTop, wMid);
+      [-halfW * 0.80, halfW * 0.80].forEach((px) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.32, 0.28), bodyMat);
+        post.position.set(px, 1.00, -halfL * 0.88);
+        chassis.add(post);
       });
 
-      const horseshoe = new THREE.Mesh(
-        new THREE.TorusGeometry(0.24, 0.035, 10, 20, Math.PI),
-        accentMat
-      );
-      horseshoe.position.set(0, 0.28, halfL * 0.99);
-      chassis.add(horseshoe);
+      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.52, 0.24, -halfL * 0.99, 0.105, false);
 
-      [-1, 1].forEach((side) => {
-        for (let e = 0; e < 4; e++) {
-          const eye = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.055, 0.08), headlightMat);
-          eye.position.set(side * (0.48 + e * 0.09), 0.46, halfL * 0.92);
-          chassis.add(eye);
-        }
-
-        const cArch = new THREE.Mesh(
-          new THREE.TorusGeometry(0.46, 0.035, 8, 20, Math.PI),
-          accentMat
-        );
-        cArch.rotation.y = Math.PI / 2;
-        cArch.rotation.z = -Math.PI / 2;
-        cArch.position.set(side * halfW * 0.97, 0.64, 0.05);
-        chassis.add(cArch);
+    } else if (spec.id === 'freccia_hf' || spec.id === 'ocelot_r1') {
+      // Racing Martini / PTS Center Stripes
+      [-0.12, 0.12].forEach((stX) => {
+        const st = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.02, sp.length * 0.92), accentMat);
+        st.position.set(stX, 0.84, 0);
+        chassis.add(st);
       });
 
-      // Active Deployable Bugatti Rear Airbrake Wing!
-      activeWing = new THREE.Group();
-      activeWing.position.set(0, 0.78, -halfL * 0.86);
-      const airbrakeBlade = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.84, 0.04, 0.32), carbonMat);
-      const airbrakeTrim = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.84, 0.045, 0.04), accentMat);
-      airbrakeTrim.position.z = -0.15;
-      activeWing.add(airbrakeBlade, airbrakeTrim);
-      activeWing.userData = { baseY: 0.78, deployLift: 0.20, basePitch: 0.08 };
-      chassis.add(activeWing);
+      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.16, 0.08), darkGrilleMat);
+      grille.position.set(0, 0.54, halfL * 0.99);
+      chassis.add(grille);
 
-      const bugattiLightBar = new THREE.Mesh(
-        new THREE.BoxGeometry(sp.width * 0.88, 0.065, 0.08),
-        brakelightMat
-      );
-      bugattiLightBar.position.set(0, 0.68, -halfL * 0.98);
-      chassis.add(bugattiLightBar);
-
-      [-0.62, 0.62].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.34, -halfL * 0.98, 0.065, false);
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.22, -halfL * 0.98, 0.065, false);
+      [-0.62, -0.42, 0.42, 0.62].forEach((hx) => {
+        const roundLamp = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.10, 16), headlightMat);
+        roundLamp.rotation.x = Math.PI / 2;
+        roundLamp.position.set(hx, 0.54, halfL * 0.96);
+        chassis.add(roundLamp);
       });
 
-    } else if (spec.id === 'venom_f5') {
-      const roofScoop = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.65), carbonMat);
-      roofScoop.position.set(0, sp.cabinHeight + 0.05, -0.15);
-      chassis.add(roofScoop);
-
-      const rearLouvers = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.04, 1.15), carbonMat);
-      rearLouvers.position.set(0, 0.80, -halfL * 0.56);
-      chassis.add(rearLouvers);
-
-      const ducktail = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.12, 0.16), carbonMat);
-      ducktail.position.set(0, 0.80, -halfL * 0.94);
-      ducktail.rotation.x = 0.35;
-      chassis.add(ducktail);
-
-      [-halfW * 0.68, halfW * 0.68].forEach((sx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.42), headlightMat);
-        hl.position.set(sx, 0.46, halfL * 0.86);
-        chassis.add(hl);
-
-        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.065, 0.08), brakelightMat);
-        tl.position.set(sx * 0.95, 0.66, -halfL * 0.98);
+      [-halfW * 0.62, halfW * 0.62].forEach((tx) => {
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.08), brakelightMat);
+        tl.position.set(tx, 0.62, -halfL * 0.98);
         chassis.add(tl);
       });
 
-      [-0.18, -0.06, 0.06, 0.18].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.58, -halfL * 0.98, 0.052, false);
-      });
+      const hatchWing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.84, 0.05, 0.28), spec.id === 'ocelot_r1' ? carbonMat : accentMat);
+      hatchWing.position.set(0, sp.cabinHeight + 0.06, -halfL * 0.82);
+      hatchWing.rotation.x = 0.22;
+      chassis.add(hatchWing);
 
-    } else if (spec.id === 'amg_one') {
-      const f1Scoop = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.75), carbonMat);
-      f1Scoop.position.set(0, sp.cabinHeight + 0.07, -0.05);
-      chassis.add(f1Scoop);
+      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.44, 0.25, -halfL * 0.99, 0.095, false);
 
-      const sharkFin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.36, 1.45), carbonMat);
-      sharkFin.position.set(0, sp.cabinHeight - 0.04, -halfL * 0.48);
-      chassis.add(sharkFin);
+    } else if (spec.id === 'falke_e3') {
+      // Massive Pikes Peak Snowplow Front Aero & Giant Bi-Plane Wing
+      const snowplow = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.04, 0.18, 0.48), bodyMat);
+      snowplow.position.set(0, 0.26, halfL * 0.96);
+      chassis.add(snowplow);
 
-      const sharkFinTrim = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.06, 1.45), accentMat);
-      sharkFinTrim.position.set(0, sp.cabinHeight + 0.12, -halfL * 0.48);
-      chassis.add(sharkFinTrim);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.98, 0.10, sp.length * 0.72), accentMat);
+      stripe.position.set(0, 0.46, 0);
+      chassis.add(stripe);
 
-      // Active Deployable AMG ONE DRS Rear Wing
-      activeWing = new THREE.Group();
-      activeWing.position.set(0, 0.92, -halfL * 0.88);
-      const wingBlade = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.92, 0.05, 0.30), carbonMat);
-      activeWing.add(wingBlade);
-      [-halfW * 0.92, halfW * 0.92].forEach((wx) => {
-        const endplate = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.24, 0.38), accentMat);
-        endplate.position.set(wx, -0.02, 0);
-        activeWing.add(endplate);
-      });
-      activeWing.userData = { baseY: 0.92, deployLift: 0.14, basePitch: 0.16 };
-      chassis.add(activeWing);
-
-      [-halfW * 0.92, halfW * 0.92].forEach((wx) => {
-        const louver = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.45), carbonMat);
-        louver.position.set(wx * 0.82, 0.69, halfL * 0.58);
-        chassis.add(louver);
-
-        const tealSkirt = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.035, sp.length * 0.50), accentMat);
-        tealSkirt.position.set(wx * 1.04, 0.21, 0);
-        chassis.add(tealSkirt);
-
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.065, 0.28), headlightMat);
-        hl.position.set(wx * 0.75, 0.48, halfL * 0.86);
+      [-halfW * 0.62, halfW * 0.62].forEach((hx) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.12), headlightMat);
+        hl.position.set(sxOrVal(hx), 0.58, halfL * 0.96);
         chassis.add(hl);
+      });
 
-        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.08), brakelightMat);
-        tl.position.set(wx * 0.72, 0.68, -halfL * 0.98);
+      function sxOrVal(v) { return v; }
+
+      const tailBar = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.12, 0.08), brakelightMat);
+      tailBar.position.set(0, 0.68, -halfL * 0.98);
+      chassis.add(tailBar);
+
+      const s1Wing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.06, 0.06, 0.42), accentMat);
+      s1Wing.position.set(0, 1.32, -halfL * 0.90);
+      s1Wing.rotation.x = 0.18;
+      chassis.add(s1Wing);
+      [-halfW * 0.95, halfW * 0.95].forEach((epX) => {
+        const ep = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.52, 0.48), bodyMat);
+        ep.position.set(epX, 1.08, -halfL * 0.90);
+        chassis.add(ep);
+      });
+
+      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.54, 0.24, -halfL * 0.99, 0.12, false);
+
+    } else if (spec.id === 'orso_4') {
+      const louvers = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.05, 0.95), carbonMat);
+      louvers.position.set(0, 0.80, -halfL * 0.52);
+      chassis.add(louvers);
+
+      [-0.64, -0.44, 0.44, 0.64].forEach((hx) => {
+        const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.12, 16), headlightMat);
+        lamp.rotation.x = Math.PI / 2;
+        lamp.position.set(hx, 0.48, halfL * 0.94);
+        chassis.add(lamp);
+      });
+
+      [-halfW * 0.62, halfW * 0.62].forEach((tx) => {
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.10, 0.08), brakelightMat);
+        tl.position.set(tx, 0.66, -halfL * 0.98);
         chassis.add(tl);
       });
 
-      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, 0, 0.52, -halfL * 0.98, 0.11, false);
-      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, 0, 0.36, -halfL * 0.98, 0.055, false);
+      const wing037 = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.90, 0.045, 0.28), bodyMat);
+      wing037.position.set(0, 0.98, -halfL * 0.88);
+      chassis.add(wing037);
 
-    } else if (spec.id === 'revuelto') {
-      const v12Bay = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.12, 1.18), carbonMat);
-      v12Bay.position.set(0, 0.78, -halfL * 0.52);
-      chassis.add(v12Bay);
-
-      [-0.48, 0.48].forEach((bx) => {
-        const buttress = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 1.25), bodyMat);
-        buttress.position.set(bx, 0.92, -halfL * 0.48);
-        buttress.rotation.x = -0.18;
-        chassis.add(buttress);
+      [-0.45, 0.45].forEach((ex) => {
+        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, ex, 0.30, -halfL * 0.98, 0.085, false);
       });
 
-      [-halfW * 0.92, halfW * 0.92].forEach((ix) => {
-        const intake = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.42, 0.55), carbonMat);
-        intake.position.set(ix, 0.52, -halfL * 0.22);
-        chassis.add(intake);
+    } else if (spec.id === 'kumo_r1') {
+      [-halfW * 0.55, halfW * 0.55].forEach((sx) => {
+        const innerLamp = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 16), headlightMat);
+        innerLamp.rotation.x = Math.PI / 2;
+        innerLamp.position.set(sx * 0.65, 0.54, halfL * 0.94);
+        const outerLamp = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.14, 16), headlightMat);
+        outerLamp.rotation.x = Math.PI / 2;
+        outerLamp.position.set(sx * 1.05, 0.54, halfL * 0.92);
+        chassis.add(innerLamp, outerLamp);
+
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.11, 0.08), brakelightMat);
+        tl.position.set(sx * 1.05, 0.68, -halfL * 0.98);
+        chassis.add(tl);
       });
 
-      // Active Lamborghini Rear Wing
-      activeWing = new THREE.Group();
-      activeWing.position.set(0, 0.80, -halfL * 0.90);
-      const lamboWing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.04, 0.24), carbonMat);
-      activeWing.add(lamboWing);
-      activeWing.userData = { baseY: 0.80, deployLift: 0.12, basePitch: 0.12 };
-      chassis.add(activeWing);
-
-      [-halfW * 0.68, halfW * 0.68].forEach((sx) => {
-        const yFront1 = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.08), headlightMat);
-        yFront1.position.set(sx, 0.40, halfL * 0.92);
-        yFront1.rotation.z = sx > 0 ? 0.35 : -0.35;
-        chassis.add(yFront1);
-
-        const yRear1 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.055, 0.08), brakelightMat);
-        yRear1.position.set(sx * 0.95, 0.72, -halfL * 0.98);
-        yRear1.rotation.z = sx > 0 ? -0.25 : 0.25;
-        chassis.add(yRear1);
-
-        const yRear2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.055, 0.08), brakelightMat);
-        yRear2.position.set(sx * 0.95, 0.64, -halfL * 0.98);
-        yRear2.rotation.z = sx > 0 ? 0.35 : -0.35;
-        chassis.add(yRear2);
+      const st205Wing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.88, 0.05, 0.26), accentMat);
+      st205Wing.position.set(0, 1.08, -halfL * 0.88);
+      chassis.add(st205Wing);
+      [-0.58, 0.58].forEach((px) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.24), bodyMat);
+        post.position.set(px, 0.94, -halfL * 0.88);
+        chassis.add(post);
       });
 
-      [-0.22, 0.22].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.68, -halfL * 0.98, 0.095, true);
-      });
+      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.50, 0.25, -halfL * 0.99, 0.11, false);
 
-    } else if (spec.id === 'sf90') {
-      const engineGlass = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.06, 0.98), glassMat);
-      engineGlass.position.set(0, 0.80, -halfL * 0.50);
-      chassis.add(engineGlass);
+    } else if (spec.id === 'safari_rs') {
+      // Roof Rally Raid Spare Basket & Quad LED Bar
+      const roofBasket = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.10, 1.08), carbonMat);
+      roofBasket.position.set(0, sp.cabinHeight + 0.05, roofZMid - 0.1);
+      chassis.add(roofBasket);
 
-      [-0.46, 0.46].forEach((bx) => {
-        const buttress = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 1.15), bodyMat);
-        buttress.position.set(bx, 0.90, -halfL * 0.46);
-        buttress.rotation.x = -0.20;
-        chassis.add(buttress);
-      });
-
-      [-halfW * 0.68, halfW * 0.68].forEach((sx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.055, 0.24), headlightMat);
-        hl.position.set(sx, 0.44, halfL * 0.88);
-        chassis.add(hl);
-      });
-
-      [-0.68, -0.46, 0.46, 0.68].forEach((tx) => {
-        const ring = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.11, 0.08), brakelightMat);
-        ring.position.set(tx, 0.68, -halfL * 0.98);
-        chassis.add(ring);
-      });
-
-      [-0.24, 0.24].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.48, -halfL * 0.98, 0.08, false);
-      });
-
-    } else if (spec.id === 'gt3_rs') {
-      const carbonHood = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.58, 0.03, halfL * 0.58), carbonMat);
-      carbonHood.position.set(0, 0.66, halfL * 0.62);
-      carbonHood.rotation.x = 0.22;
-      chassis.add(carbonHood);
+      const ledBar = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.07, 0.08), headlightMat);
+      ledBar.position.set(0, sp.cabinHeight + 0.08, roofZMid + 0.45);
+      chassis.add(ledBar);
 
       [-halfW * 0.68, halfW * 0.68].forEach((fx) => {
         const fenderHump = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.85, 14), bodyMat);
         fenderHump.rotation.x = Math.PI / 2;
         fenderHump.scale.set(1.0, 0.65, 1.0);
-        fenderHump.position.set(fx, 0.64, halfL * 0.64);
+        fenderHump.position.set(fx, 0.66, halfL * 0.64);
         chassis.add(fenderHump);
 
         const frogLight = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), headlightMat);
         frogLight.scale.set(0.95, 0.65, 1.15);
-        frogLight.position.set(fx, 0.66, halfL * 0.86);
+        frogLight.position.set(fx, 0.68, halfL * 0.86);
         frogLight.rotation.x = 0.35;
         chassis.add(frogLight);
-
-        const louver = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.04, 0.38), carbonMat);
-        louver.position.set(fx, 0.77, halfL * 0.56);
-        chassis.add(louver);
       });
 
-      // Towering Swan-Neck GT3 RS DRS Rear Wing (Active DRS + Airbrake Flap!)
-      const wingY = sp.cabinHeight + 0.14;
       activeWing = new THREE.Group();
-      activeWing.position.set(0, wingY, -halfL * 0.88);
-      const mainWing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.98, 0.05, 0.36), carbonMat);
-      mainWing.castShadow = true;
-      activeWing.add(mainWing);
-      activeWing.userData = { baseY: wingY, deployLift: 0.0, basePitch: 0.18 };
+      activeWing.position.set(0, sp.cabinHeight + 0.04, -halfL * 0.86);
+      const wingBlade = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.90, 0.05, 0.30), carbonMat);
+      activeWing.add(wingBlade);
+      activeWing.userData = { baseY: sp.cabinHeight + 0.04, deployLift: 0.0, basePitch: 0.16 };
       chassis.add(activeWing);
 
-      [-halfW * 0.98, halfW * 0.98].forEach((epX) => {
-        const endplate = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.38, 0.48), carbonMat);
-        endplate.position.set(epX, wingY - 0.04, -halfL * 0.88);
-        chassis.add(endplate);
-      });
-
-      [-0.36, 0.36].forEach((pylonX) => {
-        const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.58, 0.22), carbonMat);
-        pylon.position.set(pylonX, wingY - 0.26, -halfL * 0.82);
-        pylon.rotation.x = -0.15;
-        chassis.add(pylon);
-      });
-
-      const porscheLightStrip = new THREE.Mesh(
-        new THREE.BoxGeometry(sp.width * 0.86, 0.055, 0.08),
-        brakelightMat
-      );
+      const porscheLightStrip = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.055, 0.08), brakelightMat);
       porscheLightStrip.position.set(0, 0.68, -halfL * 0.98);
       chassis.add(porscheLightStrip);
 
-      [-0.12, 0.12].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.28, -halfL * 0.98, 0.075, false);
+      [-0.22, 0.22].forEach((exX) => {
+        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.28, -halfL * 0.98, 0.08, false);
       });
 
-    } else if (spec.id === 'r34_gtr') {
-      const intercooler = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.24, 0.08), chromeMat);
-      intercooler.position.set(0, 0.32, halfL * 0.99);
-      chassis.add(intercooler);
+    } else if (spec.id === 'chiron_ss') {
+      // AUDI SPORT QUATTRO S1 E2 GROUP B (BLITZ S1)
+      const snowplowApron = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.04, 0.22, 0.44), bodyMat);
+      snowplowApron.position.set(0, 0.24, halfL * 0.94);
+      chassis.add(snowplowApron);
 
-      const upperGrille = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.11, 0.08), darkGrilleMat);
-      upperGrille.position.set(0, 0.56, halfL * 0.99);
-      chassis.add(upperGrille);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.98, 0.06, sp.length * 0.76), accentMat);
+      stripe.position.set(0, 0.62, 0);
+      chassis.add(stripe);
 
-      [-halfW * 0.64, halfW * 0.64].forEach((hx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.13, 0.14), headlightMat);
-        hl.position.set(hx, 0.58, halfL * 0.96);
+      [-halfW * 0.72, halfW * 0.72].forEach((fx) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.12), headlightMat);
+        hl.position.set(fx, 0.56, halfL * 0.98);
         chassis.add(hl);
       });
 
-      [-1, 1].forEach((side) => {
-        const outerRing = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 20), brakelightMat);
-        outerRing.rotation.x = Math.PI / 2;
-        outerRing.position.set(side * 0.64, 0.68, -halfL * 0.98);
-        chassis.add(outerRing);
+      activeWing = new THREE.Group();
+      activeWing.position.set(0, 1.24, -halfL * 0.88);
+      const upperDeck = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.98, 0.05, 0.44), bodyMat);
+      const lowerDeck = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.94, 0.04, 0.30), carbonMat);
+      lowerDeck.position.set(0, -0.18, -0.02);
+      activeWing.add(upperDeck, lowerDeck);
+      [-halfW * 0.82, halfW * 0.82].forEach((px) => {
+        const endPlate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.46, 0.50), accentMat);
+        endPlate.position.set(px, -0.16, 0);
+        activeWing.add(endPlate);
+      });
+      activeWing.userData = { baseY: 1.24, deployLift: 0.0, basePitch: 0.18 };
+      chassis.add(activeWing);
 
-        const innerRing = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.08, 20), brakelightMat);
-        innerRing.rotation.x = Math.PI / 2;
-        innerRing.position.set(side * 0.42, 0.66, -halfL * 0.98);
-        chassis.add(innerRing);
+      const tailBar = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.86, 0.09, 0.08), brakelightMat);
+      tailBar.position.set(0, 0.68, -halfL * 0.98);
+      chassis.add(tailBar);
+
+      [-0.48, -0.34].forEach((exX) => {
+        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.28, -halfL * 0.98, 0.07, false);
       });
 
-      const r34Wing = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.88, 0.045, 0.28), bodyMat);
-      r34Wing.position.set(0, 1.06, -halfL * 0.88);
-      chassis.add(r34Wing);
+    } else {
+      // SUZUKI ESCUDO TWIN-TURBO PIKES PEAK (FUJI PP)
+      const hillclimbSplitter = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.10, 0.07, 0.62), carbonMat);
+      hillclimbSplitter.position.set(0, 0.16, halfL * 0.98);
+      chassis.add(hillclimbSplitter);
 
-      [-0.64, 0.64].forEach((sx) => {
-        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.24, 0.26), bodyMat);
-        strut.position.set(sx, 0.94, -halfL * 0.88);
-        chassis.add(strut);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.42, 0.03, sp.length * 0.72), accentMat);
+      stripe.position.set(0, 0.75, 0.06);
+      chassis.add(stripe);
+
+      activeWing = new THREE.Group();
+      activeWing.position.set(0, 1.48, -halfL * 0.86);
+      const biplaneTop = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.12, 0.05, 0.56), accentMat);
+      const biplaneLow = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 1.06, 0.04, 0.36), carbonMat);
+      biplaneLow.position.set(0, -0.26, 0);
+      activeWing.add(biplaneTop, biplaneLow);
+      [-halfW * 0.96, halfW * 0.96].forEach((px) => {
+        const endPlate = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.76, 0.64), bodyMat);
+        endPlate.position.set(px, -0.28, 0);
+        activeWing.add(endPlate);
       });
+      activeWing.userData = { baseY: 1.48, deployLift: 0.04, basePitch: 0.22 };
+      chassis.add(activeWing);
 
-      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.52, 0.28, -halfL * 0.99, 0.115, false);
-
-    } else if (spec.id === 'supra_rz') {
-      const intercooler = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.22, 0.08), chromeMat);
-      intercooler.position.set(0, 0.30, halfL * 0.99);
-      chassis.add(intercooler);
-
-      [-halfW * 0.62, halfW * 0.62].forEach((hx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.11, 0.22), headlightMat);
-        hl.position.set(hx, 0.54, halfL * 0.92);
+      [-halfW * 0.68, halfW * 0.68].forEach((sx) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.10, 0.22), headlightMat);
+        hl.position.set(sx, 0.52, halfL * 0.88);
         chassis.add(hl);
-
-        const tailHousing = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.07), carbonMat);
-        tailHousing.position.set(hx * 0.88, 0.66, -halfL * 0.98);
-        chassis.add(tailHousing);
-      });
-
-      [-0.68, -0.52, -0.36, 0.36, 0.52, 0.68].forEach((tx) => {
-        const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.09, 14), brakelightMat);
-        pod.rotation.x = Math.PI / 2;
-        pod.position.set(tx, 0.66, -halfL * 0.98);
-        chassis.add(pod);
-      });
-
-      const hoopArch = new THREE.Mesh(
-        new THREE.TorusGeometry(sp.width * 0.43, 0.05, 12, 28, Math.PI),
-        bodyMat
-      );
-      hoopArch.scale.set(1.0, 0.46, 1.35);
-      hoopArch.position.set(0, 0.80, -halfL * 0.88);
-      chassis.add(hoopArch);
-
-      addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, -0.50, 0.28, -halfL * 0.99, 0.115, false);
-
-    } else if (spec.id === 'm4_csl') {
-      [-0.16, 0.16].forEach((kx) => {
-        const kidneyFrame = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.08), accentMat);
-        kidneyFrame.position.set(kx, 0.44, halfL * 0.99);
-        chassis.add(kidneyFrame);
-
-        const kidneyInner = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.33, 0.09), darkGrilleMat);
-        kidneyInner.position.set(kx, 0.44, halfL * 0.99);
-        chassis.add(kidneyInner);
-
-        const hoodStripe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, halfL * 0.52), carbonMat);
-        hoodStripe.position.set(kx * 1.15, 0.77, halfL * 0.62);
-        hoodStripe.rotation.x = 0.08;
-        chassis.add(hoodStripe);
-      });
-
-      [-halfW * 0.65, halfW * 0.65].forEach((sx) => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.10, 0.16), drlYellowMat);
-        hl.position.set(sx, 0.56, halfL * 0.95);
-        chassis.add(hl);
-
-        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.08), brakelightMat);
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.08, 0.08), brakelightMat);
         tl.position.set(sx * 0.92, 0.68, -halfL * 0.98);
         chassis.add(tl);
       });
-
-      const cslDucktail = new THREE.Mesh(new THREE.BoxGeometry(sp.width * 0.84, 0.13, 0.18), bodyMat);
-      cslDucktail.position.set(0, 0.88, -halfL * 0.94);
-      cslDucktail.rotation.x = 0.38;
-      chassis.add(cslDucktail);
-
-      [-0.44, -0.30, 0.30, 0.44].forEach((exX) => {
-        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.27, -halfL * 0.99, 0.058, false);
+      [-0.36, 0.36].forEach((exX) => {
+        addExhaustPipeWithFlame(chassis, exhaustFlames, chromeMat, flameMat, exX, 0.32, -halfL * 0.99, 0.09, false);
       });
     }
 
@@ -1176,10 +1181,8 @@
       chassis.add(backfireLight);
     }
 
-    // ----------------------------------------------------------------------
-    // 3. 4 HIGH-DETAIL ROUNDED WHEEL ASSEMBLIES WITH GLOWING BRAKE ROTORS
-    // ----------------------------------------------------------------------
-    const wheelRadius = sp.wheelRadius || 0.39;
+    // 4. 4 Rally/Sport Wheels with Glowing Brake Rotors
+    const wheelRadius = sp.wheelRadius || 0.38;
     const wheelWidth = 0.32;
     const tireMat = new THREE.MeshStandardMaterial({
       color: 0x121418,
@@ -1187,10 +1190,10 @@
       metalness: 0.1
     });
     const rimMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      roughness: 0.14,
-      metalness: 0.92,
-      envMapIntensity: 1.85
+      color: spec.rimColor || 0xe2e8f0,
+      roughness: 0.16,
+      metalness: 0.85,
+      envMapIntensity: 1.8
     });
     const rotorMat = new THREE.MeshStandardMaterial({
       color: 0x64748b,
@@ -1223,7 +1226,7 @@
 
       const spinGroup = new THREE.Group();
 
-      const tireGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth * 0.82, 28);
+      const tireGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth * 0.82, 26);
       tireGeo.rotateZ(Math.PI / 2);
       const tire = new THREE.Mesh(tireGeo, tireMat);
       tire.castShadow = true;
@@ -1231,7 +1234,7 @@
 
       [-wheelWidth * 0.36, wheelWidth * 0.36].forEach((sideOffset) => {
         const sidewall = new THREE.Mesh(
-          new THREE.TorusGeometry(wheelRadius * 0.84, wheelRadius * 0.16, 10, 24),
+          new THREE.TorusGeometry(wheelRadius * 0.84, wheelRadius * 0.16, 10, 22),
           tireMat
         );
         sidewall.rotation.y = Math.PI / 2;
@@ -1239,7 +1242,7 @@
         spinGroup.add(sidewall);
       });
 
-      const rimGeo = new THREE.CylinderGeometry(wheelRadius * 0.68, wheelRadius * 0.68, wheelWidth * 0.86, 20);
+      const rimGeo = new THREE.CylinderGeometry(wheelRadius * 0.68, wheelRadius * 0.68, wheelWidth * 0.86, 18);
       rimGeo.rotateZ(Math.PI / 2);
       const rim = new THREE.Mesh(rimGeo, rimMat);
       spinGroup.add(rim);
@@ -1249,12 +1252,12 @@
       const rotor = new THREE.Mesh(rotorGeo, rotorMat);
       spinGroup.add(rotor);
 
-      for (let s = 0; s < 5; s++) {
+      for (let s = 0; s < 6; s++) {
         const spoke = new THREE.Mesh(
-          new THREE.BoxGeometry(wheelWidth * 0.88, wheelRadius * 1.28, 0.042),
+          new THREE.BoxGeometry(wheelWidth * 0.88, wheelRadius * 1.28, 0.038),
           rimMat
         );
-        spoke.rotation.x = (s / 5) * Math.PI;
+        spoke.rotation.x = (s / 6) * Math.PI;
         spinGroup.add(spoke);
       }
 
@@ -1274,12 +1277,13 @@
       steeringWheel,
       activeWing,
       rotorMat,
-      wheels
+      wheels,
+      mudflaps: chassis.userData.mudflaps || []
     };
   }
 
   /* ------------------------------------------------------------------------
-     14 TWO-WAY HIGHWAY TRAFFIC CARS WITH COLLISION DETECTION
+     14 RALLY RIVALS & STAGE TRAFFIC WITH COLLISION RESPONSE
      ------------------------------------------------------------------------ */
   class AIDrivatarManager {
     constructor(scene, world) {
@@ -1303,7 +1307,7 @@
           road: road,
           dir: dir,
           t: ((i + 1) / 15) % 1,
-          speed: 30 + (i % 5) * 6,
+          speed: 26 + (i % 5) * 5,
           laneOffset: dir * (road.width * 0.24),
           x: 0,
           y: 0,
@@ -1338,7 +1342,6 @@
           d.built.wheels[w].spinGroup.rotation.x += d.speed * dt * 2.2;
         }
 
-        // Check car-to-car collision with player vehicle
         if (playerVehicle) {
           const dx = playerVehicle.x - d.x;
           const dz = playerVehicle.z - d.z;

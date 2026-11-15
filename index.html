@@ -63,13 +63,49 @@
     <!-- TOP LEFT: Single Game Menu Button + Quick Calculator Boss-Key Button -->
     <div class="hud-top-left" style="display: flex; gap: 8px;">
       <button class="menu-trigger-btn" id="btn-open-menu">
-        <span>⚙️ MENU & GARAGE</span>
+        <span>⚙️ GARAGE & STAGES</span>
         <kbd>ESC</kbd>
       </button>
       <button class="menu-trigger-btn" id="btn-lock-calc" title="Return to Calculator Disguise [`]">
         <span>🧮</span>
         <kbd>`</kbd>
       </button>
+    </div>
+
+    <!-- TOP CENTER: Backseat Rally Co-Driver Pacenote Banner -->
+    <div id="pacenote-hud" class="pacenote-hud">
+      <div class="pacenote-icon-box" id="pacenote-icon">▲</div>
+      <div class="pacenote-text-group">
+        <div class="pacenote-callout" id="pacenote-callout">STRAIGHT</div>
+        <div class="pacenote-meta">
+          <span id="pacenote-dist">CLEAR AHEAD</span>
+          <span class="pacenote-badge" id="pacenote-sev">6</span>
+        </div>
+      </div>
+      <button class="pacenote-voice-btn" id="btn-toggle-voice" title="Toggle Co-Driver Voice [V]">🔊</button>
+    </div>
+
+    <!-- TOP RIGHT: Stage Rally Timer, CR Currency & Hardware Tier HUD -->
+    <div class="hud-top-right">
+      <div class="stage-hud-card" id="stage-hud">
+        <div class="stage-top-row">
+          <span class="cr-pill" id="hud-cr-pill">💰 15,000 CR</span>
+          <span class="hw-pill" id="hud-hw-pill" title="Click to cycle Hardware Graphics Preset">GPU: AUTO • 60 FPS</span>
+        </div>
+        <div class="stage-run-row">
+          <div class="stage-timer-box">
+            <span class="stage-label" id="hud-stage-name">PINE FOREST STAGE</span>
+            <strong class="stage-clock" id="hud-stage-timer">00:00.00</strong>
+          </div>
+          <div class="stage-cp-box">
+            <span id="hud-stage-cp">CP 0/12</span>
+            <span id="hud-stage-medal-target">GOLD --:--</span>
+          </div>
+        </div>
+        <div class="stage-btn-row">
+          <button class="stage-btn" id="btn-start-stage">🏁 START STAGE RUN</button>
+        </div>
+      </div>
     </div>
 
     <!-- BOTTOM LEFT: Road Radar Minimap -->
@@ -160,16 +196,27 @@
     <div class="fh-modal-card">
       <div class="modal-header">
         <div class="modal-tabs">
-          <button class="menu-tab-btn active" data-tab="tab-garage">GARAGE (10 CARS)</button>
-          <button class="menu-tab-btn" data-tab="tab-settings">PHYSICS & SETTINGS</button>
-          <button class="menu-tab-btn" data-tab="tab-world">ROADS & TELEPORT</button>
+          <button class="menu-tab-btn active" data-tab="tab-garage">RALLY GARAGE (10)</button>
+          <button class="menu-tab-btn" data-tab="tab-settings">HARDWARE & PHYSICS</button>
+          <button class="menu-tab-btn" data-tab="tab-world">RALLY STAGES (5)</button>
         </div>
-        <button class="modal-close-btn" id="btn-close-menu">RESUME DRIVING [ESC]</button>
+        <button class="modal-close-btn" id="btn-close-menu">RESUME STAGE [ESC]</button>
       </div>
 
       <div class="modal-body">
-        <!-- TAB 1: GARAGE & REAL-WORLD SPECS -->
+        <!-- TAB 1: GARAGE, CR PROGRESSION, UPGRADES & PROMO CODES -->
         <div class="menu-tab-pane active" id="tab-garage">
+          <div class="garage-economy-bar">
+            <div class="economy-cr-box">
+              <span class="economy-label">RALLY BANK:</span>
+              <strong class="economy-cr-val" id="garage-cr-balance">15,000 CR</strong>
+            </div>
+            <div class="promo-redeem-box">
+              <input type="text" id="promo-code-input" class="promo-input" placeholder="PROMO CODE (BACKSEAT / 1903)" maxlength="24" />
+              <button class="promo-btn" id="btn-redeem-promo">REDEEM</button>
+            </div>
+          </div>
+
           <div class="garage-grid" id="garage-car-grid"></div>
 
           <div class="garage-customizer-row">
@@ -190,6 +237,18 @@
         <!-- TAB 2: PHYSICS, ASSISTS & SETTINGS -->
         <div class="menu-tab-pane" id="tab-settings">
           <div class="settings-grid">
+            <div class="setting-card setting-card-hw">
+              <h4>HARDWARE AUTO-DETECTOR & ARRANGEABLE GRAPHICS</h4>
+              <p id="hw-detect-details">Detecting WebGL GPU, CPU threads & RAM to calibrate shadows, PBR reflections, and foliage density automatically (3rd-Gen i5 & Mobile ready).</p>
+              <button class="setting-action-btn" id="btn-setting-gfx">GRAPHICS: AUTO (HIGH)</button>
+              <div class="gfx-arrange-grid">
+                <button class="gfx-sub-btn" id="btn-gfx-res">RES: 100%</button>
+                <button class="gfx-sub-btn" id="btn-gfx-foliage">TREES: 75%</button>
+                <button class="gfx-sub-btn" id="btn-gfx-shadows">SHADOWS: ON</button>
+                <button class="gfx-sub-btn" id="btn-gfx-draw">DRAW: 7.5KM</button>
+              </div>
+            </div>
+
             <div class="setting-card">
               <h4>HANDLING & TRACTION DYNAMICS</h4>
               <p>Switch between Simulation Grip (TCS active, maximum apex stability), Sport (threshold slip), and Drift Mode (full oversteer).</p>
@@ -239,15 +298,15 @@
           </div>
         </div>
 
-        <!-- TAB 3: WORLD ROADS & TELEPORT -->
+        <!-- TAB 3: BACKSEAT RALLY STAGES & MEDAL TARGETS -->
         <div class="menu-tab-pane" id="tab-world">
           <p style="margin-bottom: 14px; color: #94a3b8; font-size: 0.82rem;">
-            Select any road section below to teleport immediately (choose <strong>Interstate Top-Speed Straight</strong> to test 450–531 KM/H hypercar runs):
+            Choose any of the <strong>5 Backseat Rally Stages</strong> to teleport directly to the start gate. Beat the 12-checkpoint run before Bronze/Silver/Gold/Platinum medal times to win <strong>CR</strong> rewards:
           </p>
           <div class="fast-travel-grid" id="fast-travel-grid"></div>
           <div style="margin-top: 18px;">
             <button class="setting-action-btn" id="btn-setting-reset" style="width: 100%;">
-              🔄 RESET VEHICLE ONTO NEAREST ROAD LANE [R]
+              🔄 RESET VEHICLE ONTO NEAREST STAGE LINE [R]
             </button>
           </div>
         </div>
@@ -255,8 +314,9 @@
     </div>
   </div>
 
-  <!-- Three.js & Pure Driving Simulator Modules -->
+  <!-- Three.js & Backseat Rally Engine Modules -->
   <script src="vendor/three.min.js"></script>
+  <script src="js/hardware.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/world.js"></script>
   <script src="js/cars.js"></script>

@@ -66,13 +66,21 @@
       this.isGrounded = true;
       this.surfaceType = 'TARMAC';
 
-      // Boost / ERS Overtake
+      // Boost / ERS Overtake & Rally Upgrade Level (1..3)
       this.nitro = 1.0;
       this.isBoosting = false;
+      this.upgradeLevel = 1;
     }
 
-    setCarSpec(newSpec) {
+    setUpgradeLevel(level) {
+      this.upgradeLevel = Math.max(1, Math.min(3, level || 1));
+    }
+
+    setCarSpec(newSpec, upgradeLevel) {
       this.spec = newSpec;
+      if (upgradeLevel !== undefined) {
+        this.setUpgradeLevel(upgradeLevel);
+      }
       if (typeof this.gear === 'number' && this.gear > newSpec.gears) {
         this.gear = newSpec.gears;
       }
@@ -188,10 +196,14 @@
       const terrainPitch = Math.max(-0.40, Math.min(0.40, Math.atan2(hFront - hBack, sampleDist * 2)));
       const terrainRoll = Math.max(-0.36, Math.min(0.36, Math.atan2(hRight - hLeft, sampleDist * 2)));
 
-      // Keep car planted on tarmac and normal terrain slopes; NEVER allow this.y < groundY (zero sinking!)
-      const onTarmac = surfInfo.surface === 'TARMAC';
+      // Keep car planted on all rally stage surfaces & terrain slopes; NEVER allow this.y < groundY (zero sinking!)
+      const onStageRoad =
+        surfInfo.surface === 'TARMAC' ||
+        surfInfo.surface === 'GRAVEL' ||
+        surfInfo.surface === 'MUD' ||
+        surfInfo.surface === 'SNOW';
       const wheelbaseGroundY = Math.max(groundY, (hFront + hBack) * 0.5, (hRight + hLeft) * 0.5);
-      if (onTarmac || (this.y <= wheelbaseGroundY + 2.2 && this.vy <= 4.5)) {
+      if (onStageRoad || (this.y <= wheelbaseGroundY + 2.2 && this.vy <= 4.5)) {
         this.isGrounded = true;
         this.y = wheelbaseGroundY;
         this.vy = 0;
@@ -243,29 +255,36 @@
       }
       this.updateTransmissionAndRPM(input.throttle, input.brake);
 
-      // 6. Aerodynamic Downforce, Real 0-100 km/h Launch & Exact Real-World Top Speed Calibration
-      const vMaxMps = (spec.topSpeedKmh / 3.6) * (this.isBoosting ? 1.06 : 1.0);
-      // Aerodynamic downforce increases tire normal load with speed^2
+      // 6. Aerodynamic Downforce, Rally Upgrades & Surface-Calibrated Traction
+      const upgMult = 1.0 + (this.upgradeLevel - 1) * 0.10;
+      const upgGripMult = 1.0 + (this.upgradeLevel - 1) * 0.06;
+      const vMaxMps = (spec.topSpeedKmh / 3.6) * (1.0 + (this.upgradeLevel - 1) * 0.03) * (this.isBoosting ? 1.06 : 1.0);
       const aeroDownforceAccel = phys.downforceCoeff * Math.pow(Math.min(this.speedMps, 160) / 45, 2) * 4.5;
 
-      // Exact 0-100 km/h launch acceleration calibrated from spec.zeroTo100 (e.g. 2.3s -> 12.1 m/s^2, 3.6s -> 7.7 m/s^2)
       const targetZeroTo100Sec = parseFloat(spec.zeroTo100) || 2.8;
-      const launchTargetAccel = (27.778 / targetZeroTo100Sec) * 1.06 * (this.isBoosting ? 1.16 : 1.0);
+      const launchTargetAccel = (27.778 / targetZeroTo100Sec) * 1.06 * upgMult * (this.isBoosting ? 1.16 : 1.0);
 
-      // Power-to-weight upper-gear acceleration calibrated from real HP and weightKg
-      const hpToWeightRatio = spec.hp / mass; // e.g., Jesko = 1.15 HP/kg, GT3 RS = 0.357 HP/kg
+      const hpToWeightRatio = (spec.hp * upgMult) / mass;
       const highSpeedPullAccel = (8.2 + hpToWeightRatio * 9.5) * (this.isBoosting ? 1.16 : 1.0);
 
-      // Torque curve across RPM band (strong midrange + high-RPM power plateau up to redline)
       const torqueCurve = 0.88 + 0.14 * Math.sin(Math.min(1, Math.max(0, (this.rpm - 0.10) / 0.90)) * Math.PI * 0.70);
       const gearNum = typeof this.gear === 'number' ? this.gear : 1;
       const gearProgress = (gearNum - 1) / Math.max(1, spec.gears - 1);
       const rawEngineAccel = (launchTargetAccel * (1 - gearProgress * 0.32) + highSpeedPullAccel * gearProgress * 0.45) * torqueCurve;
 
-      const isOffroad = this.surfaceType !== 'TARMAC';
-      const surfaceGripMult = isOffroad ? 0.85 : 1.0;
+      // Multi-surface Rally Grip, Rolling Drag & Loose-Surface Drift Calibration
+      const SURFACE_TUNING = {
+        TARMAC:  { grip: 1.00, drag: 1.00, looseSlip: 0.00, yawBoost: 1.00 },
+        GRAVEL:  { grip: 0.86, drag: 1.06, looseSlip: 0.16, yawBoost: 1.08 },
+        MUD:     { grip: 0.78, drag: 1.14, looseSlip: 0.22, yawBoost: 1.10 },
+        SNOW:    { grip: 0.72, drag: 1.10, looseSlip: 0.26, yawBoost: 1.12 },
+        OFFROAD: { grip: 0.80, drag: 1.18, looseSlip: 0.15, yawBoost: 1.05 }
+      };
+      const surfTune = SURFACE_TUNING[this.surfaceType] || SURFACE_TUNING.TARMAC;
+      const isLoose = this.surfaceType === 'GRAVEL' || this.surfaceType === 'MUD' || this.surfaceType === 'SNOW';
+      const awdLooseBonus = spec.drivetrain === 'AWD' && isLoose ? (phys.gravelBoost || 1.15) : 1.0;
+      const surfaceGripMult = surfTune.grip * awdLooseBonus * upgGripMult;
 
-      // RWD vs. AWD Tire Traction Limit (limits launch acceleration in 1st/2nd gear; downforce locks tires at speed)
       const isRWD = spec.drivetrain === 'RWD';
       const maxTractionAccel = launchTargetAccel * surfaceGripMult + Math.pow(this.speedMps / 28, 1.5) * 4.5 + aeroDownforceAccel;
 
@@ -278,10 +297,8 @@
       if (this.isGrounded) {
         if (input.throttle > 0) {
           if (this.forwardSpeed < -1.2) {
-            // Braking while rolling backward
             driveAccel = phys.brakeG * gravity * 1.15;
           } else if (this.transmissionMode === 'MANUAL' && this.forwardSpeed >= currentGearCeilingMps) {
-            // Rev-limiter fuel cut in Manual mode until player upshifts with [E]
             driveAccel = 0;
           } else {
             driveAccel = rawEngineAccel * input.throttle * shiftCut;
@@ -297,7 +314,6 @@
             } else {
               this.wheelspin = Math.max(0, this.wheelspin - dt * 5);
             }
-            // Low-speed hill-climb torque assist so cars never get stuck on steep off-road slopes
             if (this.speedKmh < 85 && slopeGravity > 0) {
               driveAccel += slopeGravity * 1.15;
             }
@@ -305,15 +321,12 @@
         } else if (input.brake > 0) {
           this.wheelspin = 0;
           if (this.forwardSpeed > 1.2) {
-            // High-performance carbon-ceramic braking + aerodynamic drag assistance
-            driveAccel = -(phys.brakeG * gravity * surfaceGripMult + aeroDownforceAccel * 0.35) * input.brake;
+            driveAccel = -(phys.brakeG * gravity * Math.min(1.05, surfaceGripMult) + aeroDownforceAccel * 0.35) * input.brake;
           } else {
-            // Strong reverse gear acceleration (climbs any embankment or slope in reverse!)
             driveAccel = -14.5 * input.brake + Math.min(0, slopeGravity * 1.15);
           }
         } else {
           this.wheelspin = 0;
-          // Engine compression braking when coasting off-throttle (with auto hill-hold near 0 km/h)
           if (Math.abs(this.forwardSpeed) < 0.8) {
             this.forwardSpeed = 0;
             driveAccel = slopeGravity;
@@ -327,66 +340,58 @@
         }
       }
 
-      // High-speed aerodynamic drag curve calibrated so car pulls strongly all the way to exact vMaxMps (spec.topSpeedKmh)
       const speedRatio = Math.min(1.25, Math.abs(this.forwardSpeed) / Math.max(10, vMaxMps));
       const topGearDriveAtVmax = (launchTargetAccel * 0.68 + highSpeedPullAccel * 0.45) * 0.82;
-      const offroadDragMult = isOffroad ? 1.18 : 1.0;
+      const surfaceDragMult = surfTune.drag;
       const dragAccel =
-        Math.sign(this.forwardSpeed) * topGearDriveAtVmax * Math.pow(speedRatio, 3.2) * offroadDragMult +
+        Math.sign(this.forwardSpeed) * topGearDriveAtVmax * Math.pow(speedRatio, 3.2) * surfaceDragMult +
         slopeGravity;
 
       const netLongAccel = driveAccel - dragAccel;
       this.forwardSpeed += netLongAccel * dt;
 
-      // Exact aerodynamic top speed ceiling on flat ground
       if (!this.isBoosting && this.forwardSpeed > vMaxMps && input.throttle > 0 && Math.abs(this.pitch) < 0.02) {
         this.forwardSpeed = vMaxMps;
       }
-
-      // Clamp reverse top speed to 65 km/h
       if (this.forwardSpeed < -18) this.forwardSpeed = -18;
 
-      // 8. Dynamic Axle Weight Transfer & Pacejka Cornering / Oversteer Physics
+      // 8. Dynamic Axle Weight Transfer & Pacejka Cornering / Rally Drift Physics
       this.longG = (this.forwardSpeed - prevForwardSpeed) / (dt * gravity);
-      // Forward weight shift under braking (< 0 longG increases front grip & lightens rear!)
       const frontWeightBias = Math.max(0.30, Math.min(0.72, 0.46 - this.longG * 0.14));
       const rearWeightBias = 1.0 - frontWeightBias;
 
       if (this.isGrounded && Math.abs(this.forwardSpeed) > 0.5) {
         const dirSign = this.forwardSpeed >= 0 ? 1 : -1;
-        // Front axle bite increases under trail-braking
         const frontBite = 0.85 + frontWeightBias * 0.45;
-        const handbrakeYawBoost = input.handbrake ? 1.48 : 1.0;
-        const targetYawRate = this.steerAngle * phys.turnResponse * frontBite * handbrakeYawBoost * dirSign;
+        const handbrakeYawBoost = input.handbrake ? 1.52 : 1.0;
+        const targetYawRate = this.steerAngle * phys.turnResponse * frontBite * handbrakeYawBoost * surfTune.yawBoost * dirSign;
 
         this.yawRate += (targetYawRate - this.yawRate) * Math.min(1, dt * 11.5);
         this.heading += this.yawRate * dt;
 
-        // Centrifugal lateral acceleration into slide
         const isDriftMode = this.handlingMode === 'DRIFT';
         const isSportMode = this.handlingMode === 'SPORT';
 
-        // Rear tire grip drops when: (a) handbrake pulled, (b) RWD wheelspin under power, or (c) rear unloaded under heavy trail-braking
-        const rwdPowerOversteer = (spec.drivetrain === 'RWD' ? this.wheelspin * 0.48 : this.wheelspin * 0.15);
+        const rwdPowerOversteer = (spec.drivetrain === 'RWD' ? this.wheelspin * 0.48 : this.wheelspin * 0.16);
         const trailBrakeRotation = Math.max(0, (0.50 - rearWeightBias) * 0.85);
-        const modeSlipScale = isDriftMode ? 0.42 : isSportMode ? 0.22 : 0.12;
+        const modeSlipScale = (isDriftMode ? 0.42 : isSportMode ? 0.22 : 0.12) + surfTune.looseSlip * 0.55;
 
         const effectiveSlipFactor = input.handbrake
-          ? 0.58
-          : Math.min(0.62, modeSlipScale + rwdPowerOversteer + trailBrakeRotation);
+          ? 0.60
+          : Math.min(0.64, modeSlipScale + rwdPowerOversteer + trailBrakeRotation);
 
         const centrifugalImpulse = -this.yawRate * this.forwardSpeed * effectiveSlipFactor;
         this.lateralSpeed += centrifugalImpulse * dt;
 
-        // Lateral tire cornering stiffness + aerodynamic downforce grip
-        const totalGrip = (phys.gripBase * surfaceGripMult) + (aeroDownforceAccel / gravity) * 0.25;
+        const totalGrip = (phys.gripBase * Math.min(1.15, surfaceGripMult)) + (aeroDownforceAccel / gravity) * 0.25;
+        const looseCornerMult = isLoose ? 0.68 : 1.0;
         const lateralCorneringStiffness = input.handbrake
           ? 1.9
           : isDriftMode
-          ? 3.1 * totalGrip
+          ? 3.1 * totalGrip * looseCornerMult
           : isSportMode
-          ? 6.2 * totalGrip
-          : 9.2 * totalGrip;
+          ? 6.0 * totalGrip * looseCornerMult
+          : 8.8 * totalGrip * looseCornerMult;
 
         this.lateralSpeed *= Math.exp(-lateralCorneringStiffness * dt);
       } else {

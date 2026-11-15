@@ -1,20 +1,28 @@
 /* ==========================================================================
-   9KM x 9KM MULTI-LAYER FOREST & ALPINE OPEN WORLD (js/world.js)
-   - Zero-Sink Barycentric Triangle-Synchronized Terrain Height (getMeshTriangleHeight)
-   - 3-Layer Civil-Engineered Road System:
-     1. 3D Compacted Gravel & Earth Embankment Skirt (seamless transition to terrain)
-     2. 3D Crowned High-Resolution Asphalt Wearing Course + Rumble Curbs
-     3. Steel Guardrails, Reflective Mileposts, Curve Chevron Signs & Streetlamps
-   - Shallow Driveable Lake & Coastal Water Floors (cars splash through, never sink!)
-   - 6,500+ Instanced Forest Trees, 3,500+ Bushes & 900+ Mossy Boulders
+   BACKSEAT RALLY — 9KM x 9KM 5-STAGE MULTI-SURFACE OPEN WORLD (js/world.js)
+   - Barycentric Triangle-Synchronized Terrain Height (0.000m Zero-Sink!)
+   - Hardware-Scaled Foliage & Textures via graphicsProfile
+   - 5 Distinct Backseat Rally Stage Biomes & Surface Physics:
+     1. PINE FOREST STAGE       (GRAVEL — 16.0 km)
+     2. ALPINE TIMBERLINE PASS  (TARMAC — 9.6 km)
+     3. SAKURA BLOSSOM PASS     (TARMAC — 6.7 km + Cherry Blossom Corridors)
+     4. RIVERBEND CANYON        (MUD    — 6.2 km + Canyon Water Splashes)
+     5. FROZEN LAKE & SNOW PASS (SNOW   — 7.8 km + Iced Alpine Lake)
+   - Real-Time Co-Driver Pacenote Analyzer (getUpcomingPacenote)
+   - 12-Checkpoint Timed Rally Stages (getStageCheckpoints)
    ========================================================================== */
 
 (function () {
   class DrivingWorld {
-    constructor(scene) {
+    constructor(scene, graphicsProfile) {
       this.scene = scene;
-      this.worldSize = 9000; // 9km x 9km sandbox (-4500m to +4500m)
-      this.terrainSegs = 460; // 460x460 grid (~19.5m cells, 212,521 vertices)
+      this.gfx = Object.assign(
+        { foliageMult: 1.0, anisotropy: 8, shadowMapSize: 2048 },
+        graphicsProfile || {}
+      );
+
+      this.worldSize = 9000; // 9km x 9km (-4500m to +4500m)
+      this.terrainSegs = 460;
       this.terrainCellSize = this.worldSize / this.terrainSegs;
       this.terrainVertexY = null;
 
@@ -22,43 +30,66 @@
       this.roadSamples = [];
       this.roadMaterials = [];
 
-      // Fast 2D Spatial Hash Grid for O(1) road queries
+      // Fast 2D Spatial Hash Grid for O(1) road & pacenote queries
       this.gridCellSize = 95;
       this.spatialGrid = new Map();
 
-      // Teleport / Fast-Travel Presets on the 9km x 9km Forest Road Network
+      // 5 Backseat Rally Stage Definitions
       this.spawnLocations = [
         {
           id: 'coastal_start',
-          name: 'REDWOOD FOREST HIGHWAY',
-          desc: 'Sweeping natural S-curves through towering redwoods and lush woodland.',
+          splineId: 'main_loop',
+          name: 'PINE FOREST STAGE',
+          surface: 'GRAVEL',
+          desc: 'Classic loose-gravel forest special stage framed by towering redwoods & rally tape.',
           x: 0,
           z: 0,
-          heading: Math.PI // Facing North (-Z) straight down the forest highway
+          heading: Math.PI,
+          medalTimes: { platinum: 92, gold: 108, silver: 128, bronze: 155 }
         },
         {
           id: 'mountain_touge',
-          name: 'ALPINE TIMBERLINE TOUGE',
-          desc: '9.6 km winding mountain forest pass with rhythmic hairpins and apex curbs.',
+          splineId: 'mountain_touge',
+          name: 'ALPINE TIMBERLINE PASS',
+          surface: 'TARMAC',
+          desc: 'Technical tarmac mountain switchbacks with blind crests & exposed cliffside drops.',
           x: -1180,
           z: -1120,
-          heading: -Math.PI * 0.72
-        },
-        {
-          id: 'expressway',
-          name: 'BLACK FOREST AUTOBAHN',
-          desc: '7.8 km high-speed forest autobahn engineered for 530+ km/h top-speed runs.',
-          x: 920,
-          z: 3400,
-          heading: Math.PI
+          heading: -Math.PI * 0.72,
+          medalTimes: { platinum: 105, gold: 122, silver: 145, bronze: 175 }
         },
         {
           id: 'canyon_loop',
-          name: 'EMERALD LAKE WOODLAND PASS',
-          desc: 'Flowing forest backroad winding around the alpine lake and deep woods.',
-          x: -1450,
-          z: 1180,
-          heading: -Math.PI * 0.35
+          splineId: 'canyon_route',
+          name: 'SAKURA BLOSSOM PASS',
+          surface: 'TARMAC',
+          desc: 'Flowing cherry-blossom touge serpentine with pink petal canopies and fast sweepers.',
+          x: -760,
+          z: 820,
+          heading: -Math.PI * 0.62,
+          medalTimes: { platinum: 84, gold: 98, silver: 118, bronze: 145 }
+        },
+        {
+          id: 'riverbend_canyon',
+          splineId: 'riverbend_canyon',
+          name: 'RIVERBEND CANYON',
+          surface: 'MUD',
+          desc: 'Loose muddy canyon trails, red sandstone walls & shallow riverbed water crossings.',
+          x: 1550,
+          z: 1850,
+          heading: -Math.PI * 0.45,
+          medalTimes: { platinum: 88, gold: 104, silver: 124, bronze: 150 }
+        },
+        {
+          id: 'expressway',
+          splineId: 'expressway',
+          name: 'FROZEN LAKE & SNOW PASS',
+          surface: 'SNOW',
+          desc: 'Low-grip packed snow corridor & frozen alpine mirror lake for Scandinavian flicks.',
+          x: 920,
+          z: 3400,
+          heading: Math.PI,
+          medalTimes: { platinum: 76, gold: 90, silver: 108, bronze: 132 }
         }
       ];
 
@@ -96,8 +127,6 @@
       let minDistSq = Infinity;
       let nearest = null;
 
-      // Search 5x5 neighborhood (±2 cells = ±190m) so road embankments and
-      // terrain shoulders never suffer a spatial grid boundary cutoff!
       for (let dx = -2; dx <= 2; dx++) {
         for (let dz = -2; dz <= 2; dz++) {
           const bucket = this.spatialGrid.get(this._gridKey(gx + dx, gz + dz));
@@ -132,16 +161,12 @@
         return { sample: null, dist: 999, interpolatedY: 0 };
       }
 
-      // Compute C1-continuous interpolated road elevation along the finite road segment.
-      // Clamp longitudinal projection `along` to ±6.5m (half sample spacing) so it never
-      // extrapolates wildly off road ends or curves!
       const dx = x - nearest.x;
       const dz = z - nearest.z;
       const rawAlong = dx * nearest.tangent.x + dz * nearest.tangent.z;
       const clampedAlong = Math.max(-6.5, Math.min(6.5, rawAlong));
       const interpolatedY = nearest.y + clampedAlong * nearest.slopeY;
 
-      // True Euclidean distance to the clamped road centerline segment
       const segDx = dx - clampedAlong * nearest.tangent.x;
       const segDz = dz - clampedAlong * nearest.tangent.z;
       const segDist = Math.hypot(segDx, segDz);
@@ -154,91 +179,151 @@
     }
 
     /* ----------------------------------------------------------------------
-       HIGH-DEFINITION PROCEDURAL ASPHALT, SHOULDER & FOREST TEXTURES
+       PROCEDURAL MULTI-SURFACE ROAD & TERRAIN TEXTURES (TARMAC/GRAVEL/MUD/SNOW)
        ---------------------------------------------------------------------- */
     generateRoadAndTerrainTextures() {
-      // 1. 1024x1024 High-Definition Asphalt + Motorsport Shoulder Rumble Strip Texture
-      const roadCanvas = document.createElement('canvas');
-      roadCanvas.width = 1024;
-      roadCanvas.height = 1024;
-      const rctx = roadCanvas.getContext('2d');
+      const aniso = this.gfx.anisotropy || 8;
 
-      // Base dark basalt asphalt
-      rctx.fillStyle = '#1e222a';
-      rctx.fillRect(0, 0, 1024, 1024);
+      const makeSurfaceTex = (opts) => {
+        const c = document.createElement('canvas');
+        c.width = 512;
+        c.height = 512;
+        const ctx = c.getContext('2d');
 
-      // Alternating red-and-white / slate shoulder rumble curbs on outer edges
-      for (let y = 0; y < 1024; y += 64) {
-        rctx.fillStyle = (y / 64) % 2 === 0 ? '#dc2626' : '#f1f5f9';
-        rctx.fillRect(0, y, 28, 64);
-        rctx.fillRect(996, y, 28, 64);
-      }
+        ctx.fillStyle = opts.base;
+        ctx.fillRect(0, 0, 512, 512);
 
-      // Rich stone aggregate micro-grain
-      for (let i = 0; i < 48000; i++) {
-        const x = 28 + Math.random() * 968;
-        const y = Math.random() * 1024;
-        const v = 22 + Math.floor(Math.random() * 26);
-        rctx.fillStyle = `rgb(${v},${v + 2},${v + 5})`;
-        rctx.fillRect(x, y, 2, 2);
-      }
+        // Outer rally shoulder curbing or verge ruts
+        if (opts.curbs) {
+          for (let y = 0; y < 512; y += 32) {
+            ctx.fillStyle = (y / 32) % 2 === 0 ? '#dc2626' : '#f8fafc';
+            ctx.fillRect(0, y, 16, 32);
+            ctx.fillRect(496, y, 16, 32);
+          }
+        } else {
+          ctx.fillStyle = opts.vergeColor;
+          ctx.fillRect(0, 0, 26, 512);
+          ctx.fillRect(486, 0, 26, 512);
+        }
 
-      // Darker rubber-burnished racing line / wheel tracks in both lanes
-      rctx.fillStyle = 'rgba(8, 10, 14, 0.30)';
-      rctx.fillRect(170, 0, 195, 1024);
-      rctx.fillRect(659, 0, 195, 1024);
+        // Tire tracks / ruts
+        ctx.fillStyle = opts.rutColor;
+        ctx.fillRect(92, 0, 96, 512);
+        ctx.fillRect(324, 0, 96, 512);
 
-      // Longitudinal asphalt paver seam
-      rctx.fillStyle = 'rgba(12, 14, 18, 0.55)';
-      rctx.fillRect(510, 0, 4, 1024);
+        // Granular aggregate / gravel pebbles / mud clumps / snow grains
+        for (let i = 0; i < 24000; i++) {
+          const px = 16 + Math.random() * 480;
+          const py = Math.random() * 512;
+          ctx.fillStyle = opts.grainFn();
+          const sz = opts.grainSize || 2;
+          ctx.fillRect(px, py, sz, sz);
+        }
 
-      // Crisp retroreflective white edge lines
-      rctx.fillStyle = '#f8fafc';
-      rctx.fillRect(58, 0, 18, 1024);
-      rctx.fillRect(948, 0, 18, 1024);
+        // Road markings (Tarmac only gets crisp highway/touge lines; Gravel/Mud/Snow get worn tracks)
+        if (opts.lines) {
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(28, 0, 8, 512);
+          ctx.fillRect(476, 0, 8, 512);
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(250, 0, 5, 512);
+          for (let y = 16; y < 512; y += 88) {
+            ctx.fillRect(259, y, 5, 48);
+          }
+        }
 
-      // High-visibility dual highway yellow centerline (solid + passing dash)
-      rctx.fillStyle = '#fbbf24';
-      rctx.fillRect(496, 0, 10, 1024);
-      for (let y = 24; y < 1024; y += 128) {
-        rctx.fillRect(518, y, 10, 76);
-      }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = aniso;
+        return tex;
+      };
 
-      const tarmacTex = new THREE.CanvasTexture(roadCanvas);
-      tarmacTex.wrapS = THREE.RepeatWrapping;
-      tarmacTex.wrapT = THREE.RepeatWrapping;
-      tarmacTex.anisotropy = 8;
+      const tarmacTex = makeSurfaceTex({
+        base: '#1f232b',
+        curbs: true,
+        rutColor: 'rgba(8,10,14,0.32)',
+        lines: true,
+        grainSize: 2,
+        grainFn: () => {
+          const v = 22 + Math.floor(Math.random() * 24);
+          return `rgb(${v},${v + 2},${v + 5})`;
+        }
+      });
 
-      // 2. Compacted Gravel & Mossy Earth Road Embankment Skirt Texture
+      const gravelTex = makeSurfaceTex({
+        base: '#6b553e',
+        curbs: false,
+        vergeColor: '#4c3e2b',
+        rutColor: 'rgba(56, 40, 26, 0.35)',
+        lines: false,
+        grainSize: 3,
+        grainFn: () => {
+          const r = 82 + Math.floor(Math.random() * 48);
+          const g = 65 + Math.floor(Math.random() * 38);
+          const b = 45 + Math.floor(Math.random() * 28);
+          return `rgb(${r},${g},${b})`;
+        }
+      });
+
+      const mudTex = makeSurfaceTex({
+        base: '#4a3222',
+        curbs: false,
+        vergeColor: '#3a2417',
+        rutColor: 'rgba(28, 17, 10, 0.48)',
+        lines: false,
+        grainSize: 3,
+        grainFn: () => {
+          const r = 52 + Math.floor(Math.random() * 34);
+          const g = 34 + Math.floor(Math.random() * 24);
+          const b = 22 + Math.floor(Math.random() * 18);
+          return `rgb(${r},${g},${b})`;
+        }
+      });
+
+      const snowTex = makeSurfaceTex({
+        base: '#cbd5e1',
+        curbs: false,
+        vergeColor: '#e2e8f0',
+        rutColor: 'rgba(100, 116, 139, 0.28)',
+        lines: false,
+        grainSize: 2,
+        grainFn: () => {
+          const v = 195 + Math.floor(Math.random() * 55);
+          return `rgb(${v},${v + 4},${Math.min(255, v + 8)})`;
+        }
+      });
+
+      // Compacted Shoulder Skirt Texture
       const skirtCanvas = document.createElement('canvas');
       skirtCanvas.width = 256;
       skirtCanvas.height = 256;
       const sctx = skirtCanvas.getContext('2d');
       const sGrad = sctx.createLinearGradient(0, 0, 256, 0);
-      sGrad.addColorStop(0.0, '#474b44');
-      sGrad.addColorStop(0.35, '#3e4738');
-      sGrad.addColorStop(1.0, '#2d4c27');
+      sGrad.addColorStop(0.0, '#4a4337');
+      sGrad.addColorStop(0.4, '#3e4738');
+      sGrad.addColorStop(1.0, '#2b4724');
       sctx.fillStyle = sGrad;
       sctx.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 8000; i++) {
+      for (let i = 0; i < 6500; i++) {
         const x = Math.random() * 256;
         const y = Math.random() * 256;
-        const c = 45 + Math.floor(Math.random() * 40);
-        sctx.fillStyle = `rgb(${c},${c + 8},${c - 4})`;
+        const c = 45 + Math.floor(Math.random() * 38);
+        sctx.fillStyle = `rgb(${c},${c + 6},${c - 4})`;
         sctx.fillRect(x, y, 2, 2);
       }
       const shoulderTex = new THREE.CanvasTexture(skirtCanvas);
       shoulderTex.wrapS = THREE.ClampToEdgeWrapping;
       shoulderTex.wrapT = THREE.RepeatWrapping;
 
-      // 3. High-Detail Forest Floor Moss, Ferns & Pine Needle Micro-Detail Texture
+      // Micro-Detail Forest Terrain Texture
       const terrCanvas = document.createElement('canvas');
       terrCanvas.width = 512;
       terrCanvas.height = 512;
       const tctx = terrCanvas.getContext('2d');
       tctx.fillStyle = '#cbd6c6';
       tctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 42000; i++) {
+      for (let i = 0; i < 36000; i++) {
         const x = Math.random() * 512;
         const y = Math.random() * 512;
         const g = 172 + Math.floor(Math.random() * 72);
@@ -250,61 +335,66 @@
       terrainDetailTex.wrapT = THREE.RepeatWrapping;
       terrainDetailTex.repeat.set(220, 220);
 
-      return { tarmacTex, shoulderTex, terrainDetailTex };
+      return { tarmacTex, gravelTex, mudTex, snowTex, shoulderTex, terrainDetailTex };
     }
 
     setWetRoads(isWet) {
       this.roadMaterials.forEach((mat) => {
-        mat.roughness = isWet ? 0.10 : 0.42;
-        mat.metalness = isWet ? 0.68 : 0.16;
+        const baseRough = mat.userData.baseRoughness !== undefined ? mat.userData.baseRoughness : 0.42;
+        const baseMetal = mat.userData.baseMetalness !== undefined ? mat.userData.baseMetalness : 0.16;
+        mat.roughness = isWet ? Math.max(0.10, baseRough * 0.35) : baseRough;
+        mat.metalness = isWet ? Math.min(0.70, baseMetal + 0.42) : baseMetal;
         mat.needsUpdate = true;
       });
     }
 
     /* ----------------------------------------------------------------------
-       RAW FOREST & ALPINE MOUNTAIN ELEVATION ACROSS 9KM x 9KM
-       (Smooth C2 transitions & shallow driveable water beds — ZERO sinkholes!)
+       MULTI-BIOME RALLY ELEVATION ACROSS 9KM x 9KM (ZERO SINKHOLES!)
        ---------------------------------------------------------------------- */
     getRawElevation(x, z) {
-      // Smooth C2 Hermite valley transition around central spawn (0, 0)
       const rawT = Math.min(1, Math.max(0, (Math.hypot(x, z) - 240) / 560));
       const startValley = rawT * rawT * (3 - 2 * rawT);
 
-      // 1. North-West Alpine Timberline Peak (x ≈ -1850, z ≈ -1850, up to +145m)
+      // 1. North-West Alpine Timberline Peak (x ≈ -1850, z ≈ -1850)
       const nwDist = Math.hypot(x - (-1850), z - (-1850));
       const nwMountain =
         140 * Math.exp(-(nwDist * nwDist) / (1450 * 1450)) *
         (0.82 + 0.18 * Math.sin(x * 0.0028) * Math.cos(z * 0.0028));
 
-      // 2. Northern Woodland Ridge (x ≈ -450, z ≈ -2750, up to +85m)
+      // 2. Northern Woodland Ridge (x ≈ -450, z ≈ -2750)
       const nRidgeDist = Math.hypot((x - (-450)) * 0.7, z - (-2750));
       const nRidge = 85 * Math.exp(-(nRidgeDist * nRidgeDist) / (1150 * 1150));
 
-      // 3. South-West Deep Forest Highlands (x ≈ -1750, z ≈ +1750, up to +68m)
+      // 3. South-West Sakura Highlands (x ≈ -1750, z ≈ +1750)
       const swDist = Math.hypot(x - (-1750), z - 1750);
       const swHighlands =
         68 * Math.exp(-(swDist * swDist) / (1500 * 1500)) *
         (0.75 + 0.25 * Math.sin(x * 0.0035) * Math.cos(z * 0.0035));
 
-      // 4. Smooth rolling forest hills across the 9km x 9km world
+      // 4. Rolling terrain harmonics
       const hills =
         Math.sin(x * 0.0012) * Math.cos(z * 0.0012) * 18 +
         Math.sin(x * 0.0026 + 1.2) * Math.sin(z * 0.0024 + 0.6) * 7.5 +
         11.0;
 
-      // 5. Emerald Alpine Lake Basin at (x = -1250, z = +420, radius ~330m)
+      // 5. Frozen / Emerald Alpine Lake Basin at (x = -1250, z = +420)
       const lakeDist = Math.hypot(x - (-1250), z - 420);
       const lakeDepression = 18 * Math.exp(-(lakeDist * lakeDist) / (460 * 460));
 
-      let h = (nwMountain + nRidge + swHighlands + hills) * startValley + 6.5 - lakeDepression;
+      // 6. Shallow Ice Lake Basin along Northern Snow Corridor (x = 760, z = -1950)
+      const iceDist = Math.hypot(x - 760, z - (-1950));
+      const iceBasin = 14 * Math.exp(-(iceDist * iceDist) / (520 * 520));
 
-      // Keep Emerald Lake bed a shallow driveable pebble floor (y >= 5.98m, water surface at 6.20m)
-      // so cars can splash across the lake without ever sinking under the water mesh!
+      let h =
+        (nwMountain + nRidge + swHighlands + hills) * startValley +
+        6.5 -
+        lakeDepression -
+        iceBasin * 0.5;
+
       if (lakeDist < 420) {
         h = Math.max(5.98, h);
       }
 
-      // 6. Gentle coastal slope down to the Eastern Ocean (x > 2800), clamped to shallow beach floor (y >= 0.08m)
       if (x > 2800) {
         h -= (x - 2800) * 0.022;
         h = Math.max(0.08, h);
@@ -314,13 +404,13 @@
     }
 
     /* ----------------------------------------------------------------------
-       4 NATURAL, SILKY-SMOOTH FOREST & MOUNTAIN ROAD NETWORKS (40.1 KM)
+       5 BACKSEAT RALLY STAGE NETWORKS (46.3 KM TOTAL)
        ---------------------------------------------------------------------- */
     initRoadNetwork() {
-      // 1. REDWOOD & COASTAL FOREST RING (16.0 km closed loop with organic S-curves)
+      // 1. PINE FOREST STAGE (16.0 km Gravel Special Stage)
       const mainLoopWaypoints = [
         new THREE.Vector3(0, 0, 320),
-        new THREE.Vector3(0, 0, 0),          // <--- SPAWN POINT AT (0,0) FACING NORTH (-Z)
+        new THREE.Vector3(0, 0, 0),
         new THREE.Vector3(0, 0, -340),
         new THREE.Vector3(140, 0, -780),
         new THREE.Vector3(460, 0, -1240),
@@ -342,10 +432,10 @@
         new THREE.Vector3(-760, 0, 820),
         new THREE.Vector3(-280, 0, 560)
       ];
-      this.buildSmoothRoadSpline('main_loop', mainLoopWaypoints, 18, true, 2400);
+      this.buildSmoothRoadSpline('main_loop', mainLoopWaypoints, 16, true, 2400, 'GRAVEL');
 
-      // 2. BLACK FOREST AUTOBAHN CORRIDOR (7.8 km high-speed forest highway)
-      const autobahnWaypoints = [
+      // 2. FROZEN LAKE & SNOW PASS (7.8 km Packed Snow & Ice Corridor)
+      const snowPassWaypoints = [
         new THREE.Vector3(980, 0, 3850),
         new THREE.Vector3(920, 0, 3100),
         new THREE.Vector3(780, 0, 2250),
@@ -357,9 +447,9 @@
         new THREE.Vector3(540, 0, -3100),
         new THREE.Vector3(480, 0, -3900)
       ];
-      this.buildSmoothRoadSpline('expressway', autobahnWaypoints, 22, false, 1400);
+      this.buildSmoothRoadSpline('expressway', snowPassWaypoints, 20, false, 1400, 'SNOW');
 
-      // 3. ALPINE TIMBERLINE TOUGE PASS (9.6 km winding mountain forest switchbacks)
+      // 3. ALPINE TIMBERLINE PASS (9.6 km High-Elevation Tarmac Touge)
       const tougeWaypoints = [
         new THREE.Vector3(0, 0, -340),
         new THREE.Vector3(-340, 0, -560),
@@ -377,10 +467,10 @@
         new THREE.Vector3(-1480, 0, 180),
         new THREE.Vector3(-760, 0, 820)
       ];
-      this.buildSmoothRoadSpline('mountain_touge', tougeWaypoints, 15, false, 1600);
+      this.buildSmoothRoadSpline('mountain_touge', tougeWaypoints, 14, false, 1600, 'TARMAC');
 
-      // 4. EMERALD LAKE & DEEP WOODLAND SCENIC ROUTE (6.7 km forest backroad)
-      const woodlandWaypoints = [
+      // 4. SAKURA BLOSSOM PASS (6.7 km Cherry Blossom Mountain Tarmac)
+      const sakuraWaypoints = [
         new THREE.Vector3(-760, 0, 820),
         new THREE.Vector3(-1450, 0, 1180),
         new THREE.Vector3(-2180, 0, 1060),
@@ -392,10 +482,23 @@
         new THREE.Vector3(-480, 0, 2960),
         new THREE.Vector3(-120, 0, 2680)
       ];
-      this.buildSmoothRoadSpline('canyon_route', woodlandWaypoints, 15, false, 1300);
+      this.buildSmoothRoadSpline('canyon_route', sakuraWaypoints, 14, false, 1300, 'TARMAC');
+
+      // 5. RIVERBEND CANYON (6.2 km Mud & Canyon Gravel Rally Trail)
+      const riverbendWaypoints = [
+        new THREE.Vector3(1680, 0, 2760),
+        new THREE.Vector3(1550, 0, 1850),
+        new THREE.Vector3(1980, 0, 1280),
+        new THREE.Vector3(1420, 0, 740),
+        new THREE.Vector3(2150, 0, 240),
+        new THREE.Vector3(1680, 0, -360),
+        new THREE.Vector3(2280, 0, -860),
+        new THREE.Vector3(2920, 0, -1250)
+      ];
+      this.buildSmoothRoadSpline('riverbend_canyon', riverbendWaypoints, 15, false, 1100, 'MUD');
     }
 
-    buildSmoothRoadSpline(id, waypoints, width, closed, sampleCount) {
+    buildSmoothRoadSpline(id, waypoints, width, closed, sampleCount, surfaceType) {
       waypoints.forEach((pt) => {
         pt.y = this.getRawElevation(pt.x, pt.z);
       });
@@ -407,7 +510,7 @@
         pts[i].y = this.getRawElevation(pts[i].x, pts[i].z);
       }
 
-      // 24 passes of vertical grade smoothing so crests and dips are 100% butter-smooth
+      // 24-pass vertical grade smoothing for silk-smooth crests and zero micro-bumps
       for (let pass = 0; pass < 24; pass++) {
         const smoothedY = new Float32Array(pts.length);
         for (let i = 0; i < pts.length; i++) {
@@ -442,18 +545,258 @@
           width: width,
           tangent: tan,
           slopeY: slopeY,
-          splineId: id
+          splineId: id,
+          surfaceType: surfaceType || 'TARMAC',
+          index: i,
+          cumDist: totalLength
         };
         this.roadSamples.push(sample);
         this._insertRoadSampleIntoGrid(sample);
       }
 
-      this.roadSplines.push({ id, curve, width, closed, pts, tangents, length: totalLength });
+      this.roadSplines.push({
+        id,
+        curve,
+        width,
+        closed,
+        pts,
+        tangents,
+        length: totalLength,
+        surfaceType: surfaceType || 'TARMAC'
+      });
+    }
+
+    /* ----------------------------------------------------------------------
+       REAL-TIME CO-DRIVER PACENOTE LOOKAHEAD ANALYZER (BACKSEAT RALLY CORE!)
+       ---------------------------------------------------------------------- */
+    getUpcomingPacenote(x, z, vx, vz) {
+      const { sample, dist } = this.getNearestRoadSample(x, z, false);
+      if (!sample || dist > 55) {
+        return {
+          severity: 'OFFROAD',
+          dir: 'RECOVERY',
+          callout: 'OFF TRACK • RETURN TO STAGE',
+          distMeters: Math.round(dist),
+          color: '#f97316',
+          icon: '⚠️',
+          urgent: true
+        };
+      }
+
+      const road = this.roadSplines.find((r) => r.id === sample.splineId);
+      if (!road || road.pts.length < 20) {
+        return {
+          severity: 'STRAIGHT',
+          dir: 'STRAIGHT',
+          callout: 'FLAT OUT • KEEP CENTER',
+          distMeters: 100,
+          color: '#38bdf8',
+          icon: '↑',
+          urgent: false
+        };
+      }
+
+      const pts = road.pts;
+      const n = pts.length;
+      const startIdx = sample.index;
+
+      // Determine travel direction along spline (+1 or -1)
+      const tan = road.tangents[startIdx];
+      const speedSq = vx * vx + vz * vz;
+      let travelSign = 1;
+      if (speedSq > 2.0) {
+        const dot = vx * tan.x + vz * tan.z;
+        travelSign = dot >= 0 ? 1 : -1;
+      }
+
+      const stepWrap = (idx) => {
+        if (road.closed) return ((idx % n) + n) % n;
+        return Math.max(0, Math.min(n - 1, idx));
+      };
+
+      // Scan ahead from ~40m to ~160m (~6 to ~26 sample indices depending on spacing)
+      const avgStep = Math.max(3.5, road.length / n);
+      const minOffset = Math.max(3, Math.round(35 / avgStep));
+      const maxOffset = Math.max(12, Math.round(165 / avgStep));
+      const windowSpan = Math.max(4, Math.round(28 / avgStep));
+
+      let maxAbsAngle = 0;
+      let signedPeakAngle = 0;
+      let peakOffset = minOffset;
+      let peakCrestDelta = 0;
+      let crestOffset = -1;
+
+      for (let off = minOffset; off <= maxOffset; off += 2) {
+        const iA = stepWrap(startIdx + travelSign * Math.max(0, off - windowSpan));
+        const iM = stepWrap(startIdx + travelSign * off);
+        const iB = stepWrap(startIdx + travelSign * (off + windowSpan));
+
+        if (!road.closed && (iB === iM || iA === iM)) break;
+
+        const t1 = road.tangents[iA];
+        const t2 = road.tangents[iB];
+        const cross = t1.x * t2.z - t1.z * t2.x;
+        const dotT = Math.max(-1, Math.min(1, t1.x * t2.x + t1.z * t2.z));
+        // Travel direction reverses cross sign if going backwards
+        const signedAngleRad = Math.atan2(cross * travelSign, dotT);
+        const absAngleDeg = Math.abs(signedAngleRad) * (180 / Math.PI);
+
+        if (absAngleDeg > maxAbsAngle) {
+          maxAbsAngle = absAngleDeg;
+          signedPeakAngle = signedAngleRad * (180 / Math.PI);
+          peakOffset = off;
+        }
+
+        // Crest / Blind Brow check
+        const slopeBefore = (pts[iM].y - pts[iA].y) / Math.max(5, pts[iM].distanceTo(pts[iA]));
+        const slopeAfter = (pts[iB].y - pts[iM].y) / Math.max(5, pts[iB].distanceTo(pts[iM]));
+        const crestDrop = slopeBefore - slopeAfter;
+        if (crestDrop > 0.045 && crestDrop > peakCrestDelta) {
+          peakCrestDelta = crestDrop;
+          crestOffset = off;
+        }
+      }
+
+      const distMeters = Math.max(15, Math.round((peakOffset * avgStep) / 5) * 5);
+      // In our world tangent frame (X east, Z south), positive cross * travelSign
+      // corresponds to turning LEFT vs RIGHT: check heading math!
+      // heading += steer * dt where left -> +yawRate -> sin(heading) turns +X toward +Z when heading=0,
+      // Wait: velocity forward = (sinH, cosH). Increasing H rotates (sinH, cosH) -> (cosH, -sinH), cross = sinH*(-sinH) - cosH*(cosH) = -1 (NEGATIVE cross = LEFT!).
+      const isLeft = signedPeakAngle < 0;
+      const dirWord = isLeft ? 'LEFT' : 'RIGHT';
+      const iconArrow = isLeft ? '↰' : '↱';
+
+      let severity = '6';
+      let label = `6 ${dirWord}`;
+      let color = '#22c55e';
+      let urgent = false;
+
+      if (maxAbsAngle >= 105) {
+        severity = 'HAIRPIN';
+        label = `HAIRPIN ${dirWord}`;
+        color = '#ef4444';
+        urgent = true;
+      } else if (maxAbsAngle >= 75) {
+        severity = 'SQUARE';
+        label = `1 ${dirWord} • ACUTE`;
+        color = '#ef4444';
+        urgent = true;
+      } else if (maxAbsAngle >= 54) {
+        severity = '2';
+        label = `2 ${dirWord}`;
+        color = '#f97316';
+        urgent = true;
+      } else if (maxAbsAngle >= 36) {
+        severity = '3';
+        label = `3 ${dirWord}`;
+        color = '#f59e0b';
+        urgent = false;
+      } else if (maxAbsAngle >= 21) {
+        severity = '4';
+        label = `4 ${dirWord}`;
+        color = '#eab308';
+        urgent = false;
+      } else if (maxAbsAngle >= 11) {
+        severity = '5';
+        label = `5 ${dirWord}`;
+        color = '#84cc16';
+        urgent = false;
+      } else if (peakCrestDelta > 0.05) {
+        severity = 'CREST';
+        label = 'CAUTION • CREST OVER BROW';
+        color = '#fbbf24';
+        return {
+          severity,
+          dir: 'CREST',
+          callout: label,
+          distMeters: Math.max(20, Math.round((crestOffset * avgStep) / 5) * 5),
+          color,
+          icon: '⟰',
+          urgent: true
+        };
+      } else {
+        return {
+          severity: 'STRAIGHT',
+          dir: 'STRAIGHT',
+          callout: `${distMeters}M • FLAT OUT`,
+          distMeters,
+          color: '#38bdf8',
+          icon: '↑',
+          urgent: false
+        };
+      }
+
+      if (peakCrestDelta > 0.05 && Math.abs(crestOffset - peakOffset) < 12) {
+        label += ' • CREST';
+      }
+
+      return {
+        severity,
+        dir: dirWord,
+        callout: `${label}`,
+        distMeters,
+        color,
+        icon: severity === 'HAIRPIN' ? (isLeft ? '↶' : '↷') : iconArrow,
+        urgent
+      };
+    }
+
+    /* ----------------------------------------------------------------------
+       POINT-TO-POINT RALLY STAGE CHECKPOINT GENERATOR (12 GATES PER STAGE)
+       ---------------------------------------------------------------------- */
+    getStageCheckpoints(stageId) {
+      const stage = this.spawnLocations.find((s) => s.id === stageId) || this.spawnLocations[0];
+      const road = this.roadSplines.find((r) => r.id === stage.splineId) || this.roadSplines[0];
+
+      // Find closest spline index to stage spawn coordinate
+      let bestIdx = 0;
+      let bestDistSq = Infinity;
+      for (let i = 0; i < road.pts.length; i++) {
+        const dx = road.pts[i].x - stage.x;
+        const dz = road.pts[i].z - stage.z;
+        const dSq = dx * dx + dz * dz;
+        if (dSq < bestDistSq) {
+          bestDistSq = dSq;
+          bestIdx = i;
+        }
+      }
+
+      // Check travel orientation matching spawn heading
+      const spawnDirX = Math.sin(stage.heading);
+      const spawnDirZ = Math.cos(stage.heading);
+      const tanAtSpawn = road.tangents[bestIdx];
+      const dirSign = spawnDirX * tanAtSpawn.x + spawnDirZ * tanAtSpawn.z >= 0 ? 1 : -1;
+
+      const totalPts = road.pts.length;
+      const spanSamples = road.closed ? Math.floor(totalPts * 0.65) : Math.max(60, dirSign > 0 ? totalPts - 1 - bestIdx : bestIdx);
+      const count = 12;
+      const checkpoints = [];
+
+      for (let c = 1; c <= count; c++) {
+        const t = c / count;
+        let idx = bestIdx + dirSign * Math.round(spanSamples * t);
+        if (road.closed) {
+          idx = ((idx % totalPts) + totalPts) % totalPts;
+        } else {
+          idx = Math.max(0, Math.min(totalPts - 1, idx));
+        }
+        const pt = road.pts[idx];
+        const tan = road.tangents[idx];
+        checkpoints.push({
+          index: c,
+          x: pt.x,
+          y: this.getTerrainHeight(pt.x, pt.z),
+          z: pt.z,
+          heading: Math.atan2(tan.x * dirSign, tan.z * dirSign),
+          radius: road.width * 0.95
+        });
+      }
+
+      return { stage, checkpoints };
     }
 
     /* ----------------------------------------------------------------------
        EXACT BARYCENTRIC TRIANGLE HEIGHT ON THE RENDERED TERRAIN MESH
-       (Guarantees 0.000m discrepancy between visual ground & physics ground!)
        ---------------------------------------------------------------------- */
     getMeshTriangleHeight(x, z) {
       if (!this.terrainVertexY) return this.getRawElevation(x, z);
@@ -475,7 +818,6 @@
       const y01 = this.terrainVertexY[(iz + 1) * row + ix];
       const y11 = this.terrainVertexY[(iz + 1) * row + ix + 1];
 
-      // Matches Three.js PlaneGeometry quad split: (a, b, d) for fx + fz <= 1, (b, c, d) for fx + fz > 1
       let triY;
       if (fx + fz <= 1.0) {
         triY = y00 + fx * (y10 - y00) + fz * (y01 - y00);
@@ -483,8 +825,6 @@
         triY = y11 + (1.0 - fx) * (y01 - y11) + (1.0 - fz) * (y10 - y11);
       }
 
-      // Ensure cars driving across Emerald Lake or the Coastal Beach stay on a shallow
-      // driveable water bed (max 0.20m ankle-deep water splash) and never sink underwater!
       if (Math.hypot(x - (-1250), z - 420) < 332) {
         triY = Math.max(triY, 6.00);
       }
@@ -495,23 +835,18 @@
       return triY;
     }
 
-    /* ----------------------------------------------------------------------
-       CONTINUOUS ROAD-TO-EMBANKMENT-TO-TERRAIN HEIGHT & SURFACE QUERY
-       ---------------------------------------------------------------------- */
     getTerrainHeight(x, z) {
       const meshY = this.getMeshTriangleHeight(x, z);
       const { sample, dist, interpolatedY } = this.getNearestRoadSample(x, z, false);
       if (!sample) return meshY;
 
       const halfW = sample.width * 0.5;
-      const shoulderW = 7.5; // Width of the 3D gravel embankment skirt
+      const shoulderW = 7.5;
 
       if (dist <= halfW) {
-        // Crowned asphalt surface height (+0.12m above spline baseline, never below meshY)
         const crown = (1.0 - (dist / halfW) * (dist / halfW)) * 0.03;
         return Math.max(meshY, interpolatedY + 0.12 + crown);
       } else if (dist <= halfW + shoulderW) {
-        // Smooth transition down the 3D gravel embankment skirt to the exact terrain mesh triangle
         const t = (dist - halfW) / shoulderW;
         const smoothT = t * t * (3 - 2 * t);
         const roadEdgeY = Math.max(meshY, interpolatedY + 0.10);
@@ -522,8 +857,8 @@
 
     getSurfaceInfo(x, z) {
       const { sample, dist } = this.getNearestRoadSample(x, z, false);
-      if (sample && dist <= sample.width * 0.55) {
-        return { surface: 'TARMAC', roadDist: dist, sample };
+      if (sample && dist <= sample.width * 0.56) {
+        return { surface: sample.surfaceType || 'TARMAC', roadDist: dist, sample, isWater: false };
       }
       if (Math.hypot(x - (-1250), z - 420) < 330 || x > 3150) {
         return { surface: 'OFFROAD', roadDist: dist, sample, isWater: true };
@@ -532,16 +867,16 @@
     }
 
     getZoneName(x, z) {
-      if (Math.abs(x - 760) < 240 && Math.abs(z) > 600) return 'BLACK FOREST AUTOBAHN';
-      if (x < -550 && z < -450) return 'ALPINE TIMBERLINE TOUGE';
-      if (Math.hypot(x - (-1250), z - 420) < 680) return 'EMERALD ALPINE LAKE';
-      if (x < -500 && z > 650) return 'DEEP WOODLAND BACKROAD';
-      if (x > 2100) return 'PACIFIC REDWOOD COAST';
-      return 'REDWOOD FOREST HIGHWAY';
+      if (Math.abs(x - 760) < 320 && (z > 400 || z < -500)) return 'FROZEN LAKE & SNOW PASS';
+      if (x < -550 && z < -450) return 'ALPINE TIMBERLINE PASS';
+      if (Math.hypot(x - (-1250), z - 420) < 620) return 'FROZEN EMERALD LAKE';
+      if (x < -450 && z > 650) return 'SAKURA BLOSSOM PASS';
+      if (x > 1250 && z > 150 && z < 2350) return 'RIVERBEND CANYON';
+      return 'PINE FOREST STAGE';
     }
 
     /* ----------------------------------------------------------------------
-       BUILD 9KM x 9KM LUSH FOREST TERRAIN MESH + SHALLOW LAKE + OCEAN
+       BUILD 9KM x 9KM MULTI-BIOME RALLY TERRAIN + FROZEN LAKE + OCEAN
        ---------------------------------------------------------------------- */
     buildTerrainMesh() {
       const segs = this.terrainSegs;
@@ -555,15 +890,15 @@
       const cDeepForest = new THREE.Color(0x234922);
       const cMossMeadow = new THREE.Color(0x3a6a30);
       const cPineFloor = new THREE.Color(0x2a4226);
-      const cSubAlpine = new THREE.Color(0x4b5d43);
+      const cSakuraGrass = new THREE.Color(0x527a3c);
+      const cCanyonSand = new THREE.Color(0x8c6244);
+      const cSnowBlanket = new THREE.Color(0xdbeafe);
       const cGranitePeak = new THREE.Color(0x5a605d);
-      const cSnowCap = new THREE.Color(0xe2e8f0);
-      const cRoadShoulder = new THREE.Color(0x3f463a);
+      const cSnowCap = new THREE.Color(0xf1f5f9);
+      const cRoadShoulder = new THREE.Color(0x464136);
       const cShorePebble = new THREE.Color(0x9ca38f);
       const cTmp = new THREE.Color();
 
-      // Wide roadbed carving radius (halfW + 25m) guarantees that EVERY triangle
-      // of terrainMesh crossing or touching any road sits cleanly 0.24m below the asphalt!
       for (let i = 0; i < pos.count; i++) {
         const vx = pos.getX(i);
         const vz = pos.getZ(i);
@@ -588,7 +923,6 @@
         pos.setY(i, vy);
         this.terrainVertexY[i] = vy;
 
-        // Multi-Layer Woodland & Alpine Biome Coloring
         cTmp.copy(cDeepForest);
         const patchNoise = 0.5 + 0.5 * Math.sin(vx * 0.0045) * Math.cos(vz * 0.0045);
         cTmp.lerp(cMossMeadow, patchNoise * 0.68);
@@ -596,17 +930,30 @@
         const elevFactor = Math.min(1, Math.max(0, (vy - 16) / 38));
         cTmp.lerp(cPineFloor, elevFactor * 0.65);
 
-        if (vy > 42) {
-          cTmp.lerp(cSubAlpine, Math.min(1, (vy - 42) / 28));
+        // Sakura Pass (SW quadrant z > 700, x < -400): lush bright spring green
+        if (vx < -400 && vz > 700) {
+          cTmp.lerp(cSakuraGrass, 0.55);
         }
+
+        // Riverbend Canyon (SE inner sector 1300..2600, -900..2500): warm reddish canyon earth
+        const canyonDist = Math.hypot((vx - 1850) * 0.85, (vz - 850) * 0.55);
+        if (canyonDist < 850) {
+          cTmp.lerp(cCanyonSand, Math.max(0, 1 - canyonDist / 850) * 0.78);
+        }
+
+        // Snow Pass Winter Zone around expressway corridor (x ~ 500..1150) & alpine peaks
+        const snowCorridorDist = Math.abs(vx - 760);
+        if (snowCorridorDist < 260 && Math.abs(vz) > 450) {
+          cTmp.lerp(cSnowBlanket, Math.max(0, 1 - snowCorridorDist / 260) * 0.85);
+        }
+
         if (vy > 64) {
           cTmp.lerp(cGranitePeak, Math.min(1, (vy - 64) / 42));
         }
-        if (vy > 112) {
-          cTmp.lerp(cSnowCap, Math.min(0.88, (vy - 112) / 36));
+        if (vy > 106) {
+          cTmp.lerp(cSnowCap, Math.min(0.92, (vy - 106) / 36));
         }
 
-        // Shoreline pebbles around Emerald Lake & East Coast
         const lakeShoreDist = Math.hypot(vx - (-1250), vz - 420);
         if (vx > 2720) {
           cTmp.lerp(cShorePebble, Math.min(1, (vx - 2720) / 420));
@@ -614,9 +961,8 @@
           cTmp.lerp(cShorePebble, Math.max(0, 1 - Math.abs(lakeShoreDist - 320) / 100) * 0.72);
         }
 
-        // Compacted soil/gravel shoulder next to asphalt roads
         if (shoulderBlend > 0) {
-          cTmp.lerp(cRoadShoulder, shoulderBlend * 0.78);
+          cTmp.lerp(cRoadShoulder, shoulderBlend * 0.72);
         }
 
         colors[i * 3] = cTmp.r;
@@ -640,7 +986,7 @@
       this.terrainMesh.receiveShadow = true;
       this.scene.add(this.terrainMesh);
 
-      // 1. Pacific Coastal Ocean along the Eastern Edge (x > 3150, shallow driveable beach bed underneath)
+      // 1. Pacific Coastal Ocean along Eastern Edge (x > 3150)
       const oceanGeo = new THREE.PlaneGeometry(3200, this.worldSize);
       oceanGeo.rotateX(-Math.PI / 2);
       const oceanMat = new THREE.MeshStandardMaterial({
@@ -654,15 +1000,15 @@
       ocean.position.set(4750, 0.28, 0);
       this.scene.add(ocean);
 
-      // 2. Emerald Alpine Lake at (x = -1250, z = +420, shallow 0.18m crystal water over pebble bed)
+      // 2. Emerald Alpine Mirror Lake at (-1250, 420)
       const lakeGeo = new THREE.CircleGeometry(330, 64);
       lakeGeo.rotateX(-Math.PI / 2);
       const lakeMat = new THREE.MeshStandardMaterial({
-        color: 0x06b6d4,
-        roughness: 0.08,
-        metalness: 0.82,
+        color: 0x0ea5e9,
+        roughness: 0.06,
+        metalness: 0.85,
         transparent: true,
-        opacity: 0.82
+        opacity: 0.84
       });
       const lake = new THREE.Mesh(lakeGeo, lakeMat);
       lake.position.set(-1250, 6.18, 420);
@@ -670,25 +1016,36 @@
     }
 
     /* ----------------------------------------------------------------------
-       BUILD 3D LAYERED ASPHALT ROAD MESHES + GRAVEL EMBANKMENT SKIRTS
+       BUILD MULTI-SURFACE 3D ROAD MESHES + EMBANKMENT SKIRTS
        ---------------------------------------------------------------------- */
     buildRoadMeshes() {
-      const tarmacMat = new THREE.MeshStandardMaterial({
-        map: this.textures.tarmacTex,
-        bumpMap: this.textures.tarmacTex,
-        bumpScale: 0.04,
-        roughness: 0.42,
-        metalness: 0.16,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -3,
-        polygonOffsetUnits: -3
-      });
-      this.roadMaterials.push(tarmacMat);
+      const makeRoadMat = (tex, roughness, metalness) => {
+        const mat = new THREE.MeshStandardMaterial({
+          map: tex,
+          bumpMap: tex,
+          bumpScale: 0.045,
+          roughness: roughness,
+          metalness: metalness,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -3,
+          polygonOffsetUnits: -3
+        });
+        mat.userData = { baseRoughness: roughness, baseMetalness: metalness };
+        this.roadMaterials.push(mat);
+        return mat;
+      };
+
+      const surfaceMats = {
+        TARMAC: makeRoadMat(this.textures.tarmacTex, 0.42, 0.16),
+        GRAVEL: makeRoadMat(this.textures.gravelTex, 0.86, 0.04),
+        MUD: makeRoadMat(this.textures.mudTex, 0.56, 0.22),
+        SNOW: makeRoadMat(this.textures.snowTex, 0.34, 0.32)
+      };
 
       const skirtMat = new THREE.MeshStandardMaterial({
         map: this.textures.shoulderTex,
-        roughness: 0.86,
+        roughness: 0.88,
         metalness: 0.04,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -701,12 +1058,10 @@
         const halfW = road.width * 0.5;
         const shoulderW = 7.5;
 
-        // Layer 1: Crowned 3-vertex-wide Asphalt Wearing Course (Left Edge, Crown Center, Right Edge)
         const positions = [];
         const indices = [];
         const uvs = [];
 
-        // Layer 2: 3D Sloped Gravel & Earth Embankment Skirts on both sides of the road
         const skirtPos = [];
         const skirtIdx = [];
         const skirtUvs = [];
@@ -722,9 +1077,9 @@
           const leftZ = -tan.x;
 
           const lx = p.x + leftX * halfW;
-          const lz = p.z - tan.x * halfW;
+          const lz = p.z + leftZ * halfW;
           const rx = p.x - leftX * halfW;
-          const rz = p.z + tan.x * halfW;
+          const rz = p.z - leftZ * halfW;
 
           const edgeY = Math.max(this.getMeshTriangleHeight(p.x, p.z) + 0.06, p.y + 0.12);
           const crownY = edgeY + 0.03;
@@ -739,7 +1094,6 @@
             indices.push(b + 1, b + 4, b + 2, b + 2, b + 4, b + 5);
           }
 
-          // Outer embankment skirt vertices connecting asphalt edge seamlessly into terrainMesh
           const lOutX = p.x + leftX * (halfW + shoulderW);
           const lOutZ = p.z + leftZ * (halfW + shoulderW);
           const lOutY = this.getMeshTriangleHeight(lOutX, lOutZ) - 0.03;
@@ -758,9 +1112,7 @@
 
           if (i < pts.length - 1) {
             const sb = i * 4;
-            // Left embankment quad
             skirtIdx.push(sb, sb + 4, sb + 1, sb + 1, sb + 4, sb + 5);
-            // Right embankment quad
             skirtIdx.push(sb + 2, sb + 3, sb + 6, sb + 3, sb + 7, sb + 6);
           }
         }
@@ -771,7 +1123,8 @@
         geo.setIndex(indices);
         geo.computeVertexNormals();
 
-        const mesh = new THREE.Mesh(geo, tarmacMat);
+        const mat = surfaceMats[road.surfaceType] || surfaceMats.TARMAC;
+        const mesh = new THREE.Mesh(geo, mat);
         mesh.receiveShadow = true;
         this.scene.add(mesh);
 
@@ -788,7 +1141,7 @@
     }
 
     /* ----------------------------------------------------------------------
-       STEEL W-BEAM GUARDRAILS, DELINEATOR POSTS, CHEVRONS & STREETLAMPS
+       GUARDRAILS, RED/WHITE RALLY BARRIER TAPE, DELINEATORS & LAMPS
        ---------------------------------------------------------------------- */
     buildBridgesAndGuardrails() {
       const steelMat = new THREE.MeshStandardMaterial({
@@ -847,16 +1200,17 @@
         });
       });
 
-      // 1. Glowing Retroreflective Amber Centerline Cat's-Eye Road Studs
+      // 1. Reflective Road Studs along Tarmac Touge & Snow Passes
       const dummy = new THREE.Object3D();
       const studGeo = new THREE.BoxGeometry(0.18, 0.045, 0.18);
       const studMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
-      const studInst = new THREE.InstancedMesh(studGeo, studMat, 2400);
+      const studInst = new THREE.InstancedMesh(studGeo, studMat, 1800);
       let studCount = 0;
 
       this.roadSplines.forEach((road) => {
+        if (road.surfaceType !== 'TARMAC') return;
         for (let i = 0; i < road.pts.length; i += 3) {
-          if (studCount >= 2400) break;
+          if (studCount >= 1800) break;
           const p = road.pts[i];
           const tan = road.tangents[i];
           const y = this.getTerrainHeight(p.x, p.z);
@@ -870,26 +1224,26 @@
       studInst.count = studCount;
       this.scene.add(studInst);
 
-      // 2. Roadside White & Red Reflective Delineator Guide Posts (every ~45m on both shoulders)
-      const postGeo = new THREE.BoxGeometry(0.14, 1.05, 0.08);
+      // 2. Rally Course Red/White Shoulder Posts & Delineators along ALL 5 Stages
+      const postGeo = new THREE.BoxGeometry(0.14, 1.05, 0.10);
       postGeo.translate(0, 0.52, 0);
       const postMat = new THREE.MeshStandardMaterial({
         color: 0xf8fafc,
         emissive: 0xef4444,
-        emissiveIntensity: 0.35,
+        emissiveIntensity: 0.42,
         roughness: 0.3
       });
-      const postInst = new THREE.InstancedMesh(postGeo, postMat, 1800);
+      const postInst = new THREE.InstancedMesh(postGeo, postMat, 2200);
       let postCount = 0;
 
       this.roadSplines.forEach((road) => {
         const off = road.width * 0.5 + 1.15;
-        for (let i = 4; i < road.pts.length - 4; i += 6) {
-          if (postCount >= 1800) break;
+        for (let i = 4; i < road.pts.length - 4; i += 7) {
+          if (postCount >= 2200) break;
           const p = road.pts[i];
           const tan = road.tangents[i];
           [-1, 1].forEach((side) => {
-            if (postCount >= 1800) return;
+            if (postCount >= 2200) return;
             const px = p.x + tan.z * off * side;
             const pz = p.z - tan.x * off * side;
             const py = this.getTerrainHeight(px, pz);
@@ -904,7 +1258,7 @@
       postInst.count = postCount;
       this.scene.add(postInst);
 
-      // 3. Architectural Forest Highway Streetlamps along the Autobahn & Main Forest Ring
+      // 3. Highway Flood Lamps on Tarmac & Snow Passes
       const poleGeo = new THREE.CylinderGeometry(0.14, 0.22, 9.5, 8);
       poleGeo.translate(0, 4.75, 0);
       const lampGeo = new THREE.BoxGeometry(1.5, 0.22, 0.48);
@@ -913,18 +1267,18 @@
       const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.8 });
       const lampMat = new THREE.MeshBasicMaterial({ color: 0xfef3c7 });
 
-      const poleInst = new THREE.InstancedMesh(poleGeo, poleMat, 340);
-      const lampInst = new THREE.InstancedMesh(lampGeo, lampMat, 340);
+      const poleInst = new THREE.InstancedMesh(poleGeo, poleMat, 280);
+      const lampInst = new THREE.InstancedMesh(lampGeo, lampMat, 280);
       let lampCount = 0;
 
       [this.roadSplines[0], this.roadSplines[1]].forEach((road) => {
         if (!road) return;
         const sideOffset = road.width * 0.5 + 2.1;
-        for (let i = 8; i < road.pts.length - 8; i += 22) {
-          if (lampCount >= 340) break;
+        for (let i = 8; i < road.pts.length - 8; i += 28) {
+          if (lampCount >= 280) break;
           const p = road.pts[i];
           const tan = road.tangents[i];
-          const side = (i / 22) % 2 === 0 ? 1 : -1;
+          const side = (i / 28) % 2 === 0 ? 1 : -1;
           const lx = p.x + tan.z * sideOffset * side;
           const lz = p.z - tan.x * sideOffset * side;
           const ly = this.getTerrainHeight(lx, lz);
@@ -944,9 +1298,10 @@
     }
 
     /* ----------------------------------------------------------------------
-       DENSE LUSH FOREST CORRIDORS: 6,500+ TREES, 3,500+ BUSHES, 900+ BOULDERS
+       HARDWARE-SCALED BIOME FOLIAGE: PINES, SAKURA BLOSSOMS, BUSHES & ROCKS
        ---------------------------------------------------------------------- */
     buildNaturalScenery() {
+      this.sceneryInstanced = [];
       const dummy = new THREE.Object3D();
 
       let seed = 4219;
@@ -955,10 +1310,19 @@
         return (seed - 1) / 2147483646;
       };
 
-      const sampleForestPoint = (minClearance, maxRoadDist) => {
+      const sampleForestPoint = (minClearance, maxRoadDist, specificSpline) => {
         for (let attempt = 0; attempt < 14; attempt++) {
           let x, z;
-          if (rand() < 0.82) {
+          if (specificSpline) {
+            const idx = Math.floor(rand() * specificSpline.pts.length);
+            const pt = specificSpline.pts[idx];
+            const tan = specificSpline.tangents[idx];
+            const side = rand() < 0.5 ? -1 : 1;
+            const lateralDist = specificSpline.width * 0.5 + minClearance + Math.pow(rand(), 1.35) * (maxRoadDist || 55);
+            const jitterAlong = (rand() - 0.5) * 28;
+            x = pt.x + tan.z * side * lateralDist + tan.x * jitterAlong;
+            z = pt.z - tan.x * side * lateralDist + tan.z * jitterAlong;
+          } else if (rand() < 0.82) {
             const road = this.roadSplines[Math.floor(rand() * this.roadSplines.length)];
             const idx = Math.floor(rand() * road.pts.length);
             const pt = road.pts[idx];
@@ -985,8 +1349,8 @@
         return null;
       };
 
-      // 1. 4,500 Towering Redwood & Douglas Fir Conifer Trees (Multi-Tier Canopy + Trunk)
-      const coniferCount = 4500;
+      // 1. Towering Conifers & Frosted Pines
+      const coniferCount = 4200;
       const trunkGeo = new THREE.CylinderGeometry(0.28, 0.50, 4.6, 7);
       trunkGeo.translate(0, 2.3, 0);
       const canopyLowGeo = new THREE.ConeGeometry(2.9, 6.4, 8);
@@ -1026,9 +1390,14 @@
       lowCanopyInst.count = placedConifers;
       highCanopyInst.count = placedConifers;
       this.scene.add(trunkInst, lowCanopyInst, highCanopyInst);
+      this.sceneryInstanced.push(
+        { mesh: trunkInst, maxCount: placedConifers, shadow: true },
+        { mesh: lowCanopyInst, maxCount: placedConifers, shadow: true },
+        { mesh: highCanopyInst, maxCount: placedConifers, shadow: false }
+      );
 
-      // 2. 2,000 Broadleaf Oak & Silver Birch Woodland Trees
-      const broadleafCount = 2000;
+      // 2. Broadleaf Oaks & Birch Trees
+      const broadleafCount = 1600;
       const birchTrunkGeo = new THREE.CylinderGeometry(0.22, 0.36, 4.2, 7);
       birchTrunkGeo.translate(0, 2.1, 0);
       const crownGeo = new THREE.DodecahedronGeometry(3.1, 1);
@@ -1046,13 +1415,11 @@
       for (let i = 0; i < broadleafCount; i++) {
         const pt = sampleForestPoint(6.5, 80);
         if (!pt) continue;
-
         const s = 0.75 + rand() * 0.90;
         dummy.position.set(pt.x, pt.y - 0.12, pt.z);
         dummy.rotation.set(0, rand() * Math.PI * 2, 0);
         dummy.scale.set(s, s * (0.85 + rand() * 0.35), s);
         dummy.updateMatrix();
-
         birchTrunkInst.setMatrixAt(placedBroadleaf, dummy.matrix);
         crownInst.setMatrixAt(placedBroadleaf, dummy.matrix);
         placedBroadleaf++;
@@ -1060,9 +1427,48 @@
       birchTrunkInst.count = placedBroadleaf;
       crownInst.count = placedBroadleaf;
       this.scene.add(birchTrunkInst, crownInst);
+      this.sceneryInstanced.push(
+        { mesh: birchTrunkInst, maxCount: placedBroadleaf, shadow: false },
+        { mesh: crownInst, maxCount: placedBroadleaf, shadow: true }
+      );
 
-      // 3. 3,500 Roadside Woodland Ferns & Lush Forest Undergrowth Bushes
-      const bushCount = 3500;
+      // 3. Vibrant Pink SAKURA CHERRY BLOSSOM Trees along Sakura Blossom Pass (canyon_route)
+      const sakuraSpline = this.roadSplines.find((r) => r.id === 'canyon_route');
+      const sakuraCount = 750;
+      const sakuraTrunkMat = new THREE.MeshStandardMaterial({ color: 0x452b22, roughness: 0.9 });
+      const sakuraCrownMat = new THREE.MeshStandardMaterial({
+        color: 0xf472b6,
+        emissive: 0xdb2777,
+        emissiveIntensity: 0.14,
+        roughness: 0.75
+      });
+      const sakuraTrunkInst = new THREE.InstancedMesh(birchTrunkGeo, sakuraTrunkMat, sakuraCount);
+      const sakuraCrownInst = new THREE.InstancedMesh(crownGeo, sakuraCrownMat, sakuraCount);
+      sakuraCrownInst.castShadow = true;
+
+      let placedSakura = 0;
+      for (let i = 0; i < sakuraCount; i++) {
+        const pt = sampleForestPoint(5.2, 55, sakuraSpline);
+        if (!pt) continue;
+        const s = 0.8 + rand() * 0.85;
+        dummy.position.set(pt.x, pt.y - 0.12, pt.z);
+        dummy.rotation.set(0, rand() * Math.PI * 2, 0);
+        dummy.scale.set(s, s * (0.82 + rand() * 0.32), s);
+        dummy.updateMatrix();
+        sakuraTrunkInst.setMatrixAt(placedSakura, dummy.matrix);
+        sakuraCrownInst.setMatrixAt(placedSakura, dummy.matrix);
+        placedSakura++;
+      }
+      sakuraTrunkInst.count = placedSakura;
+      sakuraCrownInst.count = placedSakura;
+      this.scene.add(sakuraTrunkInst, sakuraCrownInst);
+      this.sceneryInstanced.push(
+        { mesh: sakuraTrunkInst, maxCount: placedSakura, shadow: false },
+        { mesh: sakuraCrownInst, maxCount: placedSakura, shadow: true }
+      );
+
+      // 4. Roadside Undergrowth Ferns & Bushes
+      const bushCount = 3000;
       const bushGeo = new THREE.DodecahedronGeometry(1.4, 1);
       bushGeo.translate(0, 0.75, 0);
       const bushMat = new THREE.MeshStandardMaterial({ color: 0x38662c, roughness: 0.88 });
@@ -1083,8 +1489,9 @@
       }
       bushInst.count = placedBushes;
       this.scene.add(bushInst);
+      this.sceneryInstanced.push({ mesh: bushInst, maxCount: placedBushes, shadow: false });
 
-      // 4. 900 Mossy Forest Boulders & Granite Outcrops
+      // 5. Mossy Forest Boulders & Canyon Sandstone Outcrops
       const rockCount = 900;
       const rockGeo = new THREE.DodecahedronGeometry(1.0, 1);
       const graniteMat = new THREE.MeshStandardMaterial({ color: 0x575c58, roughness: 0.92 });
@@ -1105,6 +1512,26 @@
       }
       graniteInst.count = placedRocks;
       this.scene.add(graniteInst);
+      this.sceneryInstanced.push({ mesh: graniteInst, maxCount: placedRocks, shadow: true });
+
+      this.setGraphicsProfile(this.gfx);
+    }
+
+    setGraphicsProfile(profile) {
+      if (profile) {
+        this.gfx = Object.assign({}, this.gfx || {}, profile);
+      }
+      const mult = Math.max(0.1, Math.min(1.0, (this.gfx && this.gfx.foliageMult) || 0.75));
+      const shadows = !!(this.gfx && this.gfx.shadowsEnabled);
+      if (this.sceneryInstanced) {
+        for (let i = 0; i < this.sceneryInstanced.length; i++) {
+          const entry = this.sceneryInstanced[i];
+          entry.mesh.count = Math.max(0, Math.floor(entry.maxCount * mult));
+          if (entry.shadow) {
+            entry.mesh.castShadow = shadows;
+          }
+        }
+      }
     }
 
     update() {}
