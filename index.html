@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=bsr3" />
+  <link rel="stylesheet" href="css/style.css?v=hw8" />
 </head>
 <body>
-  <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game!) -->
-  <div id="calculator-layer" class="calc-overlay">
+  <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
+  <div id="calculator-layer" class="calc-overlay" tabindex="-1">
     <div class="calc-shell">
       <div class="calc-top-bar">
         <div class="calc-window-dots">
@@ -52,294 +52,267 @@
     </div>
   </div>
 
-  <!-- 3D WebGL Viewport -->
+  <!-- 3D WebGL Highway Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- Subtle Vignette -->
+  <!-- Subtle Edge Vignette -->
   <div id="fx-vignette"></div>
 
-  <!-- Minimalist Pure Driving HUD -->
+  <!-- Minimalist Highway HUD -->
   <div id="hud">
-    <!-- TOP LEFT: Championship Brand + Garage/Stages & Boss-Key Buttons -->
-    <div class="hud-top-left" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-      <div class="championship-pill">🏁 BACKSEAT RALLY // WRC</div>
-      <button class="menu-trigger-btn" id="btn-open-menu">
-        <span>⚙️ GARAGE & STAGES</span>
+    <!-- Top Left: Pause, Garage/Shop ($), Restart & Calculator Quick-Lock -->
+    <div class="hud-top-left">
+      <button class="hud-pill-btn" id="btn-pause" title="Pause [ESC / P]">
+        <span>Pause</span>
         <kbd>ESC</kbd>
       </button>
-      <button class="menu-trigger-btn" id="btn-lock-calc" title="Return to Calculator Disguise [`]">
-        <span>🧮</span>
+      <button class="hud-pill-btn hud-pill-garage" id="btn-open-garage" title="Open Garage & Shop [G]">
+        <span>Garage</span>
+        <strong class="bank-chip" id="hud-bank">$0</strong>
+        <kbd>G</kbd>
+      </button>
+      <button class="hud-pill-btn" id="btn-restart" title="Restart Drive [R]">
+        <span>Restart</span>
+        <kbd>R</kbd>
+      </button>
+      <button class="hud-pill-btn hud-pill-calc" id="btn-lock-calc" title="Return to Calculator [`]">
+        <span>Calc</span>
         <kbd>`</kbd>
       </button>
     </div>
 
-    <!-- CENTER STAGE START 3-2-1-GO COUNTDOWN OVERLAY -->
-    <div id="stage-countdown-overlay" class="stage-countdown-overlay hidden">
-      <div class="countdown-stage-tag" id="countdown-stage-tag">PINE FOREST STAGE // GRAVEL</div>
-      <div class="countdown-num" id="countdown-num">3</div>
-      <div class="countdown-sub" id="countdown-sub">GET READY • CO-DRIVER ACTIVE</div>
-    </div>
-
-    <!-- TOP CENTER: Backseat Rally Co-Driver Pacenote Banner -->
-    <div id="pacenote-hud" class="pacenote-hud">
-      <div class="pacenote-icon-box" id="pacenote-icon">▲</div>
-      <div class="pacenote-text-group">
-        <div class="pacenote-callout" id="pacenote-callout">FLAT OUT • JUMP CREST</div>
-        <div class="pacenote-meta">
-          <span id="pacenote-dist">135M</span>
-          <span class="pacenote-badge" id="pacenote-sev">6</span>
-          <span class="pacenote-next" id="pacenote-next">THEN 4 RIGHT</span>
-        </div>
-      </div>
-      <button class="pacenote-voice-btn" id="btn-toggle-voice" title="Toggle Co-Driver Voice [V]">🔊</button>
-    </div>
-
-    <!-- TOP RIGHT: Stage Rally Timer, Progress Bar, CR Currency & Hardware Tier HUD -->
+    <!-- Top Right: Transmission, Gauges, Camera, Weather & Audio Quick Pills -->
     <div class="hud-top-right">
-      <div class="stage-hud-card" id="stage-hud">
-        <div class="stage-top-row">
-          <span class="cr-pill" id="hud-cr-pill">💰 25,000 CR</span>
-          <span class="hw-pill" id="hud-hw-pill" title="Click to cycle Hardware Graphics Preset">GPU: AUTO • 60 FPS</span>
-        </div>
-        <div class="stage-run-row">
-          <div class="stage-timer-box">
-            <span class="stage-label" id="hud-stage-name">PINE FOREST STAGE</span>
-            <strong class="stage-clock" id="hud-stage-timer">00:00.00</strong>
-          </div>
-          <div class="stage-cp-box">
-            <span id="hud-stage-cp">CP 0/11</span>
-            <span id="hud-stage-medal-target">GOLD --:--</span>
-          </div>
-        </div>
-        <div class="stage-progress-bar">
-          <div class="stage-progress-fill" id="stage-progress-fill"></div>
-        </div>
-        <div class="stage-btn-row">
-          <button class="stage-btn" id="btn-start-stage">🏁 START STAGE RUN</button>
-        </div>
-      </div>
+      <button class="hud-pill-btn" id="btn-trans" title="Cycle Transmission [X]">
+        <span id="hud-trans-label">AUTO</span>
+        <kbd>X</kbd>
+      </button>
+      <button class="hud-pill-btn" id="btn-gauge" title="Toggle Digital / Analog Gauges [V]">
+        <span id="hud-gauge-label">Digital</span>
+        <kbd>V</kbd>
+      </button>
+      <button class="hud-pill-btn" id="btn-camera" title="Cycle Camera [C]">
+        <span id="hud-camera-label">Chase</span>
+        <kbd>C</kbd>
+      </button>
+      <button class="hud-pill-btn" id="btn-lighting" title="Cycle Weather & Time [T]">
+        <span id="hud-lighting-label">Afternoon</span>
+        <kbd>T</kbd>
+      </button>
+      <button class="hud-pill-btn" id="btn-audio" title="Toggle Audio [M]">
+        <span id="hud-audio-label">Sound On</span>
+        <kbd>M</kbd>
+      </button>
     </div>
 
-    <!-- BOTTOM LEFT: Road Radar Minimap -->
-    <div class="hud-bottom-left">
-      <div class="biome-tag">
-        <span id="biome-name">VALLEY COASTAL HIGHWAY</span>
-      </div>
-      <div class="minimap-wrapper">
-        <div class="minimap-compass">N</div>
-        <canvas id="minimap-canvas" width="210" height="210"></canvas>
-      </div>
+    <!-- Transient Toast Notification -->
+    <div id="hud-toast" class="hud-toast hidden"></div>
+
+    <!-- Auto-fading Controls Hint on Start -->
+    <div id="controls-hint" class="controls-hint">
+      <span><kbd>W</kbd><kbd>S</kbd> Drive</span>
+      <span><kbd>A</kbd><kbd>D</kbd> Steer</span>
+      <span><kbd>Q</kbd> Up / <kbd>E</kbd> Down</span>
+      <span><kbd>L-Shift</kbd> Clutch</span>
+      <span><kbd>X</kbd> Trans</span>
+      <span><kbd>V</kbd> Gauges</span>
+      <span><kbd>G</kbd> Garage</span>
     </div>
 
-    <!-- BOTTOM RIGHT: WRC 12-LED Shift Strip, Tachometer & Telemetry -->
+    <!-- Bottom Right: Clean Speedometer, Gear/RPM, Distance & Earnings (Digital / Analog) -->
     <div class="hud-bottom-right">
-      <div class="car-badge-pill">
-        <span id="hud-car-name">SUBARU IMPREZA 22B STi (RAIJIN GS)</span>
-        <span id="hud-car-specs-mini">380 HP • AWD • 265 KM/H</span>
-      </div>
+      <div class="bonus-toast hidden" id="hud-bonus-pill">+$50 Clean Pass</div>
+      <div class="clutch-pill hidden" id="hud-clutch-pill">CLUTCH · L-SHIFT</div>
 
-      <!-- 12-LED WRC RPM Shift Light Bar -->
-      <div class="rpm-led-strip" id="rpm-led-strip">
-        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
-        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
-        <span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span><span class="rpm-led"></span>
-      </div>
-
-      <!-- Live Performance Timer & G-Force Telemetry Row -->
-      <div class="perf-telemetry-bar">
-        <div class="g-meter-box" title="Live Lateral & Longitudinal G-Force">
-          <div class="g-meter-circle">
-            <div class="g-meter-dot" id="hud-g-dot"></div>
-          </div>
-          <span class="g-meter-val" id="hud-g-val">0.0G</span>
+      <div class="damage-card hidden" id="hud-damage-card">
+        <div class="damage-label-row">
+          <span>Vehicle Condition</span>
+          <strong id="hud-condition-pct">100%</strong>
         </div>
-        <div class="perf-splits">
-          <div class="perf-split-item"><span>0–100</span><strong id="perf-0-100">--.-s</strong></div>
-          <div class="perf-split-item"><span>0–200</span><strong id="perf-0-200">--.-s</strong></div>
-          <div class="perf-split-item"><span>0–300</span><strong id="perf-0-300">--.-s</strong></div>
-          <div class="perf-split-item"><span>VMAX</span><strong id="perf-vmax">0</strong></div>
+        <div class="damage-track">
+          <div class="damage-fill" id="hud-condition-fill"></div>
         </div>
       </div>
 
-      <div class="tacho-cluster">
-        <svg class="tacho-svg" viewBox="0 0 220 220">
-          <defs>
-            <linearGradient id="tachoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#38bdf8" />
-              <stop offset="72%" stop-color="#fbbf24" />
-              <stop offset="100%" stop-color="#e11d48" />
-            </linearGradient>
-          </defs>
-          <circle
-            class="tacho-track"
-            cx="110"
-            cy="110"
-            r="70"
-            stroke-dasharray="310 440"
-            transform="rotate(135 110 110)"
-          ></circle>
-          <circle
-            id="tacho-rpm-arc"
-            cx="110"
-            cy="110"
-            r="70"
-            transform="rotate(135 110 110)"
-          ></circle>
-          <circle
-            id="tacho-nitro-arc"
-            cx="110"
-            cy="110"
-            r="56"
-            transform="rotate(135 110 110)"
-          ></circle>
-        </svg>
-
-        <div class="tacho-center-readout">
-          <div id="hud-gear">1</div>
-          <div id="hud-speed">0</div>
-          <div class="tacho-sub-row">
-            <span id="hud-speed-unit" title="Click to toggle KM/H or MPH">KM/H</span>
-            <span id="hud-rpm-num">1,000 RPM</span>
+      <div class="telemetry-card" id="hud-digital-cluster">
+        <div class="distance-block">
+          <div class="dist-top-row">
+            <span class="tele-label">DISTANCE</span>
+            <span class="streak-chip hidden" id="hud-streak">1.0x</span>
           </div>
-          <div class="telemetry-pills">
-            <span class="tele-pill surface-tarmac" id="hud-surface-pill">TARMAC</span>
-            <span class="tele-pill" id="hud-mode-pill">SIM_GRIP</span>
+          <strong id="hud-distance">0.00 km</strong>
+          <span class="car-mini-name" id="hud-car-name">Civic Touring</span>
+        </div>
+
+        <div class="speed-block">
+          <div class="speed-num-row">
+            <div class="gear-col">
+              <span class="gear-badge" id="hud-gear">D1</span>
+              <span class="shift-hint hidden" id="hud-shift-hint">▲</span>
+            </div>
+            <strong id="hud-speed">0</strong>
+            <button id="hud-unit" class="unit-toggle" title="Click to toggle KM/H or MPH">KM/H</button>
+          </div>
+          <div class="rpm-bar-track" title="Engine RPM">
+            <div class="rpm-bar-fill" id="hud-rpm-bar"></div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- UNIFIED GAME MENU MODAL [ESC / TAB / MENU BUTTON] -->
-  <div class="fh-modal-backdrop" id="modal-menu">
-    <div class="fh-modal-card">
-      <div class="modal-header">
-        <div class="modal-tabs">
-          <button class="menu-tab-btn active" data-tab="tab-garage">RALLY GARAGE (10)</button>
-          <button class="menu-tab-btn" data-tab="tab-settings">HARDWARE & PHYSICS</button>
-          <button class="menu-tab-btn" data-tab="tab-world">RALLY STAGES (5)</button>
-        </div>
-        <button class="modal-close-btn" id="btn-close-menu">RESUME STAGE [ESC]</button>
-      </div>
-
-      <div class="modal-body">
-        <!-- TAB 1: GARAGE, CR PROGRESSION, UPGRADES & PROMO CODES -->
-        <div class="menu-tab-pane active" id="tab-garage">
-          <div class="garage-economy-bar">
-            <div class="economy-cr-box">
-              <span class="economy-label">RALLY BANK:</span>
-              <strong class="economy-cr-val" id="garage-cr-balance">15,000 CR</strong>
-            </div>
-            <div class="promo-redeem-box">
-              <input type="text" id="promo-code-input" class="promo-input" placeholder="PROMO CODE (BACKSEAT / 1903)" maxlength="24" />
-              <button class="promo-btn" id="btn-redeem-promo">REDEEM</button>
-            </div>
-          </div>
-
-          <div class="garage-grid" id="garage-car-grid"></div>
-
-          <div class="garage-customizer-row">
-            <div class="swatch-group">
-              <span class="swatch-label">FACTORY & CUSTOM PAINT:</span>
-              <div class="color-swatch paint-swatch" data-hex="0xf1f5f9" style="background:#f1f5f9" title="Pearl White"></div>
-              <div class="color-swatch paint-swatch" data-hex="0xd8dee9" style="background:#d8dee9" title="Liquid Silver"></div>
-              <div class="color-swatch paint-swatch" data-hex="0x11151c" style="background:#11151c" title="Carbon Black"></div>
-              <div class="color-swatch paint-swatch" data-hex="0xd90429" style="background:#d90429" title="Rosso Corsa"></div>
-              <div class="color-swatch paint-swatch" data-hex="0xfbbf24" style="background:#fbbf24" title="Giallo Modena"></div>
-              <div class="color-swatch paint-swatch" data-hex="0x10b981" style="background:#10b981" title="Python Green"></div>
-              <div class="color-swatch paint-swatch" data-hex="0x2563eb" style="background:#2563eb" title="Bayside Blue"></div>
-              <div class="color-swatch paint-swatch" data-hex="0xf97316" style="background:#f97316" title="Arancio Borealis"></div>
-            </div>
+      <div class="analog-cluster hidden" id="hud-analog-cluster">
+        <!-- Analog Tachometer Dial (0-7 x1000 RPM) -->
+        <div class="dial-box dial-rpm">
+          <svg class="dial-svg" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="64" class="dial-face"></circle>
+            <path d="M 125.6 76.3 A 56 56 0 0 1 109.6 109.6" class="dial-redline-arc"></path>
+            <g id="analog-rpm-ticks" class="dial-ticks"></g>
+            <g id="analog-rpm-needle" class="dial-needle-group">
+              <line x1="70" y1="78" x2="70" y2="20" class="dial-needle dial-needle-red"></line>
+              <circle cx="70" cy="70" r="5" class="dial-cap"></circle>
+            </g>
+          </svg>
+          <div class="dial-center-readout dial-rpm-inset">
+            <span class="gear-badge" id="analog-gear">D1</span>
+            <span class="shift-hint hidden" id="analog-shift-hint">▲</span>
           </div>
         </div>
 
-        <!-- TAB 2: PHYSICS, ASSISTS & SETTINGS -->
-        <div class="menu-tab-pane" id="tab-settings">
-          <div class="settings-grid">
-            <div class="setting-card setting-card-hw">
-              <h4>HARDWARE AUTO-DETECTOR & ARRANGEABLE GRAPHICS</h4>
-              <p id="hw-detect-details">Detecting WebGL GPU, CPU threads & RAM to calibrate shadows, PBR reflections, and foliage density automatically (3rd-Gen i5 & Mobile ready).</p>
-              <button class="setting-action-btn" id="btn-setting-gfx">GRAPHICS: AUTO (HIGH)</button>
-              <div class="gfx-arrange-grid">
-                <button class="gfx-sub-btn" id="btn-gfx-res">RES: 100%</button>
-                <button class="gfx-sub-btn" id="btn-gfx-foliage">TREES: 75%</button>
-                <button class="gfx-sub-btn" id="btn-gfx-shadows">SHADOWS: ON</button>
-                <button class="gfx-sub-btn" id="btn-gfx-draw">DRAW: 7.5KM</button>
-              </div>
-            </div>
-
-            <div class="setting-card">
-              <h4>HANDLING & TRACTION DYNAMICS</h4>
-              <p>Switch between Simulation Grip (TCS active, maximum apex stability), Sport (threshold slip), and Drift Mode (full oversteer).</p>
-              <button class="setting-action-btn" id="btn-setting-handling">MODE: SIM_GRIP [F]</button>
-            </div>
-
-            <div class="setting-card">
-              <h4>TRANSMISSION GEARBOX</h4>
-              <p>Choose Sport Automatic shifting or Sequential Manual Paddle Shifting using [Q] (Downshift) and [E] (Upshift).</p>
-              <button class="setting-action-btn" id="btn-setting-trans">GEARBOX: AUTO</button>
-            </div>
-
-            <div class="setting-card">
-              <h4>SPEEDOMETER UNITS</h4>
-              <p>Display vehicle speed and top-speed telemetry in Kilometers per Hour (KM/H) or Miles per Hour (MPH).</p>
-              <button class="setting-action-btn" id="btn-setting-units">UNITS: KM/H</button>
-            </div>
-
-            <div class="setting-card">
-              <h4>CAMERA PERSPECTIVE</h4>
-              <p>Cycle between Chase Near, Chase Far, Hood/Bonnet Camera, and Low Bumper Camera.</p>
-              <button class="setting-action-btn" id="btn-setting-camera">CAMERA: CHASE NEAR [C]</button>
-            </div>
-
-            <div class="setting-card">
-              <h4>TIME OF DAY & ROAD SURFACE</h4>
-              <p>Cycle between Golden Hour, Clear Noon, Wet Overcast Roads, and Night Drive.</p>
-              <button class="setting-action-btn" id="btn-setting-weather">WEATHER: GOLDEN HOUR [T]</button>
-            </div>
-
-            <div class="setting-card">
-              <h4>ENGINE AUDIO</h4>
-              <p>Toggle procedural multi-harmonic engine synthesis, turbo blow-off valve, and tire slip audio.</p>
-              <button class="setting-action-btn" id="btn-setting-audio">AUDIO: ON [M]</button>
-            </div>
-          </div>
-
-          <div class="controls-grid">
-            <div class="ctrl-item"><span>Throttle / Brake & Reverse</span><span class="ctrl-key">W / S or ↑ / ↓</span></div>
-            <div class="ctrl-item"><span>Steer Left / Right</span><span class="ctrl-key">A / D or ← / →</span></div>
-            <div class="ctrl-item"><span>Handbrake / Initiate Slide</span><span class="ctrl-key">SPACEBAR</span></div>
-            <div class="ctrl-item"><span>ERS / Overboost</span><span class="ctrl-key">SHIFT</span></div>
-            <div class="ctrl-item"><span>Manual Shift Down / Up</span><span class="ctrl-key">Q / E</span></div>
-            <div class="ctrl-item"><span>Cycle Handling Mode</span><span class="ctrl-key">F</span></div>
-            <div class="ctrl-item"><span>Reset Car to Nearest Road</span><span class="ctrl-key">R</span></div>
-            <div class="ctrl-item"><span>Cycle Camera / Weather</span><span class="ctrl-key">C / T</span></div>
-          </div>
-        </div>
-
-        <!-- TAB 3: BACKSEAT RALLY STAGES & MEDAL TARGETS -->
-        <div class="menu-tab-pane" id="tab-world">
-          <p style="margin-bottom: 14px; color: #94a3b8; font-size: 0.82rem;">
-            Choose any of the <strong>5 Backseat Rally Stages</strong> to teleport directly to the start gate. Beat the 12-checkpoint run before Bronze/Silver/Gold/Platinum medal times to win <strong>CR</strong> rewards:
-          </p>
-          <div class="fast-travel-grid" id="fast-travel-grid"></div>
-          <div style="margin-top: 18px;">
-            <button class="setting-action-btn" id="btn-setting-reset" style="width: 100%;">
-              🔄 RESET VEHICLE ONTO NEAREST STAGE LINE [R]
-            </button>
+        <!-- Analog Speedometer Dial -->
+        <div class="dial-box dial-speed">
+          <svg class="dial-svg" viewBox="0 0 156 156">
+            <circle cx="78" cy="78" r="72" class="dial-face"></circle>
+            <g id="analog-speed-ticks" class="dial-ticks"></g>
+            <g id="analog-speed-needle" class="dial-needle-group">
+              <line x1="78" y1="86" x2="78" y2="20" class="dial-needle dial-needle-cyan"></line>
+              <circle cx="78" cy="78" r="6" class="dial-cap"></circle>
+            </g>
+          </svg>
+          <div class="dial-center-readout dial-speed-inset">
+            <strong id="analog-speed-num">0</strong>
+            <button id="analog-unit" class="unit-toggle" title="Click to toggle KM/H or MPH">KM/H</button>
+            <span class="analog-dist" id="analog-distance">0.00 km</span>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Three.js & Backseat Rally Engine Modules (Cache-Busted v=bsr3) -->
-  <script src="vendor/three.min.js?v=bsr3"></script>
-  <script src="js/hardware.js?v=bsr3"></script>
-  <script src="js/audio.js?v=bsr3"></script>
-  <script src="js/world.js?v=bsr3"></script>
-  <script src="js/cars.js?v=bsr3"></script>
-  <script src="js/physics.js?v=bsr3"></script>
-  <script src="js/main.js?v=bsr3"></script>
+  <!-- Garage & Shop Modal [G] -->
+  <div class="hw-modal-backdrop" id="modal-garage">
+    <div class="hw-shop-card">
+      <div class="shop-header">
+        <div>
+          <h2>Garage &amp; Tuning</h2>
+          <span class="hw-modal-sub" id="garage-active-car">Active: Civic Touring</span>
+        </div>
+        <div class="shop-header-right">
+          <div class="shop-bank-box">
+            <span>Balance</span>
+            <strong id="garage-bank">$0</strong>
+          </div>
+          <button class="hw-btn-close" id="btn-close-garage">Drive [ESC]</button>
+        </div>
+      </div>
+
+      <div class="shop-tabs">
+        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (6)</button>
+        <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades &amp; Setup</button>
+      </div>
+
+      <div class="shop-body">
+        <div class="shop-pane active" id="tab-vehicles">
+          <div class="vehicles-grid" id="garage-cars-grid"></div>
+        </div>
+
+        <div class="shop-pane" id="tab-upgrades">
+          <div class="upgrades-grid" id="garage-upgrades-grid"></div>
+
+          <div class="setup-section">
+            <div class="setup-label">Factory Paint Finish</div>
+            <div class="paint-swatches-row" id="garage-paints-row"></div>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-label">Transmission System</div>
+            <div class="trans-selector-row" id="garage-trans-row"></div>
+            <p class="trans-desc" id="garage-trans-desc"></p>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-label">Instrument Cluster Style [V]</div>
+            <div class="trans-selector-row" id="garage-gauge-row"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple Pause Overlay Modal -->
+  <div class="hw-modal-backdrop" id="modal-pause">
+    <div class="hw-modal-card">
+      <div class="hw-modal-head">
+        <h2>Paused</h2>
+        <span class="hw-modal-sub" id="pause-stats-line">0.0 km driven</span>
+      </div>
+
+      <div class="hw-modal-actions">
+        <button class="hw-btn hw-btn-primary" id="btn-resume">Resume Driving</button>
+        <button class="hw-btn" id="btn-pause-garage">Garage &amp; Shop [G]</button>
+        <button class="hw-btn" id="btn-pause-restart">Restart</button>
+        <button class="hw-btn" id="btn-pause-quality">Graphics: Auto</button>
+        <button class="hw-btn hw-btn-subtle" id="btn-pause-calc">Switch to Calculator</button>
+      </div>
+
+      <div class="hw-controls-ref">
+        <div><span>Accelerate / Brake</span><kbd>W / S</kbd> or <kbd>↑ / ↓</kbd></div>
+        <div><span>Steer</span><kbd>A / D</kbd> or <kbd>← / →</kbd></div>
+        <div><span>Shift Up / Down / Clutch</span><kbd>Q / E</kbd> &amp; <kbd>L-Shift</kbd></div>
+        <div><span>Trans / Camera / Gauges / Weather</span><kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>T</kbd></div>
+        <div><span>Garage / Pause / Restart / Calc</span><kbd>G</kbd> <kbd>ESC</kbd> <kbd>R</kbd> <kbd>`</kbd></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crash / Restart Overlay Modal -->
+  <div class="hw-modal-backdrop" id="modal-crash">
+    <div class="hw-modal-card hw-modal-crash">
+      <div class="hw-modal-head">
+        <h2>Collision</h2>
+        <span class="hw-modal-sub" id="crash-reason">Vehicle disabled in traffic collision</span>
+      </div>
+
+      <div class="crash-stats-grid">
+        <div class="crash-stat">
+          <span>Distance</span>
+          <strong id="crash-distance">0.0 km</strong>
+        </div>
+        <div class="crash-stat">
+          <span>Top Speed</span>
+          <strong id="crash-top-speed">0 km/h</strong>
+        </div>
+        <div class="crash-stat">
+          <span>Earned</span>
+          <strong id="crash-earned">$0</strong>
+        </div>
+      </div>
+
+      <div class="hw-modal-actions">
+        <button class="hw-btn hw-btn-primary" id="btn-crash-restart">Restart Drive [R]</button>
+        <button class="hw-btn" id="btn-crash-garage">Garage &amp; Upgrades [G]</button>
+        <button class="hw-btn hw-btn-subtle" id="btn-crash-calc">Calculator [`]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js & Endless Highway Modules -->
+  <script src="vendor/three.min.js?v=hw8"></script>
+  <script src="js/hardware.js?v=hw8"></script>
+  <script src="js/economy.js?v=hw8"></script>
+  <script src="js/audio.js?v=hw8"></script>
+  <script src="js/vehicles.js?v=hw8"></script>
+  <script src="js/highway.js?v=hw8"></script>
+  <script src="js/traffic.js?v=hw8"></script>
+  <script src="js/physics.js?v=hw8"></script>
+  <script src="js/main.js?v=hw8"></script>
 </body>
 </html>

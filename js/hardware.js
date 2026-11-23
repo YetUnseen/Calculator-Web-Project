@@ -14,64 +14,64 @@
       shadowMapSize: 2048,
       shadowsEnabled: true,
       foliageMult: 1.0,
-      particleCount: 180,
+      particleCount: 120,
       anisotropy: 8,
       envMapSize: 256,
       antialias: true,
-      maxDrawDist: 9500,
-      rainCount: 1800
+      maxDrawDist: 1200,
+      rainCount: 0
     },
     HIGH: {
       tier: 'HIGH',
       pixelRatio: 1.5,
       shadowMapSize: 1024,
       shadowsEnabled: true,
-      foliageMult: 0.75,
-      particleCount: 130,
+      foliageMult: 0.78,
+      particleCount: 80,
       anisotropy: 4,
-      envMapSize: 256,
+      envMapSize: 128,
       antialias: true,
-      maxDrawDist: 7500,
-      rainCount: 1200
+      maxDrawDist: 1050,
+      rainCount: 0
     },
     MEDIUM: {
       tier: 'MEDIUM',
       pixelRatio: 1.25,
       shadowMapSize: 1024,
       shadowsEnabled: false,
-      foliageMult: 0.5,
-      particleCount: 90,
+      foliageMult: 0.55,
+      particleCount: 50,
       anisotropy: 2,
       envMapSize: 128,
       antialias: true,
-      maxDrawDist: 5500,
-      rainCount: 700
+      maxDrawDist: 900,
+      rainCount: 0
     },
     LOW: {
       tier: 'LOW',
       pixelRatio: 1.0,
       shadowMapSize: 512,
       shadowsEnabled: false,
-      foliageMult: 0.3,
-      particleCount: 50,
-      anisotropy: 1,
-      envMapSize: 128,
-      antialias: false,
-      maxDrawDist: 4000,
-      rainCount: 350
-    },
-    I5_FAST: {
-      tier: 'I5_FAST',
-      pixelRatio: 0.85,
-      shadowMapSize: 512,
-      shadowsEnabled: false,
-      foliageMult: 0.18,
-      particleCount: 32,
+      foliageMult: 0.32,
+      particleCount: 30,
       anisotropy: 1,
       envMapSize: 64,
       antialias: false,
-      maxDrawDist: 3200,
-      rainCount: 200
+      maxDrawDist: 750,
+      rainCount: 0
+    },
+    I5_FAST: {
+      tier: 'I5_FAST',
+      pixelRatio: 0.9,
+      shadowMapSize: 512,
+      shadowsEnabled: false,
+      foliageMult: 0.2,
+      particleCount: 20,
+      anisotropy: 1,
+      envMapSize: 64,
+      antialias: false,
+      maxDrawDist: 650,
+      rainCount: 0
     }
   };
 

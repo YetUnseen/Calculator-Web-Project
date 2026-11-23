@@ -1,15 +1,16 @@
 /* ==========================================================================
-   OPEN ROAD DRIVING SIMULATOR — CLEAN HUD & UNIFIED GAME MENU STYLESHEET
+   ENDLESS HIGHWAY, GARAGE SHOP & WORKING CALCULATOR DISGUISE STYLESHEET
    ========================================================================== */
 
 :root {
-  --accent-red: #ef4444;
-  --accent-cyan: #f97316;
-  --accent-gold: #facc15;
-  --accent-green: #22c55e;
-  --panel-dark: rgba(14, 14, 18, 0.88);
-  --panel-darker: rgba(9, 10, 14, 0.96);
-  --font-display: 'Impact', 'Arial Black', 'Avenir Next Condensed', sans-serif;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --amber: #f59e0b;
+  --danger: #ef4444;
+  --ok: #22c55e;
+  --glass-bg: rgba(12, 16, 26, 0.74);
+  --glass-bg-hover: rgba(20, 27, 42, 0.90);
+  --glass-border: rgba(255, 255, 255, 0.14);
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -25,15 +26,14 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #07080d;
-  color: #ffffff;
+  background: #0b101b;
+  color: #f8fafc;
   font-family: var(--font-ui);
 }
 
 #game-canvas {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
   display: block;
@@ -45,7 +45,7 @@ html, body {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  background: radial-gradient(circle at center, transparent 62%, rgba(0, 0, 0, 0.42) 100%);
+  background: radial-gradient(circle at center, transparent 65%, rgba(0, 0, 0, 0.34) 100%);
 }
 
 #hud {
@@ -56,692 +56,1019 @@ html, body {
 }
 
 /* ==========================================================================
-   TOP LEFT: SINGLE GAME MENU BUTTON
+   MINIMALIST TOP HUD PILLS
    ========================================================================== */
 .hud-top-left {
   position: absolute;
-  top: 22px;
-  left: 24px;
+  top: 18px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   pointer-events: auto;
 }
 
-.menu-trigger-btn {
-  background: var(--panel-dark);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-left: 4px solid var(--accent-cyan);
-  color: #f8fafc;
-  padding: 10px 18px;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  cursor: pointer;
-  display: inline-flex;
+.hud-top-right {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  transition: all 0.18s ease;
+  gap: 8px;
+  flex-wrap: wrap;
+  pointer-events: auto;
 }
 
-.menu-trigger-btn:hover {
-  background: rgba(24, 30, 46, 0.95);
-  border-color: var(--accent-cyan);
+.hud-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: #f1f5f9;
+  font-size: 0.77rem;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.hud-pill-btn:hover {
+  background: var(--glass-bg-hover);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
 }
 
-.menu-trigger-btn kbd {
-  background: rgba(255, 255, 255, 0.14);
-  padding: 2px 7px;
-  border-radius: 3px;
-  font-size: 0.7rem;
-  color: var(--accent-cyan);
+.hud-pill-btn kbd {
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: var(--font-ui);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.hud-pill-garage {
+  border-color: rgba(34, 197, 94, 0.38);
+}
+
+.bank-chip {
+  color: #4ade80;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-pill-calc {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.hud-pill-calc kbd {
+  color: #fbbf24;
 }
 
 /* ==========================================================================
-   BOTTOM LEFT: ROAD MINIMAP
+   TOASTS & CONTROLS HINT
    ========================================================================== */
-.hud-bottom-left {
-  position: absolute;
-  bottom: 24px;
-  left: 26px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: auto;
-}
-
-.biome-tag {
-  background: var(--panel-dark);
-  border-left: 3px solid var(--accent-cyan);
-  padding: 5px 12px;
-  width: 210px;
-}
-
-#biome-name {
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: #e2e8f0;
-}
-
-.minimap-wrapper {
-  position: relative;
-  width: 210px;
-  height: 210px;
-  border-radius: 50%;
-  background: rgba(10, 14, 22, 0.86);
-  border: 2.5px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
-  overflow: hidden;
-}
-
-#minimap-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.minimap-compass {
-  position: absolute;
-  top: 6px;
+.hud-toast {
+  position: fixed;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--accent-red);
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 900;
-  padding: 1px 6px;
-  border-radius: 3px;
-  pointer-events: none;
+  background: rgba(12, 16, 26, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 7px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #f8fafc;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 20;
+}
+
+.hud-toast.hidden {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+
+.controls-hint {
+  position: fixed;
+  bottom: 22px;
+  left: 22px;
+  max-width: calc(100vw - 385px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 13px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.controls-hint.faded {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.controls-hint kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  font-weight: 700;
+  margin-right: 2px;
 }
 
 /* ==========================================================================
-   BOTTOM RIGHT: TACHOMETER, EXACT SPEEDOMETER & TELEMETRY
+   BOTTOM RIGHT: SPEEDOMETER, GEAR/RPM, DISTANCE & EARNINGS
    ========================================================================== */
 .hud-bottom-right {
   position: absolute;
-  bottom: 22px;
-  right: 28px;
+  bottom: 20px;
+  right: 22px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 8px;
   pointer-events: auto;
 }
 
-.car-badge-pill {
-  background: var(--panel-dark);
-  border-right: 3px solid var(--accent-red);
-  padding: 6px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-#hud-car-name {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: #ffffff;
-}
-
-#hud-car-specs-mini {
-  font-size: 0.68rem;
+.bonus-toast {
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #6ee7b7;
+  font-size: 0.76rem;
   font-weight: 700;
-  color: var(--accent-cyan);
+  padding: 5px 12px;
+  border-radius: 999px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.tacho-cluster {
-  position: relative;
-  width: 245px;
-  height: 245px;
+.bonus-toast.hidden {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.clutch-pill {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #94a3b8;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, transform 0.1s ease;
+}
+
+.clutch-pill.engaged {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(251, 191, 36, 0.85);
+  color: #fde68a;
+  transform: scale(1.04);
+}
+
+.clutch-pill.hidden {
+  display: none;
+}
+
+.damage-card {
+  width: 265px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.damage-card.hidden {
+  display: none;
+}
+
+.damage-label-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 5px;
 }
 
-.tacho-svg {
-  position: absolute;
-  inset: 0;
+.damage-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.damage-fill {
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.65));
+  background: var(--ok);
+  border-radius: 999px;
+  transition: width 0.2s ease, background-color 0.2s ease;
 }
 
-.tacho-track {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
-  stroke-width: 12;
-  stroke-linecap: round;
+.telemetry-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 13px 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
 }
 
-#tacho-rpm-arc {
-  fill: none;
-  stroke: url(#tachoGrad);
-  stroke-width: 12;
-  stroke-linecap: round;
-  stroke-dasharray: 440;
-  stroke-dashoffset: 440;
-  transition: stroke-dashoffset 0.03s linear;
-}
-
-#tacho-nitro-arc {
-  fill: none;
-  stroke: var(--accent-cyan);
-  stroke-width: 4.5;
-  stroke-linecap: round;
-  stroke-dasharray: 440;
-  stroke-dashoffset: 130;
-  opacity: 0.85;
-}
-
-.tacho-center-readout {
-  position: relative;
-  z-index: 2;
+.distance-block {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
+  align-items: flex-start;
+  padding-right: 16px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  min-width: 112px;
 }
 
-#hud-gear {
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  color: var(--accent-cyan);
-  background: rgba(56, 189, 248, 0.12);
-  border: 1.5px solid var(--accent-cyan);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+.dist-top-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   margin-bottom: 3px;
 }
 
-#hud-gear.redline {
-  color: #ffffff;
-  background: var(--accent-red);
-  border-color: #ffffff;
-}
-
-#hud-speed {
-  font-family: var(--font-display);
-  font-size: 3.5rem;
-  font-style: italic;
-  line-height: 0.95;
-  letter-spacing: 1px;
-  color: #ffffff;
-  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.75);
-}
-
-.tacho-sub-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 3px;
-}
-
-#hud-speed-unit {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: var(--accent-gold);
-  cursor: pointer;
-}
-
-#hud-rpm-num {
-  font-size: 0.66rem;
+.tele-label {
+  font-size: 0.62rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 1.1px;
+  color: #94a3b8;
 }
 
-.telemetry-pills {
-  display: flex;
-  gap: 5px;
-  margin-top: 7px;
+.streak-chip {
+  background: rgba(250, 204, 21, 0.18);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  color: #fde047;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
-.tele-pill {
-  font-size: 0.6rem;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
-  letter-spacing: 0.8px;
+.streak-chip.hidden {
+  display: none;
 }
 
-.tele-pill.surface-tarmac { color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.35); }
-.tele-pill.surface-offroad { color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }
-.tele-pill.surface-air { color: var(--accent-red); border: 1px solid var(--accent-red); }
-
-/* Live G-Force Meter & Performance Sprint Timer Bar */
-.perf-telemetry-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--panel-bg);
-  border: 1px solid var(--glass-border);
-  padding: 6px 12px;
-  margin-bottom: 4px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+#hud-distance {
+  font-size: 1.18rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f1f5f9;
 }
 
-.g-meter-box {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding-right: 10px;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
+.car-mini-name {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  margin-top: 2px;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.g-meter-circle {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(8, 11, 18, 0.85) 100%);
-  position: relative;
-}
-
-.g-meter-circle::before,
-.g-meter-circle::after {
-  content: '';
-  position: absolute;
-  background: rgba(255, 255, 255, 0.15);
-}
-.g-meter-circle::before {
-  top: 50%; left: 2px; right: 2px; height: 1px;
-}
-.g-meter-circle::after {
-  left: 50%; top: 2px; bottom: 2px; width: 1px;
-}
-
-.g-meter-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-gold);
-  box-shadow: 0 0 6px var(--accent-gold);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.g-meter-val {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  color: var(--accent-cyan);
-  min-width: 34px;
-}
-
-.perf-splits {
-  display: flex;
-  gap: 11px;
-}
-
-.perf-split-item {
+.speed-block {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  min-width: 152px;
 }
 
-.perf-split-item span {
-  font-size: 0.54rem;
+.speed-num-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gear-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.gear-badge {
+  min-width: 34px;
+  padding: 3px 6px;
+  border-radius: 7px;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  color: #7dd3fc;
+  font-size: 0.78rem;
   font-weight: 800;
-  color: var(--text-muted);
-  letter-spacing: 0.6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-.perf-split-item strong {
-  font-family: var(--font-display);
-  font-size: 0.74rem;
+.gear-badge.redline {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #f87171;
+  color: #fecaca;
+}
+
+.shift-hint {
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: #fbbf24;
+  line-height: 1;
+}
+
+.shift-hint.hidden {
+  display: none;
+}
+
+#hud-speed {
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
   color: #ffffff;
 }
 
+.unit-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.unit-toggle:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.rpm-bar-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.rpm-bar-fill {
+  width: 14%;
+  height: 100%;
+  background: #38bdf8;
+  border-radius: 999px;
+  transition: width 0.04s linear, background-color 0.08s ease;
+}
+
+.telemetry-card.hidden,
+.analog-cluster.hidden {
+  display: none;
+}
+
+.analog-cluster {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.dial-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(18, 24, 38, 0.92), rgba(8, 12, 20, 0.94));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.dial-rpm {
+  width: 136px;
+  height: 136px;
+}
+
+.dial-speed {
+  width: 152px;
+  height: 152px;
+}
+
+.dial-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dial-face {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1.5;
+}
+
+.dial-redline-arc {
+  fill: none;
+  stroke: rgba(239, 68, 68, 0.85);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.dial-tick-major {
+  stroke: rgba(241, 245, 249, 0.82);
+  stroke-width: 2;
+}
+
+.dial-tick-minor {
+  stroke: rgba(148, 163, 184, 0.45);
+  stroke-width: 1.2;
+}
+
+.dial-tick-red {
+  stroke: #f87171;
+  stroke-width: 2.2;
+}
+
+.dial-tick-label {
+  fill: #cbd5e1;
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.dial-tick-label-red {
+  fill: #fca5a5;
+}
+
+.dial-needle-group {
+  transition: transform 0.04s linear;
+}
+
+#analog-rpm-needle {
+  transform-origin: 70px 70px;
+}
+
+#analog-speed-needle {
+  transform-origin: 78px 78px;
+}
+
+.dial-needle {
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.dial-needle-red {
+  stroke: #fb7185;
+}
+
+.dial-needle-cyan {
+  stroke: #38bdf8;
+}
+
+.dial-cap {
+  fill: #e2e8f0;
+  stroke: #0f172a;
+  stroke-width: 1.5;
+}
+
+.dial-center-readout {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.dial-rpm-inset {
+  bottom: 18px;
+  gap: 2px;
+}
+
+.dial-speed-inset {
+  bottom: 18px;
+  gap: 2px;
+}
+
+#analog-speed-num {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.analog-dist {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ==========================================================================
-   UNIFIED GAME SETTINGS & GARAGE MENU MODAL
+   GARAGE & SHOP MODAL
    ========================================================================== */
-.fh-modal-backdrop {
+.hw-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(6, 8, 14, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(7, 10, 18, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 18px;
 }
 
-.fh-modal-backdrop.open {
+.hw-modal-backdrop.open {
   display: flex;
 }
 
-.fh-modal-card {
-  width: min(1100px, 95vw);
-  max-height: 90vh;
-  background: var(--panel-darker);
+.hw-shop-card {
+  width: min(920px, 95vw);
+  max-height: 88vh;
+  background: rgba(13, 18, 30, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-top: 4px solid var(--accent-cyan);
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.88);
+  border-radius: 20px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.72);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.modal-header {
+.shop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shop-header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.shop-header-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 26px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  gap: 12px;
 }
 
-.modal-tabs {
+.shop-bank-box {
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 10px;
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.shop-bank-box span {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #86efac;
+}
+
+.shop-bank-box strong {
+  font-size: 1.05rem;
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
+}
+
+.hw-btn-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: #f8fafc;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hw-btn-close:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+.shop-tabs {
   display: flex;
   gap: 8px;
+  padding: 10px 22px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.menu-tab-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #cbd5e1;
-  padding: 8px 18px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.menu-tab-btn:hover, .menu-tab-btn.active {
-  background: var(--accent-cyan);
-  color: #060911;
-  border-color: var(--accent-cyan);
-}
-
-.modal-close-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+.shop-tab-btn {
   padding: 8px 16px;
-  font-weight: 800;
-  font-size: 0.76rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.modal-close-btn:hover {
-  background: var(--accent-red);
-  border-color: #fff;
+.shop-tab-btn.active {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+  color: #ffffff;
 }
 
-.modal-body {
-  padding: 22px 26px;
+.shop-body {
+  padding: 18px 22px;
   overflow-y: auto;
 }
 
-.menu-tab-pane {
+.shop-pane {
   display: none;
 }
 
-.menu-tab-pane.active {
+.shop-pane.active {
   display: block;
 }
 
-/* GARAGE CAR GRID */
-.garage-grid {
+.vehicles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(305px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
 
-.car-select-card {
-  background: rgba(255, 255, 255, 0.035);
+.car-shop-card {
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 15px;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.car-shop-card.active-car {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.09);
+}
+
+.car-shop-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.car-shop-cat {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+}
+
+.car-shop-name {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.car-shop-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.14);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.car-shop-desc {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.car-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.car-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: #cbd5e1;
+}
+
+.car-bar-row span {
+  width: 74px;
+}
+
+.car-bar-track {
+  flex: 1;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.car-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+  border-radius: 999px;
+}
+
+.upgrades-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.upgrade-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upgrade-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.upgrade-top strong {
+  font-size: 0.9rem;
+  color: #f8fafc;
+}
+
+.upgrade-lvl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.upgrade-pips {
+  display: flex;
+  gap: 5px;
+}
+
+.upgrade-pip {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.upgrade-pip.filled {
+  background: #38bdf8;
+}
+
+.upgrade-effect {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.setup-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 13px;
+  padding: 13px 15px;
+  margin-bottom: 12px;
+}
+
+.setup-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #cbd5e1;
+  margin-bottom: 10px;
+}
+
+.paint-swatches-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paint-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.paint-dot:hover,
+.paint-dot.active {
+  transform: scale(1.16);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.7);
+}
+
+.trans-selector-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trans-pill-btn {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trans-pill-btn.active {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.trans-desc {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   PAUSE & CRASH OVERLAY MODALS
+   ========================================================================== */
+.hw-modal-card {
+  width: min(420px, 94vw);
+  background: rgba(15, 20, 32, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hw-modal-crash {
+  border-top: 3px solid var(--danger);
+}
+
+.hw-modal-head h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 4px;
+}
+
+.hw-modal-sub {
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.hw-modal-actions {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
 
-.car-select-card:hover, .car-select-card.selected {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: var(--accent-cyan);
-  transform: translateY(-2px);
+.hw-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
 }
 
-.car-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.hw-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-.car-card-brand {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  color: var(--accent-cyan);
+.hw-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
-.car-card-name {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  letter-spacing: 0.8px;
-  color: #fff;
+.hw-btn-primary {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+  color: #ffffff;
 }
 
-.car-category-tag {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--accent-gold);
-  font-size: 0.64rem;
-  font-weight: 800;
-  padding: 3px 7px;
-  border-radius: 3px;
+.hw-btn-primary:hover:not(:disabled) {
+  background: #0284c7;
 }
 
-.car-specs-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 8px;
-  border-radius: 4px;
+.hw-btn-subtle {
+  color: #cbd5e1;
+  background: transparent;
 }
 
-.spec-cell {
+.hw-controls-ref {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
   display: flex;
   flex-direction: column;
-}
-
-.spec-label {
-  font-size: 0.58rem;
+  gap: 6px;
+  font-size: 0.74rem;
   color: #94a3b8;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
-.spec-val {
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: #f8fafc;
-}
-
-.spec-val.highlight {
-  color: var(--accent-gold);
-}
-
-.car-card-desc {
-  font-size: 0.73rem;
-  color: #94a3b8;
-  line-height: 1.35;
-}
-
-/* Paint Swatches */
-.garage-customizer-row {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+.hw-controls-ref > div {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.swatch-group {
-  display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.swatch-label {
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #cbd5e1;
-  margin-right: 6px;
+.hw-controls-ref kbd {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
-.color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.color-swatch:hover {
-  transform: scale(1.18);
-  border-color: #ffffff;
-}
-
-/* SETTINGS & TELEPORT GRIDS */
-.settings-grid {
+.crash-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 12px;
 }
 
-.setting-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 16px;
+.crash-stat {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
 }
 
-.setting-card h4 {
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  color: var(--accent-cyan);
-  text-transform: uppercase;
-}
-
-.setting-card p {
-  font-size: 0.74rem;
+.crash-stat span {
+  font-size: 0.68rem;
   color: #94a3b8;
-  line-height: 1.35;
-}
-
-.setting-action-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-  padding: 9px 14px;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 1px;
   text-transform: uppercase;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s ease;
+  letter-spacing: 0.6px;
 }
 
-.setting-action-btn:hover {
-  background: var(--accent-cyan);
-  color: #060911;
-  border-color: var(--accent-cyan);
-}
-
-.fast-travel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 14px;
-}
-
-.ft-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-left: 4px solid var(--accent-cyan);
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.ft-card:hover {
-  background: rgba(56, 189, 248, 0.12);
-  border-color: var(--accent-cyan);
-  transform: translateY(-2px);
-}
-
-.ft-card h4 {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  letter-spacing: 1px;
-  color: #fff;
-  margin-bottom: 5px;
-}
-
-.ft-card p {
-  font-size: 0.74rem;
-  color: #94a3b8;
-  line-height: 1.35;
-}
-
-/* Controls Reference List inside Menu */
-.controls-grid {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 10px;
-}
-
-.ctrl-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent-cyan);
-  font-size: 0.75rem;
-}
-
-.ctrl-key {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--accent-gold);
-  font-weight: 800;
-  font-size: 0.7rem;
-  padding: 2px 7px;
-  border-radius: 3px;
+.crash-stat strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
 }
 
 /* ==========================================================================
@@ -903,539 +1230,28 @@ html, body {
   padding-left: 26px;
 }
 
-/* ==========================================================================
-   BACKSEAT RALLY: PACENOTE BANNER, STAGE TIMER, CR ECONOMY & HARDWARE BADGES
-   ========================================================================== */
-.pacenote-hud {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(11, 15, 25, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-bottom: 3px solid #38bdf8;
-  border-radius: 10px;
-  padding: 8px 14px;
-  min-width: 290px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-  pointer-events: auto;
-  transition: border-color 0.2s ease, transform 0.15s ease;
-}
-
-.pacenote-hud.urgent {
-  border-bottom-color: #ef4444;
-  box-shadow: 0 10px 32px rgba(239, 68, 68, 0.35);
-}
-
-.pacenote-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: rgba(56, 189, 248, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.45);
-  color: #38bdf8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.35rem;
-  font-weight: 900;
-}
-
-.pacenote-text-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pacenote-callout {
-  font-size: 0.96rem;
-  font-weight: 900;
-  letter-spacing: 0.8px;
-  color: #f8fafc;
-  text-transform: uppercase;
-}
-
-.pacenote-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #94a3b8;
-}
-
-.pacenote-badge {
-  background: rgba(251, 191, 36, 0.18);
-  color: #fbbf24;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-weight: 900;
-}
-
-.pacenote-voice-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #e2e8f0;
-  border-radius: 6px;
-  padding: 6px 9px;
-  cursor: pointer;
-  font-size: 0.95rem;
-}
-
-.pacenote-voice-btn:hover {
-  background: rgba(56, 189, 248, 0.22);
-}
-
-/* TOP RIGHT STAGE RALLY & HARDWARE HUD */
-.hud-top-right {
-  position: absolute;
-  top: 20px;
-  right: 24px;
-  pointer-events: auto;
-}
-
-.stage-hud-card {
-  background: rgba(11, 15, 25, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-right: 4px solid #fbbf24;
-  border-radius: 10px;
-  padding: 10px 14px;
-  min-width: 255px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.stage-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.cr-pill {
-  background: rgba(251, 191, 36, 0.18);
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  color: #fbbf24;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.hw-pill {
-  background: rgba(56, 189, 248, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  color: #7dd3fc;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.stage-run-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.stage-timer-box {
-  display: flex;
-  flex-direction: column;
-}
-
-.stage-label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #94a3b8;
-  letter-spacing: 0.9px;
-}
-
-.stage-clock {
-  font-size: 1.32rem;
-  font-variant-numeric: tabular-nums;
-  color: #f8fafc;
-  letter-spacing: 0.5px;
-}
-
-.stage-cp-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: #cbd5e1;
-}
-
-#hud-stage-medal-target {
-  color: #fbbf24;
-  font-size: 0.66rem;
-}
-
-.stage-btn-row {
-  display: flex;
-}
-
-.stage-btn {
-  width: 100%;
-  background: linear-gradient(90deg, #0284c7, #0ea5e9);
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.9px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-.stage-btn:hover {
-  filter: brightness(1.12);
-}
-
-.stage-btn.running {
-  background: linear-gradient(90deg, #b91c1c, #ef4444);
-}
-
-/* SURFACE PILLS */
-.tele-pill.surface-gravel { background: rgba(217, 119, 6, 0.25); color: #fcd34d; border-color: rgba(251, 191, 36, 0.5); }
-.tele-pill.surface-mud    { background: rgba(146, 64, 14, 0.35); color: #fdba74; border-color: rgba(249, 115, 22, 0.5); }
-.tele-pill.surface-snow   { background: rgba(186, 230, 253, 0.22); color: #e0f2fe; border-color: rgba(125, 211, 252, 0.55); }
-.tele-pill.surface-offroad{ background: rgba(101, 163, 13, 0.24); color: #bef264; border-color: rgba(132, 204, 22, 0.45); }
-.tele-pill.surface-water  { background: rgba(14, 165, 233, 0.28); color: #7dd3fc; border-color: rgba(56, 189, 248, 0.6); }
-
-/* GARAGE ECONOMY & PROMO BAR */
-.garage-economy-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-}
-
-.economy-cr-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.economy-label {
-  font-size: 0.74rem;
-  font-weight: 800;
-  color: #94a3b8;
-  letter-spacing: 0.8px;
-}
-
-.economy-cr-val {
-  font-size: 1.05rem;
-  color: #fbbf24;
-  letter-spacing: 0.4px;
-}
-
-.promo-redeem-box {
-  display: flex;
-  gap: 6px;
-}
-
-.promo-input {
-  background: rgba(2, 6, 23, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #f8fafc;
-  padding: 6px 10px;
-  border-radius: 5px;
-  font-size: 0.76rem;
-  text-transform: uppercase;
-  width: 210px;
-}
-
-.promo-btn {
-  background: #f59e0b;
-  color: #09090b;
-  border: none;
-  border-radius: 5px;
-  padding: 6px 12px;
-  font-size: 0.74rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.promo-btn:hover {
-  background: #fbbf24;
-}
-
-.car-upgrade-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.car-upgrade-btn {
-  flex: 1;
-  background: rgba(56, 189, 248, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  color: #e0f2fe;
-  padding: 5px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.car-upgrade-btn:hover {
-  background: rgba(56, 189, 248, 0.3);
-}
-
-.stage-medal-pill {
-  font-size: 0.66rem;
-  font-weight: 800;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.14);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* ==========================================================================
-   GPU HARDWARE ACCELERATION HINTS, ARRANGEABLE GFX CONTROLS & ANIMATIONS
-   ========================================================================== */
-#game-canvas,
-.fh-modal-card,
-.car-select-card,
-.tacho-cluster,
-.pacenote-hud,
-.stage-hud-card {
-  will-change: transform, opacity;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-.pacenote-hud {
-  transform: translate(-50%, 0) translateZ(0);
-}
-
-@keyframes pacenotePulse {
-  0%, 100% { transform: translate(-50%, 0) scale(1); }
-  50% { transform: translate(-50%, 0) scale(1.03); }
-}
-
-@keyframes checkpointFlash {
-  0% { box-shadow: 0 0 0 rgba(56, 189, 248, 0.0); }
-  45% { box-shadow: 0 0 28px rgba(56, 189, 248, 0.65); }
-  100% { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); }
-}
-
-.pacenote-hud.urgent {
-  animation: pacenotePulse 0.85s ease-in-out infinite;
-}
-
-.stage-hud-card.cp-flash {
-  animation: checkpointFlash 0.55s ease-out;
-}
-
-.gfx-arrange-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.gfx-sub-btn {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  color: #bae6fd;
-  padding: 6px 8px;
-  border-radius: 5px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-}
-
-.gfx-sub-btn:hover {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: #38bdf8;
-  transform: translateY(-1px);
-}
-
-.car-stat-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 2px;
-}
-
-.stat-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  color: #94a3b8;
-}
-
-.stat-bar-row span:first-child {
-  width: 68px;
-}
-
-.stat-bar-track {
-  flex: 1;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.stat-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
-  border-radius: 99px;
-  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.car-locked-badge {
-  display: inline-block;
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(245, 158, 11, 0.5);
-  color: #fbbf24;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-/* ==========================================================================
-   BACKSEAT RALLY v3 CHAMPIONSHIP BADGE, 3-2-1 COUNTDOWN, PROGRESS BAR & LEDS
-   ========================================================================== */
-.championship-pill {
-  background: linear-gradient(90deg, #ea580c, #facc15);
-  color: #09090b;
-  font-weight: 900;
-  font-size: 0.78rem;
-  letter-spacing: 1.4px;
-  padding: 10px 14px;
-  border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.42);
-  transform: skewX(-6deg);
-}
-
-.pacenote-next {
-  font-size: 0.68rem;
-  color: #facc15;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-}
-
-.stage-progress-bar {
-  width: 100%;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.stage-progress-fill {
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, #f97316, #facc15, #22c55e);
-  transition: width 0.28s ease;
-}
-
-.stage-countdown-overlay {
-  position: fixed;
-  top: 24%;
-  left: 50%;
-  transform: translate(-50%, -50%) translateZ(0);
-  text-align: center;
-  z-index: 45;
-  pointer-events: none;
-  background: rgba(10, 12, 18, 0.86);
-  border: 2px solid #f97316;
-  border-radius: 14px;
-  padding: 18px 42px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75);
-  transition: opacity 0.28s ease, transform 0.25s ease;
-}
-
-.stage-countdown-overlay.hidden {
-  opacity: 0;
-  transform: translate(-50%, -58%) scale(0.92);
-}
-
-.countdown-stage-tag {
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 2px;
-  color: #facc15;
-}
-
-.countdown-num {
-  font-family: var(--font-display);
-  font-size: 4.4rem;
-  line-height: 1.05;
-  color: #ffffff;
-  text-shadow: 0 0 28px rgba(249, 115, 22, 0.85);
-}
-
-.countdown-sub {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  color: #cbd5e1;
-}
-
-.rpm-led-strip {
-  display: flex;
-  justify-content: space-between;
-  gap: 5px;
-  padding: 6px 10px;
-  background: rgba(12, 14, 20, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  margin-bottom: 6px;
-}
-
-.rpm-led {
-  width: 12px;
-  height: 7px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.12);
-  transition: background 0.06s ease, box-shadow 0.06s ease;
-}
-
-.rpm-led.active-green {
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
-}
-
-.rpm-led.active-amber {
-  background: #f59e0b;
-  box-shadow: 0 0 8px #f59e0b;
-}
-
-.rpm-led.active-red {
-  background: #ef4444;
-  box-shadow: 0 0 10px #ef4444;
-}
-
-.rpm-led.flash {
-  background: #38bdf8;
-  box-shadow: 0 0 12px #38bdf8;
+@media (max-width: 720px) {
+  .hud-top-left, .hud-top-right {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+  }
+  .hud-top-right {
+    top: 52px;
+    justify-content: flex-start;
+  }
+  .controls-hint {
+    display: none;
+  }
+  .hud-bottom-right {
+    right: 12px;
+    bottom: 12px;
+  }
+  .telemetry-card {
+    padding: 10px 14px;
+    gap: 12px;
+  }
+  #hud-speed {
+    font-size: 2.2rem;
+  }
 }

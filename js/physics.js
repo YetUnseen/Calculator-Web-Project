@@ -1,534 +1,784 @@
 /* ==========================================================================
-   REALISTIC VEHICLE DYNAMICS ENGINE:
-   - Exact Real-World Top Speeds (e.g., Jesko 531 km/h, Chiron 490 km/h, GT3 RS 296 km/h)
-   - Dynamic Axle Weight Transfer (Trail-Braking Rotation & Squat/Dive)
-   - Pacejka-Style Tire Friction Circle & RWD vs. AWD Traction
-   - Aerodynamic Downforce & Drag Equilibrium
-   - 6-to-9 Speed Gearbox (Auto + Manual Paddle Shift [Q]/[E])
-   - 2nd-Order Spring-Damper Suspension Physics
+   HIGHWAY PLAYER PHYSICS — 3 TRANSMISSIONS, CLUTCH, TURBO & PLANTED STEERING
+   - Curvilinear (s, d) motion relative to highway centerline
+   - 3 Transmission Systems: AUTO, SEMI (Q Up / E Down), MANUAL (L-Shift Clutch + Q/E)
+   - Turbocharger boost spool & blow-off valve events
+   - Weather grip physics: Dry, Rain (wet), and Snow stopping/steering feel
+   - Fair AABB traffic collisions + Clean Pass detection
    ========================================================================== */
 
-(function () {
-  class HorizonPhysicsVehicle {
-    constructor(world, carSpec) {
-      this.world = world;
-      this.spec = carSpec;
+(function (root) {
+  'use strict';
 
-      // Spawn on Main Highway at (0, 0) facing North (-Z)
-      this.x = 0;
-      this.z = 0;
-      this.y = this.world.getTerrainHeight(0, 0);
-      this.heading = Math.PI;
+  const VehiclesMod =
+    typeof window !== 'undefined' && window.HighwayVehicles
+      ? window.HighwayVehicles
+      : typeof require === 'function'
+      ? require('./vehicles.js')
+      : null;
 
-      // World & local velocities (m/s)
-      this.vx = 0;
-      this.vy = 0;
-      this.vz = 0;
-      this.forwardSpeed = 0;
-      this.lateralSpeed = 0;
-      this.yawRate = 0;
-      this.steerAngle = 0;
+  const TRANSMISSION_MODES = ['AUTO', 'SEMI', 'MANUAL'];
+  const IDLE_RPM_NORM = 820 / 7000;
+  const MAX_REVERSE_MS = 22 / 3.6;
+  const BARRIER_MIN_D = -8.55;
+  const BARRIER_MAX_D = 9.55;
+  const SHOULDER_LEFT_D = -7.40;
+  const SHOULDER_RIGHT_D = 7.40;
 
-      // Speed readouts
-      this.speedMps = 0;
-      this.speedKmh = 0;
-      this.speedMph = 0;
+  const GEAR_RATIOS_BY_COUNT = {
+    6: [0.22, 0.37, 0.54, 0.72, 0.88, 1.04],
+    7: [0.19, 0.32, 0.46, 0.61, 0.75, 0.89, 1.04],
+    8: [0.17, 0.28, 0.40, 0.53, 0.66, 0.78, 0.90, 1.04]
+  };
 
-      // Tire slip & G-forces
-      this.slipAngleDeg = 0;
-      this.slipNormalized = 0;
-      this.wheelspin = 0;
-      this.longG = 0;
-      this.latG = 0;
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
 
-      // 2nd-order spring-damper suspension state
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  class HighwayPlayer {
+    constructor(options) {
+      const opts = options || {};
+      this.getCurvature = opts.getCurvature || (() => 0);
+      this.transmissionMode = opts.transmissionMode || 'AUTO';
+
+      // Default specs (Civic Touring baseline; overridden cleanly by applyCarSpecs)
+      this.carId = 'starter_hatch';
+      this.archetype = 'hatchback';
+      this.length = 4.10;
+      this.width = 1.78;
+      this.maxSpeedMs = 235 / 3.6;
+      this.accelPower = 6.1;
+      this.brakePower = 15.2;
+      this.brakeWeatherBonus = 1.0;
+      this.gripMult = 1.0;
+      this.weatherGripMult = 1.0;
+      this.gearCount = 6;
+      this.shiftTimeMult = 1.0;
+      this.damageResist = 1.0;
+      this.engineTone = 'i4';
+      this.turboLevel = 0.55;
+
+      if (opts.specs) {
+        this.applyCarSpecs(opts.specs);
+      }
+
+      this.reset();
+    }
+
+    applyCarSpecs(specs) {
+      if (!specs) return;
+      this.carId = specs.carId || this.carId;
+      this.archetype = specs.archetype || this.archetype;
+      const arch = VehiclesMod && VehiclesMod.ARCHETYPES && VehiclesMod.ARCHETYPES[this.archetype];
+      this.length = arch ? arch.length : specs.length || 4.58;
+      this.width = arch ? arch.width : specs.width || 1.88;
+
+      this.maxSpeedMs = specs.maxSpeedMs || (specs.topSpeedKmh ? specs.topSpeedKmh / 3.6 : 235 / 3.6);
+      this.accelPower = specs.accelPower || 6.1;
+      this.brakePower = specs.brakePower || 15.2;
+      this.brakeWeatherBonus = specs.brakeWeatherBonus || 1.0;
+      this.gripMult = specs.gripMult || 1.0;
+      this.weatherGripMult = specs.weatherGripMult || 1.0;
+      this.gearCount = specs.gearCount || 6;
+      this.shiftTimeMult = specs.shiftTimeMult || 1.0;
+      this.damageResist = specs.damageResist || 1.0;
+      this.engineTone = specs.engineTone || 'i4';
+      this.turboLevel = specs.turboLevel || 0.7;
+
+      if (this.gear > this.gearCount) {
+        this.gear = this.gearCount;
+      }
+    }
+
+    setTransmissionMode(mode) {
+      if (!TRANSMISSION_MODES.includes(mode)) return false;
+      this.transmissionMode = mode;
+      this.shiftTimer = 0;
+      this.shiftCutTimer = 0;
+      this.shiftKickTimer = 0;
+      this.pendingSitBack = false;
+      this.pendingClutchBite = false;
+      this.clutchPressed = false;
+      this._prevClutch = false;
+      if ((mode === 'MANUAL' || mode === 'SEMI') && this.gear <= 0 && this.speed >= -0.2) {
+        this.gear = 1;
+      }
+      return true;
+    }
+
+    reset() {
+      this.s = 0;
+      this.d = 1.85; // Start centered in Lane 2
+      this.speed = 0;
+      this.accel = 0;
+      this.steer = 0;
+      this.yawRel = 0;
       this.pitch = 0;
       this.roll = 0;
-      this.chassisPitch = 0;
-      this.chassisPitchVel = 0;
-      this.chassisRoll = 0;
-      this.chassisRollVel = 0;
-      this.chassisHeave = 0;
-      this.chassisHeaveVel = 0;
 
-      // Powertrain & Gearbox
-      this.transmissionMode = 'AUTO'; // 'AUTO' or 'MANUAL'
-      this.gear = 1;
+      this.gear = 1; // -1 = R, 0 = N, 1..gearCount
+      this.rpm = 820;
+      this.rpmNorm = IDLE_RPM_NORM;
       this.shiftTimer = 0;
-      this.rpm = 0.15; // Normalized 0.0 -> 1.0
-      this.currentRpm = 1100;
+      this.shiftCutTimer = 0;
+      this.shiftKickTimer = 0;
+      this.shiftKickMag = 0;
+      this.shiftDir = 0;
+      this.pendingSitBack = false;
+      this.pendingClutchBite = false;
+      this.clutchPressed = false;
+      this._prevClutch = false;
+      this.rpmBlipTimer = 0;
+      this.paddleAnimTimer = 0;
+      this.paddleAnimDir = 0;
+      this.shiftPitchSpring = 0;
+      this.shiftPitchVel = 0;
+      this.camSurgeZ = 0;
 
-      // Driving Assists / Handling Preset: 'SIM_GRIP', 'SPORT', 'DRIFT'
-      this.handlingMode = 'SIM_GRIP';
-      this.tcsEnabled = true;
+      this.turboBoost = 0;
+      this._prevThrottle = 0;
+      this.bovCooldown = 0;
+      this._pendingShiftEvent = null;
 
-      // Surface & Airborne state
-      this.isGrounded = true;
-      this.surfaceType = 'TARMAC';
+      this.hitRevLimiter = false;
+      this.shiftPrompt = 0; // -1 downshift, 0 none, +1 upshift
 
-      // Boost / ERS Overtake & Rally Upgrade Level (1..3)
-      this.nitro = 1.0;
-      this.isBoosting = false;
-      this.upgradeLevel = 1;
+      this.braking = false;
+      this.onShoulder = false;
+
+      this.distanceMeters = 0;
+      this.elapsedSeconds = 0;
+      this.topSpeedKmh = 0;
+      this.damage = 0;
+      this.collisionCount = 0;
+      this.crashed = false;
+      this.barrierCooldown = 0;
+      this.lastCrashReason = '';
     }
 
-    setUpgradeLevel(level) {
-      this.upgradeLevel = Math.max(1, Math.min(3, level || 1));
+    get speedKmh() {
+      return Math.abs(this.speed) * 3.6;
     }
 
-    setCarSpec(newSpec, upgradeLevel) {
-      this.spec = newSpec;
-      if (upgradeLevel !== undefined) {
-        this.setUpgradeLevel(upgradeLevel);
-      }
-      if (typeof this.gear === 'number' && this.gear > newSpec.gears) {
-        this.gear = newSpec.gears;
-      }
+    get speedMph() {
+      return Math.abs(this.speed) * 2.23694;
     }
 
-    cycleHandlingMode() {
-      const modes = ['SIM_GRIP', 'SPORT', 'DRIFT'];
-      const idx = (modes.indexOf(this.handlingMode) + 1) % modes.length;
-      this.handlingMode = modes[idx];
-      this.tcsEnabled = this.handlingMode === 'SIM_GRIP';
-      return this.handlingMode;
+    getLaneIndex() {
+      if (this.d < -3.7) return 0;
+      if (this.d < 0.0) return 1;
+      if (this.d < 3.7) return 2;
+      return 3;
     }
 
-    toggleTransmissionMode() {
-      this.transmissionMode = this.transmissionMode === 'AUTO' ? 'MANUAL' : 'AUTO';
-      return this.transmissionMode;
+    getGearTopSpeedMs(gear) {
+      const table = GEAR_RATIOS_BY_COUNT[this.gearCount] || GEAR_RATIOS_BY_COUNT[6];
+      const idx = clamp((gear || 1) - 1, 0, table.length - 1);
+      return this.maxSpeedMs * table[idx];
     }
 
-    shiftUp() {
-      if (this.gear === 'R') {
-        this.gear = 1;
-        this.shiftTimer = 0.08;
-        return;
-      }
-      if (this.gear === 'N') {
-        this.gear = 1;
-        this.shiftTimer = 0.08;
-        return;
-      }
-      if (typeof this.gear === 'number' && this.gear < this.spec.gears) {
-        this.gear += 1;
-        this.shiftTimer = 0.085;
-      }
+    getGearDisplay() {
+      if (this.gear === -1) return 'R';
+      if (this.gear === 0) return 'N';
+      if (this.transmissionMode === 'SEMI') return `S${this.gear}`;
+      if (this.transmissionMode === 'MANUAL') return `M${this.gear}`;
+      return `D${this.gear}`;
     }
 
-    shiftDown() {
-      if (typeof this.gear === 'number' && this.gear > 1) {
-        this.gear -= 1;
-        this.shiftTimer = 0.075;
-        // Downshift rev-match blip
-        this.chassisPitchVel -= 0.18;
-      } else if (this.gear === 1 && this.speedKmh < 8) {
-        this.gear = 'R';
-      }
-    }
+    triggerShift(fromGear, toGear, throttle, withClutch) {
+      const dir = toGear > fromGear ? 1 : -1;
+      const mode = this.transmissionMode;
+      const cutDur =
+        mode === 'SEMI'
+          ? 0.065 * this.shiftTimeMult
+          : mode === 'MANUAL'
+          ? 0.125 * this.shiftTimeMult
+          : 0.15 * this.shiftTimeMult;
 
-    teleport(x, z, heading) {
-      this.x = x;
-      this.z = z;
-      this.y = this.world.getTerrainHeight(x, z);
-      if (heading !== undefined) this.heading = heading;
-      this.vx = 0;
-      this.vy = 0;
-      this.vz = 0;
-      this.yawRate = 0;
-      this.forwardSpeed = 0;
-      this.lateralSpeed = 0;
-      this.gear = 1;
-      this.isGrounded = true;
-    }
+      this.shiftTimer = cutDur;
+      this.shiftCutTimer = cutDur;
+      this.shiftDir = dir;
+      this.paddleAnimTimer = 0.18;
+      this.paddleAnimDir = dir;
 
-    resetToNearestRoad() {
-      const { sample } = this.world.getNearestRoadSample(this.x, this.z, true);
-      if (sample) {
-        const heading = Math.atan2(sample.tangent.x, sample.tangent.z);
-        this.teleport(sample.x, sample.z, heading);
-      } else {
-        this.teleport(0, 0, Math.PI);
-      }
-    }
-
-    /* ----------------------------------------------------------------------
-       COMPUTE GEAR SPEED CEILINGS FOR N-SPEED TRANSMISSION
-       ---------------------------------------------------------------------- */
-    getGearTopSpeedMps(gearNum) {
-      const totalGears = this.spec.gears || 7;
-      const maxSpeedMps = this.spec.topSpeedKmh / 3.6;
-      // Progressive geometric gear spacing from 1st gear (~21% of vmax) to top gear (100% of vmax)
-      const minFraction = 0.20;
-      const t = (gearNum - 1) / Math.max(1, totalGears - 1);
-      const fraction = minFraction + (1.0 - minFraction) * Math.pow(t, 0.86);
-      return maxSpeedMps * fraction;
-    }
-
-    update(dt, input) {
-      const spec = this.spec;
-      const phys = spec.physics;
-      const mass = spec.weightKg || 1550;
-      const gravity = 9.81;
-
-      const sinH = Math.sin(this.heading);
-      const cosH = Math.cos(this.heading);
-
-      // 1. Decompose world velocity into car-local Forward (vx_local) and Lateral (vy_local)
-      const prevForwardSpeed = this.forwardSpeed;
-      this.forwardSpeed = this.vx * sinH + this.vz * cosH;
-      this.lateralSpeed = this.vx * cosH - this.vz * sinH;
-
-      this.speedMps = Math.hypot(this.vx, this.vz);
-      this.speedKmh = this.speedMps * 3.6;
-      this.speedMph = this.speedMps * 2.23694;
-
-      // 2. Terrain height, surface type & smooth road slope tracking (zero road jumping!)
-      const surfInfo = this.world.getSurfaceInfo(this.x, this.z);
-      const groundY = this.world.getTerrainHeight(this.x, this.z);
-
-      const sampleDist = 3.2;
-      const hFront = this.world.getTerrainHeight(this.x + sinH * sampleDist, this.z + cosH * sampleDist);
-      const hBack = this.world.getTerrainHeight(this.x - sinH * sampleDist, this.z - cosH * sampleDist);
-      const hRight = this.world.getTerrainHeight(this.x + cosH * sampleDist, this.z - sinH * sampleDist);
-      const hLeft = this.world.getTerrainHeight(this.x - cosH * sampleDist, this.z + sinH * sampleDist);
-
-      const terrainPitch = Math.max(-0.40, Math.min(0.40, Math.atan2(hFront - hBack, sampleDist * 2)));
-      const terrainRoll = Math.max(-0.36, Math.min(0.36, Math.atan2(hRight - hLeft, sampleDist * 2)));
-
-      // Keep car planted on all rally stage surfaces & terrain slopes; NEVER allow this.y < groundY (zero sinking!)
-      const onStageRoad =
-        surfInfo.surface === 'TARMAC' ||
-        surfInfo.surface === 'GRAVEL' ||
-        surfInfo.surface === 'MUD' ||
-        surfInfo.surface === 'SNOW';
-      const wheelbaseGroundY = Math.max(groundY, (hFront + hBack) * 0.5, (hRight + hLeft) * 0.5);
-      if (onStageRoad || (this.y <= wheelbaseGroundY + 2.2 && this.vy <= 4.5)) {
-        this.isGrounded = true;
-        this.y = wheelbaseGroundY;
-        this.vy = 0;
-        this.surfaceType = surfInfo.surface;
-      } else {
-        this.isGrounded = false;
-        this.vy -= 24.0 * dt;
-        this.y += this.vy * dt;
-        if (this.y <= wheelbaseGroundY) {
-          this.y = wheelbaseGroundY;
-          this.vy = 0;
-          this.isGrounded = true;
-          this.chassisHeaveVel = -0.35;
-        }
-        this.surfaceType = 'AIR';
-      }
-
-      this.pitch += (-terrainPitch - this.pitch) * Math.min(1, dt * 18.0);
-      this.roll += (terrainRoll - this.roll) * Math.min(1, dt * 18.0);
-
-      // 3. Speed-Sensitive Steering + Self-Aligning Counter-Steer Torque
-      const rawSteer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-      // High-speed steering ratio reduction so 400+ km/h is rock-solid stable
-      const speedSensitivity = 1 / (1 + Math.pow(this.speedKmh / 190, 1.35) * 0.85);
-      let targetSteer = rawSteer * speedSensitivity;
-
-      // Natural front-wheel self-aligning torque (helps counter-steer into slides like a real steering rack)
-      if (this.isGrounded && this.speedKmh > 25 && Math.abs(this.lateralSpeed) > 1.2) {
-        const slipRatio = Math.atan2(-this.lateralSpeed, Math.abs(this.forwardSpeed) + 1.0);
-        const assistStrength = this.handlingMode === 'DRIFT' ? 0.55 : 0.28;
-        targetSteer += slipRatio * assistStrength * (rawSteer === 0 ? 1.0 : 0.45);
-      }
-      targetSteer = Math.max(-1.0, Math.min(1.0, targetSteer));
-      const steerRate = rawSteer !== 0 ? 9.5 : 12.5;
-      this.steerAngle += (targetSteer - this.steerAngle) * Math.min(1, dt * steerRate);
-
-      // 4. ERS / Turbo Overboost Management
-      if (input.boost && this.nitro > 0.02 && input.throttle > 0) {
-        this.isBoosting = true;
-        this.nitro = Math.max(0, this.nitro - dt * 0.20);
-      } else {
-        this.isBoosting = false;
-        this.nitro = Math.min(1.0, this.nitro + dt * 0.10);
-      }
-
-      // 5. Gearbox & Engine Torque Curve Calculation
-      if (this.shiftTimer > 0) {
-        this.shiftTimer = Math.max(0, this.shiftTimer - dt);
-      }
-      this.updateTransmissionAndRPM(input.throttle, input.brake);
-
-      // 6. Aerodynamic Downforce, Rally Upgrades & Surface-Calibrated Traction
-      const upgMult = 1.0 + (this.upgradeLevel - 1) * 0.10;
-      const upgGripMult = 1.0 + (this.upgradeLevel - 1) * 0.06;
-      const vMaxMps = (spec.topSpeedKmh / 3.6) * (1.0 + (this.upgradeLevel - 1) * 0.03) * (this.isBoosting ? 1.06 : 1.0);
-      const aeroDownforceAccel = phys.downforceCoeff * Math.pow(Math.min(this.speedMps, 160) / 45, 2) * 4.5;
-
-      const targetZeroTo100Sec = parseFloat(spec.zeroTo100) || 2.8;
-      const launchTargetAccel = (27.778 / targetZeroTo100Sec) * 1.06 * upgMult * (this.isBoosting ? 1.16 : 1.0);
-
-      const hpToWeightRatio = (spec.hp * upgMult) / mass;
-      const highSpeedPullAccel = (8.2 + hpToWeightRatio * 9.5) * (this.isBoosting ? 1.16 : 1.0);
-
-      const torqueCurve = 0.88 + 0.14 * Math.sin(Math.min(1, Math.max(0, (this.rpm - 0.10) / 0.90)) * Math.PI * 0.70);
-      const gearNum = typeof this.gear === 'number' ? this.gear : 1;
-      const gearProgress = (gearNum - 1) / Math.max(1, spec.gears - 1);
-      const rawEngineAccel = (launchTargetAccel * (1 - gearProgress * 0.32) + highSpeedPullAccel * gearProgress * 0.45) * torqueCurve;
-
-      // Multi-surface Rally Grip, Rolling Drag & Loose-Surface Drift Calibration
-      const SURFACE_TUNING = {
-        TARMAC:  { grip: 1.00, drag: 1.00, looseSlip: 0.00, yawBoost: 1.00 },
-        GRAVEL:  { grip: 0.86, drag: 1.06, looseSlip: 0.16, yawBoost: 1.08 },
-        MUD:     { grip: 0.78, drag: 1.14, looseSlip: 0.22, yawBoost: 1.10 },
-        SNOW:    { grip: 0.72, drag: 1.10, looseSlip: 0.26, yawBoost: 1.12 },
-        OFFROAD: { grip: 0.80, drag: 1.18, looseSlip: 0.15, yawBoost: 1.05 }
-      };
-      const surfTune = SURFACE_TUNING[this.surfaceType] || SURFACE_TUNING.TARMAC;
-      const isLoose = this.surfaceType === 'GRAVEL' || this.surfaceType === 'MUD' || this.surfaceType === 'SNOW';
-      const awdLooseBonus = spec.drivetrain === 'AWD' && isLoose ? (phys.gravelBoost || 1.15) : 1.0;
-      const surfaceGripMult = surfTune.grip * awdLooseBonus * upgGripMult;
-
-      const isRWD = spec.drivetrain === 'RWD';
-      const maxTractionAccel = launchTargetAccel * surfaceGripMult + Math.pow(this.speedMps / 28, 1.5) * 4.5 + aeroDownforceAccel;
-
-      // 7. Longitudinal Acceleration, Braking & Axle Weight Transfer
-      let driveAccel = 0;
-      const shiftCut = this.shiftTimer > 0 ? 0.55 : 1.0;
-      const currentGearCeilingMps = this.getGearTopSpeedMps(gearNum) * (this.isBoosting ? 1.06 : 1.0);
-      const slopeGravity = gravity * Math.sin(-this.pitch) * 0.52;
-
-      if (this.isGrounded) {
-        if (input.throttle > 0) {
-          if (this.forwardSpeed < -1.2) {
-            driveAccel = phys.brakeG * gravity * 1.15;
-          } else if (this.transmissionMode === 'MANUAL' && this.forwardSpeed >= currentGearCeilingMps) {
-            driveAccel = 0;
-          } else {
-            driveAccel = rawEngineAccel * input.throttle * shiftCut;
-
-            if (driveAccel > maxTractionAccel) {
-              this.wheelspin = Math.min(1.0, (driveAccel - maxTractionAccel) / 6.0 + (isRWD && gearNum <= 2 ? 0.35 : 0.12));
-              if (this.tcsEnabled && this.handlingMode === 'SIM_GRIP') {
-                driveAccel = maxTractionAccel;
-                this.wheelspin *= 0.25;
-              } else {
-                driveAccel = maxTractionAccel * 0.95;
-              }
-            } else {
-              this.wheelspin = Math.max(0, this.wheelspin - dt * 5);
-            }
-            if (this.speedKmh < 85 && slopeGravity > 0) {
-              driveAccel += slopeGravity * 1.15;
-            }
-          }
-        } else if (input.brake > 0) {
-          this.wheelspin = 0;
-          if (this.forwardSpeed > 1.2) {
-            driveAccel = -(phys.brakeG * gravity * Math.min(1.05, surfaceGripMult) + aeroDownforceAccel * 0.35) * input.brake;
-          } else {
-            driveAccel = -14.5 * input.brake + Math.min(0, slopeGravity * 1.15);
-          }
+      if (dir > 0) {
+        if (mode === 'MANUAL' && withClutch) {
+          this.pendingClutchBite = toGear >= 1;
+          this.pendingSitBack = false;
         } else {
-          this.wheelspin = 0;
-          if (Math.abs(this.forwardSpeed) < 0.8) {
-            this.forwardSpeed = 0;
-            driveAccel = slopeGravity;
-          } else {
-            driveAccel = -Math.sign(this.forwardSpeed) * (1.2 + this.rpm * 1.8);
+          this.pendingSitBack = (throttle || 0) > 0.25 && toGear >= 1;
+          this.pendingClutchBite = false;
+        }
+        this.shiftKickTimer = 0;
+      } else {
+        this.pendingSitBack = false;
+        this.pendingClutchBite = false;
+        this.rpmBlipTimer = 0.16;
+        this.shiftPitchVel -= 0.15;
+      }
+
+      return { type: 'shift', fromGear, toGear, mode, dir };
+    }
+
+    shiftUp(clutchHeld) {
+      if (this.crashed) return false;
+      if (this.transmissionMode !== 'SEMI' && this.transmissionMode !== 'MANUAL') return false;
+      const hasClutch = clutchHeld !== undefined ? !!clutchHeld : this.clutchPressed;
+      if (this.transmissionMode === 'MANUAL' && !hasClutch) {
+        this._pendingShiftEvent = { type: 'shift_grind' };
+        return false;
+      }
+      if (this.gear >= this.gearCount) return false;
+
+      const from = this.gear;
+      if (this.gear === -1) {
+        if (this.speed > -0.5) this.gear = this.transmissionMode === 'MANUAL' ? 0 : 1;
+        else return false;
+      } else {
+        this.gear += 1;
+      }
+      this._pendingShiftEvent = this.triggerShift(
+        from,
+        this.gear,
+        this._lastThrottle || 0,
+        hasClutch
+      );
+      return true;
+    }
+
+    shiftDown(clutchHeld) {
+      if (this.crashed) return false;
+      if (this.transmissionMode !== 'SEMI' && this.transmissionMode !== 'MANUAL') return false;
+      const hasClutch = clutchHeld !== undefined ? !!clutchHeld : this.clutchPressed;
+      if (this.transmissionMode === 'MANUAL' && !hasClutch) {
+        this._pendingShiftEvent = { type: 'shift_grind' };
+        return false;
+      }
+
+      const from = this.gear;
+      if (this.gear > 1) {
+        this.gear -= 1;
+      } else if (this.gear === 1 && this.speed < 2.2) {
+        this.gear = 0;
+      } else if (this.gear === 0 && this.speed < 0.8) {
+        this.gear = -1;
+      } else {
+        return false;
+      }
+      this._pendingShiftEvent = this.triggerShift(
+        from,
+        this.gear,
+        this._lastThrottle || 0,
+        hasClutch
+      );
+      return true;
+    }
+
+    /**
+     * Update transmission state, clutch engagement, 3-phase shift feel, turbo boost & RPM.
+     */
+    updateTransmission(throttle, brake, clutch, dt, events) {
+      this._lastThrottle = throttle;
+      this.bovCooldown = Math.max(0, this.bovCooldown - dt);
+
+      let upshiftedThisTick = false;
+      if (this._pendingShiftEvent) {
+        if (this._pendingShiftEvent.type === 'shift' && this._pendingShiftEvent.dir > 0) {
+          upshiftedThisTick = true;
+        }
+        events.push(this._pendingShiftEvent);
+        this._pendingShiftEvent = null;
+      }
+
+      const mode = this.transmissionMode;
+      const clutchNow = mode === 'MANUAL' && !!clutch;
+      const clutchJustPressed = clutchNow && !this._prevClutch;
+      const clutchJustReleased = !clutchNow && this._prevClutch;
+      this.clutchPressed = clutchNow;
+
+      if (this.paddleAnimTimer > 0) {
+        this.paddleAnimTimer = Math.max(0, this.paddleAnimTimer - dt);
+      }
+      if (this.rpmBlipTimer > 0) {
+        this.rpmBlipTimer = Math.max(0, this.rpmBlipTimer - dt);
+      }
+
+      if (this.shiftCutTimer > 0) {
+        this.shiftCutTimer = Math.max(0, this.shiftCutTimer - dt);
+        this.shiftTimer = this.shiftCutTimer;
+        if (this.shiftCutTimer === 0 && this.pendingSitBack) {
+          this.pendingSitBack = false;
+          if (throttle > 0.25 && !clutchNow) {
+            const modeScale = mode === 'SEMI' ? 1.08 : 0.78;
+            this.shiftKickTimer = 0.34;
+            this.shiftKickMag = modeScale * clamp(throttle, 0.4, 1.0);
+            this.shiftPitchVel += 0.58 * this.shiftKickMag;
+          }
+        }
+      } else {
+        this.shiftTimer = 0;
+      }
+
+      if (clutchJustReleased) {
+        if (this.gear >= 1 && this.pendingClutchBite && throttle > 0.22) {
+          this.shiftKickTimer = 0.36;
+          this.shiftKickMag = 1.24 * clamp(throttle, 0.45, 1.0);
+          this.shiftPitchVel += 0.65 * this.shiftKickMag;
+        }
+        this.pendingClutchBite = false;
+      } else if (!clutchNow && this.pendingClutchBite && this.shiftCutTimer === 0) {
+        if (this.gear >= 1 && throttle > 0.22) {
+          this.shiftKickTimer = 0.36;
+          this.shiftKickMag = 1.24 * clamp(throttle, 0.45, 1.0);
+          this.shiftPitchVel += 0.65 * this.shiftKickMag;
+        }
+        this.pendingClutchBite = false;
+      }
+
+      if (this.shiftKickTimer > 0) {
+        this.shiftKickTimer = Math.max(0, this.shiftKickTimer - dt);
+      }
+
+      this.hitRevLimiter = false;
+      this.shiftPrompt = 0;
+
+      let torqueMult = 1.0;
+
+      if (this.gear === -1 && !clutchNow) {
+        const revFrac = clamp(Math.abs(this.speed) / MAX_REVERSE_MS, 0, 1);
+        const targetNorm = clamp(IDLE_RPM_NORM + revFrac * 0.65, IDLE_RPM_NORM, 0.85);
+        this.rpmNorm += (targetNorm - this.rpmNorm) * Math.min(1, 10 * dt);
+        this.rpm = clamp(this.rpmNorm, IDLE_RPM_NORM, 1.03) * 7000;
+        this.turboBoost = Math.max(0, this.turboBoost - 4.6 * dt);
+        this._prevClutch = clutchNow;
+        this._prevThrottle = throttle;
+        return 1.0;
+      }
+
+      if (this.gear === 0 || clutchNow) {
+        // Disconnected drivetrain (Neutral or Clutch depressed): engine free-revs cleanly
+        const targetNorm = clamp(IDLE_RPM_NORM + throttle * (0.96 - IDLE_RPM_NORM), IDLE_RPM_NORM, 0.96);
+        this.rpmNorm += (targetNorm - this.rpmNorm) * Math.min(1, 9.0 * dt);
+        this.rpm = clamp(this.rpmNorm, IDLE_RPM_NORM, 1.03) * 7000;
+        torqueMult = 0;
+      } else {
+        const vPos = Math.max(0, this.speed);
+        const gTop = this.getGearTopSpeedMs(this.gear);
+        let rawNorm = clamp(IDLE_RPM_NORM + (vPos / Math.max(4, gTop)) * (1.0 - IDLE_RPM_NORM), IDLE_RPM_NORM, 1.04);
+
+        if (mode === 'AUTO' && this.shiftCutTimer <= 0) {
+          const upThresh = 0.66 + throttle * 0.25;
+          const downThresh = brake > 0.1 ? 0.46 : 0.35;
+
+          if (rawNorm > upThresh && this.gear < this.gearCount && throttle > 0.05) {
+            const from = this.gear;
+            this.gear += 1;
+            events.push(this.triggerShift(from, this.gear, throttle, false));
+            upshiftedThisTick = true;
+            rawNorm = clamp(
+              IDLE_RPM_NORM + (vPos / Math.max(4, this.getGearTopSpeedMs(this.gear))) * (1.0 - IDLE_RPM_NORM),
+              IDLE_RPM_NORM,
+              1.0
+            );
+          } else if (rawNorm < downThresh && this.gear > 1) {
+            const prevTop = this.getGearTopSpeedMs(this.gear - 1);
+            const projected = IDLE_RPM_NORM + (vPos / Math.max(4, prevTop)) * (1.0 - IDLE_RPM_NORM);
+            if (projected < 0.88) {
+              const from = this.gear;
+              this.gear -= 1;
+              events.push(this.triggerShift(from, this.gear, throttle, false));
+              rawNorm = projected;
+            }
           }
         }
 
-        if (input.handbrake) {
-          driveAccel -= Math.sign(this.forwardSpeed) * 7.5;
+        if (this.rpmBlipTimer > 0) {
+          rawNorm = Math.min(0.95, rawNorm + 0.14 * (this.rpmBlipTimer / 0.16));
+        }
+
+        const rpmSmoothRate = this.shiftCutTimer > 0 ? 11.5 : 15.0;
+        this.rpmNorm += (rawNorm - this.rpmNorm) * Math.min(1, rpmSmoothRate * dt);
+
+        if (mode === 'SEMI' || mode === 'MANUAL') {
+          if (rawNorm > 0.90 && this.gear < this.gearCount) this.shiftPrompt = 1;
+          else if (rawNorm < 0.28 && this.gear > 1 && vPos > 6) this.shiftPrompt = -1;
+
+          if (rawNorm >= 0.985 && throttle > 0.1) {
+            this.hitRevLimiter = true;
+            this.rpmNorm = clamp(0.97 + Math.sin(this.elapsedSeconds * 58) * 0.025, 0.92, 1.02);
+          }
+        }
+
+        this.rpm = clamp(this.rpmNorm, IDLE_RPM_NORM, 1.03) * 7000;
+
+        if (this.hitRevLimiter) {
+          torqueMult = 0.02;
+        } else if (this.shiftCutTimer > 0) {
+          torqueMult = mode === 'SEMI' ? 0.22 : 0.06;
+        } else {
+          const kickBoost =
+            this.shiftKickTimer > 0
+              ? 1 + 0.18 * (this.shiftKickTimer / 0.34) * this.shiftKickMag
+              : 1.0;
+
+          const gearMult = 1.15 - ((this.gear - 1) / Math.max(1, this.gearCount - 1)) * 0.22;
+          let bandMult = 1.0;
+          if (rawNorm < 0.28) {
+            bandMult = 0.72 + (rawNorm / 0.28) * 0.28;
+          } else if (rawNorm <= 0.88) {
+            bandMult = 1.0 + Math.sin(((rawNorm - 0.28) / 0.60) * Math.PI) * 0.16;
+          } else {
+            bandMult = 1.0 - (rawNorm - 0.88) * 1.1;
+          }
+          torqueMult = gearMult * bandMult * kickBoost;
         }
       }
 
-      const speedRatio = Math.min(1.25, Math.abs(this.forwardSpeed) / Math.max(10, vMaxMps));
-      const topGearDriveAtVmax = (launchTargetAccel * 0.68 + highSpeedPullAccel * 0.45) * 0.82;
-      const surfaceDragMult = surfTune.drag;
-      const dragAccel =
-        Math.sign(this.forwardSpeed) * topGearDriveAtVmax * Math.pow(speedRatio, 3.2) * surfaceDragMult +
-        slopeGravity;
+      // Turbocharger spool & blow-off valve vents
+      const sharpLift = this._prevThrottle > 0.42 && throttle < 0.12 && this.turboBoost > 0.32;
+      const clutchVent = clutchJustPressed && this.turboBoost > 0.34;
+      const upshiftVent = upshiftedThisTick && this.turboBoost > 0.34;
 
-      const netLongAccel = driveAccel - dragAccel;
-      this.forwardSpeed += netLongAccel * dt;
-
-      if (!this.isBoosting && this.forwardSpeed > vMaxMps && input.throttle > 0 && Math.abs(this.pitch) < 0.02) {
-        this.forwardSpeed = vMaxMps;
-      }
-      if (this.forwardSpeed < -18) this.forwardSpeed = -18;
-
-      // 8. Dynamic Axle Weight Transfer & Pacejka Cornering / Rally Drift Physics
-      this.longG = (this.forwardSpeed - prevForwardSpeed) / (dt * gravity);
-      const frontWeightBias = Math.max(0.30, Math.min(0.72, 0.46 - this.longG * 0.14));
-      const rearWeightBias = 1.0 - frontWeightBias;
-
-      if (this.isGrounded && Math.abs(this.forwardSpeed) > 0.5) {
-        const dirSign = this.forwardSpeed >= 0 ? 1 : -1;
-        const frontBite = 0.85 + frontWeightBias * 0.45;
-        const handbrakeYawBoost = input.handbrake ? 1.52 : 1.0;
-        const targetYawRate = this.steerAngle * phys.turnResponse * frontBite * handbrakeYawBoost * surfTune.yawBoost * dirSign;
-
-        this.yawRate += (targetYawRate - this.yawRate) * Math.min(1, dt * 11.5);
-        this.heading += this.yawRate * dt;
-
-        const isDriftMode = this.handlingMode === 'DRIFT';
-        const isSportMode = this.handlingMode === 'SPORT';
-
-        const rwdPowerOversteer = (spec.drivetrain === 'RWD' ? this.wheelspin * 0.48 : this.wheelspin * 0.16);
-        const trailBrakeRotation = Math.max(0, (0.50 - rearWeightBias) * 0.85);
-        const modeSlipScale = (isDriftMode ? 0.42 : isSportMode ? 0.22 : 0.12) + surfTune.looseSlip * 0.55;
-
-        const effectiveSlipFactor = input.handbrake
-          ? 0.60
-          : Math.min(0.64, modeSlipScale + rwdPowerOversteer + trailBrakeRotation);
-
-        const centrifugalImpulse = -this.yawRate * this.forwardSpeed * effectiveSlipFactor;
-        this.lateralSpeed += centrifugalImpulse * dt;
-
-        const totalGrip = (phys.gripBase * Math.min(1.15, surfaceGripMult)) + (aeroDownforceAccel / gravity) * 0.25;
-        const looseCornerMult = isLoose ? 0.68 : 1.0;
-        const lateralCorneringStiffness = input.handbrake
-          ? 1.9
-          : isDriftMode
-          ? 3.1 * totalGrip * looseCornerMult
-          : isSportMode
-          ? 6.0 * totalGrip * looseCornerMult
-          : 8.8 * totalGrip * looseCornerMult;
-
-        this.lateralSpeed *= Math.exp(-lateralCorneringStiffness * dt);
+      if ((sharpLift || clutchVent || upshiftVent) && this.bovCooldown <= 0) {
+        events.push({ type: 'turbo_bov', boost: this.turboBoost });
+        this.turboBoost *= 0.22;
+        this.bovCooldown = 0.28;
+      } else if (!clutchNow && this.gear > 0 && throttle > 0.25 && this.rpm > 2000 && !this.hitRevLimiter && this.shiftCutTimer <= 0) {
+        const targetBoost = clamp(((this.rpm - 1850) / 3700) * throttle, 0, 1);
+        const spoolRate = targetBoost > this.turboBoost ? 2.6 : 4.2;
+        this.turboBoost += (targetBoost - this.turboBoost) * Math.min(1, spoolRate * dt);
+      } else if (clutchNow && throttle > 0.25 && this.rpm > 2000) {
+        const freeBoost = clamp(((this.rpm - 1900) / 4200) * throttle * 0.45, 0, 0.45);
+        this.turboBoost += (freeBoost - this.turboBoost) * Math.min(1, 2.2 * dt);
       } else {
-        this.yawRate *= Math.exp(-3.5 * dt);
+        this.turboBoost = Math.max(0, this.turboBoost - 4.6 * dt);
       }
 
-      this.latG = (this.yawRate * this.forwardSpeed) / gravity;
-
-      // 9. Reconstruct World Velocity & Integrate Position
-      const newSinH = Math.sin(this.heading);
-      const newCosH = Math.cos(this.heading);
-      this.vx = this.forwardSpeed * newSinH + this.lateralSpeed * newCosH;
-      this.vz = this.forwardSpeed * newCosH - this.lateralSpeed * newSinH;
-
-      this.x += this.vx * dt;
-      this.z += this.vz * dt;
-
-      const bound = this.world.worldSize * 0.46;
-      if (Math.abs(this.x) > bound) {
-        this.x = Math.sign(this.x) * bound;
-        this.vx *= -0.5;
-      }
-      if (Math.abs(this.z) > bound) {
-        this.z = Math.sign(this.z) * bound;
-        this.vz *= -0.5;
-      }
-
-      // Post-integration ground lock at the new (x, z) so the car NEVER lags below
-      // rising off-road hills or embankments at any speed!
-      const postCenterY = this.world.getTerrainHeight(this.x, this.z);
-      const postFrontY = this.world.getTerrainHeight(this.x + newSinH * 2.4, this.z + newCosH * 2.4);
-      const postBackY = this.world.getTerrainHeight(this.x - newSinH * 2.4, this.z - newCosH * 2.4);
-      const postRightY = this.world.getTerrainHeight(this.x + newCosH * 1.1, this.z - newSinH * 1.1);
-      const postLeftY = this.world.getTerrainHeight(this.x - newCosH * 1.1, this.z + newSinH * 1.1);
-      const minSafeY = Math.max(postCenterY, (postFrontY + postBackY) * 0.5, (postRightY + postLeftY) * 0.5);
-      if (this.isGrounded || this.y < minSafeY) {
-        this.y = minSafeY;
-      }
-
-      // Compute slip angle for tire smoke, skidmarks & tire squeal audio
-      if (this.speedKmh > 12) {
-        const angleRad = Math.atan2(Math.abs(this.lateralSpeed), Math.abs(this.forwardSpeed) + 0.1);
-        this.slipAngleDeg = angleRad * (180 / Math.PI) + this.wheelspin * 18;
-        this.slipNormalized = Math.min(1, this.slipAngleDeg / 36);
-      } else {
-        this.slipAngleDeg = this.wheelspin * 22;
-        this.slipNormalized = Math.min(1, this.wheelspin * 0.7);
-      }
-
-      // 10. 2nd-Order Spring-Damper Suspension Simulation (Squat, Dive, Body Roll & Heave)
-      const targetBodyPitch = Math.max(-0.075, Math.min(0.075, this.longG * 0.042));
-      const targetBodyRoll = Math.max(-0.09, Math.min(0.09, -this.latG * 0.038));
-
-      const springK = 85.0;
-      const damperC = 14.5;
-
-      const pitchAccel = -springK * (this.chassisPitch - targetBodyPitch) - damperC * this.chassisPitchVel;
-      this.chassisPitchVel += pitchAccel * dt;
-      this.chassisPitch += this.chassisPitchVel * dt;
-
-      const rollAccel = -springK * (this.chassisRoll - targetBodyRoll) - damperC * this.chassisRollVel;
-      this.chassisRollVel += rollAccel * dt;
-      this.chassisRoll += this.chassisRollVel * dt;
-
-      const heaveAccel = -110.0 * this.chassisHeave - 16.0 * this.chassisHeaveVel;
-      this.chassisHeaveVel += heaveAccel * dt;
-      this.chassisHeave += this.chassisHeaveVel * dt;
+      this._prevClutch = clutchNow;
+      this._prevThrottle = throttle;
+      return torqueMult;
     }
 
-    /* ----------------------------------------------------------------------
-       GEARBOX & RPM SIMULATION (AUTOMATIC & SEQUENTIAL MANUAL)
-       ---------------------------------------------------------------------- */
-    updateTransmissionAndRPM(throttle, brake) {
-      const totalGears = this.spec.gears || 7;
-      const redline = this.spec.redlineRpm || 8000;
-      const idleRpm = 1000;
+    step(dt, input, traffic, weatherGrip) {
+      const events = [];
+      if (!dt || dt <= 0) return events;
+      const clampedDt = Math.min(dt, 0.05);
 
-      if (this.forwardSpeed < -1.0) {
-        this.gear = 'R';
-        this.rpm = Math.min(0.95, 0.20 + (Math.abs(this.forwardSpeed) / 18) * 0.75);
-        this.currentRpm = Math.round(idleRpm + this.rpm * (redline - idleRpm));
-        return;
+      if (this.barrierCooldown > 0) {
+        this.barrierCooldown = Math.max(0, this.barrierCooldown - clampedDt);
       }
 
-      if (this.speedKmh < 2.0 && throttle <= 0 && brake <= 0) {
-        if (this.transmissionMode === 'AUTO') {
+      if (this.crashed) {
+        this.speed *= Math.max(0, 1 - 5.5 * clampedDt);
+        if (Math.abs(this.speed) < 0.05) this.speed = 0;
+        this.braking = true;
+        this.steer *= Math.max(0, 1 - 6 * clampedDt);
+        this.pitch *= Math.max(0, 1 - 7 * clampedDt);
+        this.roll *= Math.max(0, 1 - 7 * clampedDt);
+        this.s += this.speed * Math.cos(this.yawRel) * clampedDt;
+        this.updateTransmission(0, 1, false, clampedDt, events);
+        return events;
+      }
+
+      this.elapsedSeconds += clampedDt;
+
+      const inp = input || {};
+      const throttle = clamp(inp.throttle || 0, 0, 1);
+      const brake = clamp(inp.brake || 0, 0, 1);
+      const clutch = !!inp.clutch;
+      const steerDir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+
+      // Effective surface grip combining weather + car all-weather rating + tire upgrades
+      const baseWeatherGrip = weatherGrip !== undefined ? weatherGrip : 1.0;
+      const effectiveGrip = clamp(baseWeatherGrip * this.weatherGripMult, 0.48, 1.05);
+
+      // Handle Auto R <-> 1 transitions cleanly when stopped
+      if (this.transmissionMode === 'AUTO') {
+        if (brake > 0.05 && this.speed <= 0.35) {
+          this.gear = -1;
+        } else if (throttle > 0.05 && this.gear === -1 && this.speed >= -0.4) {
           this.gear = 1;
         }
-        this.rpm = 0.14;
-        this.currentRpm = idleRpm;
-        return;
       }
 
-      if (this.gear === 'R' || this.gear === 'N') {
-        this.gear = 1;
+      const torqueMult = this.updateTransmission(throttle, brake, clutch, clampedDt, events);
+
+      // 1. Longitudinal Acceleration / Braking / Aero Drag
+      const v = this.speed;
+      let targetAccel = 0;
+      this.braking = false;
+
+      const effAero = Math.max(0.00018, (this.accelPower * 0.36 - 0.18) / (this.maxSpeedMs * this.maxSpeedMs));
+
+      if (brake > 0.05) {
+        if (v > 0.45) {
+          const brakeGripScale = (0.54 + 0.46 * effectiveGrip) * this.brakeWeatherBonus;
+          targetAccel = -this.brakePower * clamp(brakeGripScale, 0.55, 1.15) * brake;
+          this.braking = true;
+        } else if (this.clutchPressed || this.gear === 0) {
+          targetAccel = -(10.0 * brake);
+          this.braking = true;
+        } else if (this.gear === -1 || this.transmissionMode === 'AUTO') {
+          const revFrac = clamp(1 - Math.abs(v) / MAX_REVERSE_MS, 0, 1);
+          targetAccel = -4.6 * brake * revFrac;
+        } else {
+          targetAccel = -(10.0 * brake);
+          this.braking = true;
+        }
+      } else if (this.gear === 0 || this.clutchPressed) {
+        if (v > 0.05) {
+          targetAccel = -(0.35 + effAero * v * v);
+        } else if (v < -0.05) {
+          targetAccel = 1.8;
+        } else {
+          targetAccel = 0;
+        }
+      } else if (throttle > 0.05) {
+        if (this.gear === -1) {
+          targetAccel = v < -0.1 ? 12.0 * throttle : 0;
+        } else if (v < 0) {
+          targetAccel = 14.0 * throttle;
+        } else {
+          const speedFrac = clamp(v / this.maxSpeedMs, 0, 1);
+          const driveCurve = this.accelPower * (1 - 0.48 * Math.pow(speedFrac, 1.35)) * torqueMult;
+          const tractionCap = clamp(0.66 + 0.34 * effectiveGrip, 0.72, 1.0);
+          const drag = effAero * v * v + 0.22;
+          targetAccel = driveCurve * tractionCap * throttle - drag;
+        }
+      } else {
+        if (v > 0.05) {
+          targetAccel = -(0.42 + effAero * v * v);
+        } else if (v < -0.05) {
+          targetAccel = 1.8;
+        } else {
+          targetAccel = 0;
+          this.speed = 0;
+        }
       }
 
-      if (this.transmissionMode === 'AUTO') {
-        let bestGear = 1;
-        for (let g = 1; g <= totalGears; g++) {
-          const ceilingMps = this.getGearTopSpeedMps(g);
-          if (this.speedMps <= ceilingMps * 0.96 || g === totalGears) {
-            bestGear = g;
-            break;
+      this.accel = targetAccel;
+      const forwardCap =
+        (this.transmissionMode === 'MANUAL' || this.transmissionMode === 'SEMI') && this.gear > 0
+          ? Math.min(this.maxSpeedMs, this.getGearTopSpeedMs(this.gear))
+          : this.maxSpeedMs;
+      this.speed = clamp(this.speed + targetAccel * clampedDt, -MAX_REVERSE_MS, forwardCap);
+      if (Math.abs(this.speed) < 0.04 && throttle === 0 && brake === 0) {
+        this.speed = 0;
+      }
+
+      // 2. Planted Speed-Adaptive Steering (lateral-velocity capped with progressive turn-in)
+      const absV = Math.abs(this.speed);
+      const speedNorm = clamp(absV / this.maxSpeedMs, 0, 1);
+      const isReversingSteer = steerDir !== 0 && steerDir * this.steer < 0;
+      const turnInRate = lerp(6.2, 4.0, speedNorm);
+      const counterRate = lerp(13.5, 10.5, speedNorm);
+      const centerRate = lerp(11.0, 9.0, speedNorm);
+      const steerRamp = steerDir === 0 ? centerRate : isReversingSteer ? counterRate : turnInRate;
+      this.steer += (steerDir - this.steer) * Math.min(1, steerRamp * clampedDt);
+      if (steerDir === 0 && Math.abs(this.steer) < 0.005) this.steer = 0;
+
+      const shapedSteer = Math.sign(this.steer) * Math.pow(Math.abs(this.steer), 1.32);
+      const latGripScale = clamp(effectiveGrip * this.gripMult, 0.50, 1.25);
+      const maxLatSpeed =
+        lerp(5.4, 7.2, clamp((absV - 18) / 72, 0, 1)) *
+        clamp(0.78 + 0.22 * latGripScale, 0.76, 1.14);
+      const maxYawForSpeed = Math.min(
+        0.30,
+        Math.asin(clamp(maxLatSpeed / Math.max(absV, 8.0), 0, 0.30))
+      );
+      const revSign = this.speed >= -0.05 ? 1 : -1;
+      const targetYaw = shapedSteer * maxYawForSpeed * revSign;
+
+      const authority = clamp(absV / 3.5, 0, 1);
+      const gripResponse = clamp(0.58 + 0.42 * effectiveGrip, 0.65, 1.08);
+      const yawRate = (steerDir !== 0 ? 7.2 : 11.2) * gripResponse;
+      this.yawRel += (targetYaw - this.yawRel) * Math.min(1, yawRate * authority * clampedDt);
+      if (steerDir === 0 && Math.abs(this.yawRel) < 0.001) this.yawRel = 0;
+
+      // 3. Advance Curvilinear Position
+      const ds = this.speed * Math.cos(this.yawRel) * clampedDt;
+      const dd = this.speed * Math.sin(this.yawRel) * clampedDt;
+      this.s += ds;
+      this.d += dd;
+
+      if (ds > 0) this.distanceMeters += ds;
+      if (this.speedKmh > this.topSpeedKmh) this.topSpeedKmh = this.speedKmh;
+      this.onShoulder = this.d < SHOULDER_LEFT_D || this.d > SHOULDER_RIGHT_D;
+
+      // 4. Visual Pitch, 3-Phase Shift Squat & Longitudinal Surge Inertia
+      const shiftCutUnload = this.shiftCutTimer > 0 && this.shiftDir > 0 ? -0.014 : 0;
+      const springAccel = -88 * this.shiftPitchSpring - 12 * this.shiftPitchVel;
+      this.shiftPitchVel += springAccel * clampedDt;
+      this.shiftPitchSpring = clamp(this.shiftPitchSpring + this.shiftPitchVel * clampedDt, -0.045, 0.058);
+
+      const kickFrac = this.shiftKickTimer > 0 ? this.shiftKickTimer / 0.34 : 0;
+      const targetSurge =
+        this.shiftCutTimer > 0 && this.shiftDir > 0
+          ? -0.06
+          : kickFrac > 0
+          ? 0.26 * Math.pow(kickFrac, 0.7) * this.shiftKickMag + this.accel * 0.018
+          : clamp(this.accel * 0.018, -0.14, 0.16);
+      this.camSurgeZ += (targetSurge - this.camSurgeZ) * Math.min(1, 14 * clampedDt);
+
+      const basePitch = clamp(this.accel * 0.0044 + shiftCutUnload, -0.048, 0.038);
+      const targetPitch = clamp(basePitch + this.shiftPitchSpring, -0.055, 0.065);
+      const roadCurv = this.getCurvature(this.s);
+      const curveLatForce = roadCurv * this.speed * this.speed * 0.0025;
+      const steerLatForce = shapedSteer * clamp(absV / 22, 0, 1.25) * 0.025;
+      const targetRoll = clamp(steerLatForce + curveLatForce, -0.045, 0.045);
+
+      this.pitch += (targetPitch - this.pitch) * Math.min(1, 13 * clampedDt);
+      this.roll += (targetRoll - this.roll) * Math.min(1, 10 * clampedDt);
+
+      // 5. Highway Median & Guardrail Collision Clamping
+      const scrapeSpeedKeep = lerp(0.91, 0.95, clamp(1 - this.damageResist, 0, 1));
+      if (this.d < BARRIER_MIN_D) {
+        this.d = BARRIER_MIN_D;
+        if (this.yawRel < 0) this.yawRel *= 0.15;
+        if (this.barrierCooldown <= 0 && this.speed > 4) {
+          this.speed *= scrapeSpeedKeep;
+          this.barrierCooldown = 0.35;
+          this.damage = Math.min(95, this.damage + Math.max(2, Math.round(6 * this.damageResist)));
+          events.push({ type: 'barrier', intensity: clamp(this.speed / 30, 0.2, 1.0) });
+        }
+      } else if (this.d > BARRIER_MAX_D) {
+        this.d = BARRIER_MAX_D;
+        if (this.yawRel > 0) this.yawRel *= 0.15;
+        if (this.barrierCooldown <= 0 && this.speed > 4) {
+          this.speed *= scrapeSpeedKeep;
+          this.barrierCooldown = 0.35;
+          this.damage = Math.min(95, this.damage + Math.max(2, Math.round(6 * this.damageResist)));
+          events.push({ type: 'barrier', intensity: clamp(this.speed / 30, 0.2, 1.0) });
+        }
+      }
+
+      // 6. Traffic Collisions & Clean Overtake Pass Detection
+      if (traffic && traffic.vehicles) {
+        const vehicles = traffic.vehicles;
+        for (let i = 0; i < vehicles.length; i++) {
+          const npc = vehicles[i];
+
+          // Clean pass check when flying smoothly past an NPC in an adjacent lane
+          const dsPass = this.s - npc.s;
+          const ddPass = Math.abs(this.d - npc.d);
+          if (
+            !npc.passedByPlayer &&
+            this.speed > 24 &&
+            this.speed > npc.v + 4.5 &&
+            Math.abs(dsPass) < 3.2 &&
+            ddPass >= 1.85 &&
+            ddPass <= 4.35
+          ) {
+            npc.passedByPlayer = true;
+            events.push({
+              type: 'clean_pass',
+              relSpeedKmh: (this.speed - npc.v) * 3.6,
+              isClose: ddPass < 3.0,
+              npc
+            });
+          }
+
+          if (npc.hitCooldown > 0) continue;
+
+          const hlSum = (this.length + npc.length) * 0.5 - 0.14;
+          const hwSum = (this.width + npc.width) * 0.5 - 0.12;
+          const dsGap = this.s - npc.s;
+          const ddGap = this.d - npc.d;
+
+          if (Math.abs(dsGap) < hlSum && Math.abs(ddGap) < hwSum) {
+            const penS = hlSum - Math.abs(dsGap);
+            const penD = hwSum - Math.abs(ddGap);
+            const normPenS = penS / Math.max(0.5, hlSum);
+            const normPenD = penD / Math.max(0.5, hwSum);
+            const relLong = Math.abs(this.speed - npc.v);
+            this.collisionCount++;
+            npc.passedByPlayer = true;
+
+            if (normPenS <= normPenD) {
+              const pushSign = dsGap >= 0 ? 1 : -1;
+              this.s = npc.s + pushSign * (hlSum + 0.08);
+              const impactMs = pushSign < 0 ? Math.max(0, this.speed - npc.v) : relLong;
+              const dmgAdd = Math.round((12 + impactMs * 1.8) * this.damageResist);
+
+              if (impactMs >= 13.5 / Math.sqrt(this.damageResist) || this.damage + dmgAdd >= 100) {
+                this.damage = 100;
+                this.crashed = true;
+                this.lastCrashReason = 'Collision with highway traffic';
+                this.speed = Math.min(this.speed * 0.22, npc.v * 0.45);
+                traffic.onPlayerCollision(npc, impactMs, 0);
+                events.push({ type: 'crash', intensity: 1.0, impactMs, npc });
+                break;
+              } else {
+                this.damage = Math.min(99, this.damage + Math.max(6, dmgAdd));
+                this.speed = clamp(
+                  pushSign < 0 ? Math.min(this.speed, npc.v * 0.84) : Math.max(this.speed, npc.v * 1.05),
+                  0,
+                  this.maxSpeedMs
+                );
+                traffic.onPlayerCollision(npc, impactMs, 0);
+                events.push({
+                  type: 'minor',
+                  intensity: clamp(impactMs / 11, 0.25, 0.9),
+                  impactMs,
+                  npc
+                });
+              }
+            } else {
+              const sideSign = ddGap >= 0 ? 1 : -1;
+              this.d = clamp(npc.d + sideSign * (hwSum + 0.08), BARRIER_MIN_D, BARRIER_MAX_D);
+              if (sideSign > 0 && this.yawRel < 0) this.yawRel *= 0.2;
+              if (sideSign < 0 && this.yawRel > 0) this.yawRel *= 0.2;
+
+              const latSpeed = Math.abs(this.speed * Math.sin(this.yawRel));
+              const impactMs = Math.max(latSpeed, relLong * 0.45);
+              this.speed *= 0.88;
+              const dmgAdd = Math.round((10 + impactMs * 1.4) * this.damageResist);
+
+              if (this.damage + dmgAdd >= 100 || impactMs >= 14.5 / Math.sqrt(this.damageResist)) {
+                this.damage = 100;
+                this.crashed = true;
+                this.lastCrashReason = 'High-speed sideswipe collision';
+                traffic.onPlayerCollision(npc, impactMs, -sideSign * 0.35);
+                events.push({ type: 'crash', intensity: 1.0, impactMs, npc });
+                break;
+              } else {
+                this.damage = Math.min(99, this.damage + Math.max(5, dmgAdd));
+                traffic.onPlayerCollision(npc, impactMs, -sideSign * 0.25);
+                events.push({
+                  type: 'minor',
+                  intensity: clamp(impactMs / 10, 0.22, 0.85),
+                  impactMs,
+                  npc
+                });
+              }
+            }
           }
         }
-        if (bestGear !== this.gear && this.shiftTimer <= 0) {
-          this.gear = bestGear;
-          this.shiftTimer = 0.075;
-          // Subtle pitch kick on full-throttle upshift
-          if (throttle > 0.5) {
-            this.chassisPitchVel += 0.14;
-          }
-        }
-      } else if (this.speedKmh < 22 && typeof this.gear === 'number' && this.gear > 1) {
-        // Automatic anti-stall downshift to 1st gear at low speed in Manual mode
-        this.gear = 1;
       }
 
-      const gNum = typeof this.gear === 'number' ? this.gear : 1;
-      const prevCeiling = gNum === 1 ? 0 : this.getGearTopSpeedMps(gNum - 1) * 0.62;
-      const currCeiling = this.getGearTopSpeedMps(gNum);
-      const span = Math.max(4, currCeiling - prevCeiling);
-
-      let rawRpm = 0.22 + ((this.speedMps - prevCeiling) / span) * 0.76;
-      // Add wheelspin flare in lower gears
-      rawRpm += this.wheelspin * 0.18;
-
-      // Rev limiter bounce at redline in Manual mode
-      if (rawRpm >= 0.995) {
-        rawRpm = 0.96 + (Math.sin(Date.now() * 0.08) * 0.03);
-      }
-
-      this.rpm = Math.max(0.14, Math.min(1.0, rawRpm));
-      this.currentRpm = Math.round(idleRpm + this.rpm * (redline - idleRpm));
+      return events;
     }
   }
 
-  window.HorizonPhysicsVehicle = HorizonPhysicsVehicle;
-})();
+  const api = {
+    HighwayPlayer,
+    TRANSMISSION_MODES,
+    MAX_REVERSE_MS,
+    BARRIER_MIN_D,
+    BARRIER_MAX_D
+  };
+
+  if (typeof window !== 'undefined') {
+    window.HighwayPlayer = api;
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (root && (typeof window === 'undefined' || root !== window)) {
+    root.HighwayPlayer = api;
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
