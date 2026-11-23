@@ -19,9 +19,9 @@
       category: 'Compact',
       price: 0,
       archetype: 'hatchback',
-      baseTopSpeedKmh: 235,
-      baseAccel: 6.1,
-      baseBrake: 15.2,
+      baseTopSpeedKmh: 192,
+      baseAccel: 5.5,
+      baseBrake: 14.5,
       baseGrip: 1.00,
       weatherGrip: 1.00,
       durability: 1.00,
@@ -36,9 +36,9 @@
       category: 'Sport Sedan',
       price: 3500,
       archetype: 'player_gt',
-      baseTopSpeedKmh: 270,
-      baseAccel: 7.4,
-      baseBrake: 16.5,
+      baseTopSpeedKmh: 215,
+      baseAccel: 6.5,
+      baseBrake: 15.8,
       baseGrip: 1.06,
       weatherGrip: 1.02,
       durability: 1.05,
@@ -53,9 +53,9 @@
       category: 'All-Weather AWD',
       price: 7500,
       archetype: 'wagon',
-      baseTopSpeedKmh: 295,
-      baseAccel: 8.3,
-      baseBrake: 17.2,
+      baseTopSpeedKmh: 230,
+      baseAccel: 7.3,
+      baseBrake: 16.5,
       baseGrip: 1.12,
       weatherGrip: 1.24,
       durability: 1.18,
@@ -70,9 +70,9 @@
       category: 'Performance Coupe',
       price: 14000,
       archetype: 'coupe',
-      baseTopSpeedKmh: 322,
-      baseAccel: 9.3,
-      baseBrake: 18.2,
+      baseTopSpeedKmh: 258,
+      baseAccel: 8.6,
+      baseBrake: 17.8,
       baseGrip: 1.15,
       weatherGrip: 1.04,
       durability: 1.05,
@@ -87,9 +87,9 @@
       category: 'Grand Tourer',
       price: 26000,
       archetype: 'gt_v8',
-      baseTopSpeedKmh: 355,
-      baseAccel: 10.5,
-      baseBrake: 19.4,
+      baseTopSpeedKmh: 282,
+      baseAccel: 9.8,
+      baseBrake: 19.0,
       baseGrip: 1.18,
       weatherGrip: 1.06,
       durability: 1.12,
@@ -104,9 +104,9 @@
       category: 'Supercar',
       price: 48000,
       archetype: 'supercar',
-      baseTopSpeedKmh: 402,
-      baseAccel: 12.1,
-      baseBrake: 21.2,
+      baseTopSpeedKmh: 315,
+      baseAccel: 11.2,
+      baseBrake: 20.6,
       baseGrip: 1.24,
       weatherGrip: 1.08,
       durability: 1.10,
@@ -114,6 +114,74 @@
       turboLevel: 0.88,
       defaultColor: 0xf59e0b,
       desc: 'Mid-engine V10 flagship with carbon aero stability and relentless top-end pull.'
+    },
+    {
+      id: 'jdm_coupe',
+      name: 'Skyline R-Spec',
+      category: 'Turbo Tuner',
+      price: 10500,
+      archetype: 'jdm_coupe',
+      baseTopSpeedKmh: 245,
+      baseAccel: 8.1,
+      baseBrake: 17.2,
+      baseGrip: 1.15,
+      weatherGrip: 1.12,
+      durability: 1.10,
+      engineTone: 'i6_high',
+      turboLevel: 1.02,
+      defaultColor: 0x1d4ed8,
+      desc: 'Twin-turbo inline-6 AWD icon with fierce boost response and sharp lane precision.'
+    },
+    {
+      id: 'muscle_v8',
+      name: 'Titan V8 Muscle',
+      category: 'Muscle V8',
+      price: 19500,
+      archetype: 'muscle',
+      baseTopSpeedKmh: 268,
+      baseAccel: 9.2,
+      baseBrake: 18.2,
+      baseGrip: 1.13,
+      weatherGrip: 1.02,
+      durability: 1.20,
+      engineTone: 'v8',
+      turboLevel: 0.72,
+      defaultColor: 0xea580c,
+      desc: 'Supercharged V8 fastback with brutal low-end torque and heavy highway presence.'
+    },
+    {
+      id: 'patrol_v8',
+      name: 'Interceptor Patrol',
+      category: 'Pursuit Unit',
+      price: 32000,
+      archetype: 'police',
+      baseTopSpeedKmh: 290,
+      baseAccel: 10.1,
+      baseBrake: 19.4,
+      baseGrip: 1.19,
+      weatherGrip: 1.16,
+      durability: 1.28,
+      engineTone: 'v8',
+      turboLevel: 0.88,
+      defaultColor: 0x111827,
+      desc: 'Pursuit-spec highway interceptor with reinforced chassis and live emergency lightbar.'
+    },
+    {
+      id: 'aether_hyper',
+      name: 'Aether RS Hyper',
+      category: 'Hypercar',
+      price: 85000,
+      archetype: 'hypercar',
+      baseTopSpeedKmh: 341,
+      baseAccel: 12.2,
+      baseBrake: 22.0,
+      baseGrip: 1.28,
+      weatherGrip: 1.10,
+      durability: 1.12,
+      engineTone: 'v10',
+      turboLevel: 1.10,
+      defaultColor: 0xf8fafc,
+      desc: 'Extreme twin-turbo V10 hypercar capable of 430 km/h with full factory upgrades.'
     }
   ];
 
@@ -122,7 +190,13 @@
       key: 'engine',
       label: 'Engine Tune',
       costs: [0, 650, 1600, 3400, 6800],
-      effectText: '+7% Accel & +6% Top Speed per level'
+      effectText: '+6% Accel & +4.5% Top Speed per level'
+    },
+    turbo: {
+      key: 'turbo',
+      label: 'Twin-Turbo Kit',
+      costs: [0, 750, 1800, 3800, 7500],
+      effectText: '+4% Accel, +2% Top Speed & faster spool'
     },
     brakes: {
       key: 'brakes',
@@ -135,6 +209,12 @@
       label: 'All-Season Tires',
       costs: [0, 550, 1400, 2900, 5800],
       effectText: '+6% Grip & +9% Rain/Snow traction'
+    },
+    aero: {
+      key: 'aero',
+      label: 'Aero & Suspension',
+      costs: [0, 550, 1450, 3100, 6200],
+      effectText: '+5% High-speed grip & reduced body roll'
     },
     transmission: {
       key: 'transmission',
@@ -154,12 +234,62 @@
     { name: 'Glacier White', hex: 0xf1f5f9 },
     { name: 'Liquid Silver', hex: 0xcbd5e1 },
     { name: 'Cobalt Blue', hex: 0x2563eb },
+    { name: 'Electric Cyan', hex: 0x06b6d4 },
     { name: 'Crimson Red', hex: 0xb91c1c },
-    { name: 'Gunmetal Gray', hex: 0x334155 },
-    { name: 'Emerald Sage', hex: 0x0f766e },
+    { name: 'Solar Orange', hex: 0xea580c },
     { name: 'Sunset Amber', hex: 0xf59e0b },
+    { name: 'Emerald Sage', hex: 0x0f766e },
+    { name: 'Racing Green', hex: 0x15803d },
+    { name: 'Royal Violet', hex: 0x7c3aed },
+    { name: 'Gunmetal Gray', hex: 0x334155 },
     { name: 'Midnight Black', hex: 0x181c24 }
   ];
+
+  const RIM_STYLES = [
+    { id: 'silver', label: 'Alloy Silver', hex: 0xd0d7e2 },
+    { id: 'black', label: 'Gloss Black', hex: 0x161920 },
+    { id: 'bronze', label: 'Satin Bronze', hex: 0xa17449 },
+    { id: 'gunmetal', label: 'Gunmetal', hex: 0x475569 },
+    { id: 'white', label: 'Rally White', hex: 0xf1f5f9 }
+  ];
+
+  const SPOILER_STYLES = [
+    { id: 'stock', label: 'Factory' },
+    { id: 'lip', label: 'Carbon Lip' },
+    { id: 'street', label: 'Street Wing' },
+    { id: 'gt', label: 'GT Carbon Wing' }
+  ];
+
+  const TINT_STYLES = [
+    { id: 'light', label: 'Factory Glass', hex: 0x1e293b, roughness: 0.12 },
+    { id: 'smoke', label: 'Dark Smoke', hex: 0x090d14, roughness: 0.08 },
+    { id: 'limo', label: 'Limo Black', hex: 0x04060a, roughness: 0.06 },
+    { id: 'cobalt', label: 'Cobalt Tint', hex: 0x0f2547, roughness: 0.10 }
+  ];
+
+  const STRIPE_STYLES = [
+    { id: 'none', label: 'Clean', hex: null },
+    { id: 'white', label: 'White Racing', hex: 0xf8fafc },
+    { id: 'black', label: 'Stealth Black', hex: 0x14171f },
+    { id: 'red', label: 'Track Red', hex: 0xdc2626 }
+  ];
+
+  const UNDERGLOW_STYLES = [
+    { id: 'none', label: 'Off', hex: null },
+    { id: 'cyan', label: 'Electric Cyan', hex: 0x22d3ee },
+    { id: 'red', label: 'Crimson', hex: 0xef4444 },
+    { id: 'green', label: 'Toxic Green', hex: 0x22c55e },
+    { id: 'violet', label: 'Neon Violet', hex: 0xa855f7 },
+    { id: 'amber', label: 'Gold Amber', hex: 0xf59e0b }
+  ];
+
+  const CUSTOM_VALIDATORS = {
+    rim: RIM_STYLES,
+    spoiler: SPOILER_STYLES,
+    tint: TINT_STYLES,
+    stripe: STRIPE_STYLES,
+    underglow: UNDERGLOW_STYLES
+  };
 
   const MAX_UPGRADE_LEVEL = 4;
 
@@ -168,7 +298,23 @@
   }
 
   function makeDefaultUpgrades() {
-    return { engine: 0, brakes: 0, tires: 0, transmission: 0, chassis: 0 };
+    return { engine: 0, turbo: 0, brakes: 0, tires: 0, aero: 0, transmission: 0, chassis: 0 };
+  }
+
+  function makeDefaultCustom() {
+    return { rim: 'silver', spoiler: 'stock', tint: 'light', stripe: 'none', underglow: 'none' };
+  }
+
+  function sanitizeCustom(raw) {
+    const def = makeDefaultCustom();
+    if (!raw || typeof raw !== 'object') return def;
+    const out = {};
+    for (const key of Object.keys(def)) {
+      const list = CUSTOM_VALIDATORS[key];
+      const val = raw[key];
+      out[key] = list && list.some((item) => item.id === val) ? val : def[key];
+    }
+    return out;
   }
 
   class HighwayEconomy {
@@ -196,6 +342,9 @@
         },
         carPaints: {
           [starter.id]: starter.defaultColor
+        },
+        carCustom: {
+          [starter.id]: makeDefaultCustom()
         },
         transmissionMode: 'AUTO',
         gaugeStyle: 'digital',
@@ -232,8 +381,10 @@
             const u = parsed.carUpgrades[carId] || {};
             this.state.carUpgrades[carId] = {
               engine: clamp(Math.floor(u.engine || 0), 0, MAX_UPGRADE_LEVEL),
+              turbo: clamp(Math.floor(u.turbo || 0), 0, MAX_UPGRADE_LEVEL),
               brakes: clamp(Math.floor(u.brakes || 0), 0, MAX_UPGRADE_LEVEL),
               tires: clamp(Math.floor(u.tires || 0), 0, MAX_UPGRADE_LEVEL),
+              aero: clamp(Math.floor(u.aero || 0), 0, MAX_UPGRADE_LEVEL),
               transmission: clamp(Math.floor(u.transmission || 0), 0, MAX_UPGRADE_LEVEL),
               chassis: clamp(Math.floor(u.chassis || 0), 0, MAX_UPGRADE_LEVEL)
             };
@@ -245,6 +396,12 @@
             const cDef = this.getCarDef(carId);
             const p = parsed.carPaints[carId];
             this.state.carPaints[carId] = typeof p === 'number' ? p : cDef.defaultColor;
+          }
+        }
+
+        if (parsed.carCustom && typeof parsed.carCustom === 'object') {
+          for (const carId of this.state.ownedCars) {
+            this.state.carCustom[carId] = sanitizeCustom(parsed.carCustom[carId]);
           }
         }
 
@@ -311,6 +468,27 @@
       return this.state.carPaints[id];
     }
 
+    getCustomization(carId) {
+      const id = carId || this.state.activeCarId;
+      if (!this.state.carCustom[id]) {
+        this.state.carCustom[id] = makeDefaultCustom();
+      } else {
+        this.state.carCustom[id] = sanitizeCustom(this.state.carCustom[id]);
+      }
+      return this.state.carCustom[id];
+    }
+
+    setCustomization(carId, field, value) {
+      const id = carId || this.state.activeCarId;
+      if (!this.isOwned(id)) return false;
+      const list = CUSTOM_VALIDATORS[field];
+      if (!list || !list.some((item) => item.id === value)) return false;
+      const custom = this.getCustomization(id);
+      custom[field] = value;
+      this.save();
+      return true;
+    }
+
     getTransmission() {
       return this.state.transmissionMode || 'AUTO';
     }
@@ -353,24 +531,33 @@
       const carDef = this.getCarDef(carId || this.state.activeCarId);
       const upg = this.getUpgrades(carDef.id);
 
-      const topSpeedKmh = carDef.baseTopSpeedKmh * (1 + upg.engine * 0.06);
-      const accelPower = carDef.baseAccel * (1 + upg.engine * 0.07 + upg.transmission * 0.035);
+      const topSpeedKmh = Math.min(
+        430,
+        Math.round(carDef.baseTopSpeedKmh * (1 + upg.engine * 0.045 + (upg.turbo || 0) * 0.02))
+      );
+      const accelPower =
+        carDef.baseAccel * (1 + upg.engine * 0.06 + (upg.turbo || 0) * 0.04 + upg.transmission * 0.03);
       const brakePower = carDef.baseBrake * (1 + upg.brakes * 0.08);
       const brakeWeatherBonus = 1 + upg.brakes * 0.05;
-      const gripMult = carDef.baseGrip * (1 + upg.tires * 0.06);
+      const gripMult = carDef.baseGrip * (1 + upg.tires * 0.06 + (upg.aero || 0) * 0.05);
       const weatherGripMult = carDef.weatherGrip * (1 + upg.tires * 0.09);
       const gearCount = upg.transmission >= 4 ? 8 : upg.transmission >= 2 ? 7 : 6;
       const shiftTimeMult = Math.max(0.35, 1 - upg.transmission * 0.15);
       const damageResist = Math.max(0.45, (1 / carDef.durability) * (1 - upg.chassis * 0.11));
-      const turboLevel = clamp((carDef.turboLevel || 0.7) + upg.engine * 0.08, 0.4, 1.15);
+      const turboLevel = clamp((carDef.turboLevel || 0.7) + upg.engine * 0.06 + (upg.turbo || 0) * 0.09, 0.4, 1.15);
+      const turboSpoolMult = 1 + (upg.turbo || 0) * 0.16;
+      const rollStiffness = 1 + (upg.aero || 0) * 0.14;
 
       return {
         carId: carDef.id,
         name: carDef.name,
         archetype: carDef.archetype,
         color: this.getPaint(carDef.id),
+        custom: Object.assign({}, this.getCustomization(carDef.id)),
         engineTone: carDef.engineTone,
         turboLevel,
+        turboSpoolMult,
+        rollStiffness,
         topSpeedKmh,
         maxSpeedMs: topSpeedKmh / 3.6,
         accelPower,
@@ -451,6 +638,7 @@
       this.state.ownedCars.push(carId);
       this.state.carUpgrades[carId] = makeDefaultUpgrades();
       this.state.carPaints[carId] = def.defaultColor;
+      this.state.carCustom[carId] = makeDefaultCustom();
       this.state.activeCarId = carId;
       this.save();
       return { ok: true, purchased: true };
@@ -505,6 +693,11 @@
     PLAYER_CARS,
     UPGRADE_DEFS,
     PAINT_SWATCHES,
+    RIM_STYLES,
+    SPOILER_STYLES,
+    TINT_STYLES,
+    STRIPE_STYLES,
+    UNDERGLOW_STYLES,
     TRANSMISSION_MODES,
     GAUGE_STYLES,
     MAX_UPGRADE_LEVEL

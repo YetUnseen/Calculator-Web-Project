@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw9" />
+  <link rel="stylesheet" href="css/style.css?v=hw12" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -105,6 +105,11 @@
       </button>
     </div>
 
+    <!-- Live Top-Center HUD Rearview Mirror [N] -->
+    <div id="hud-rear-mirror" class="hud-rear-mirror" title="Rearview Mirror [N]">
+      <span class="mirror-tag">REARVIEW [N]</span>
+    </div>
+
     <!-- Transient Toast Notification -->
     <div id="hud-toast" class="hud-toast hidden"></div>
 
@@ -114,14 +119,21 @@
       <span><kbd>A</kbd><kbd>D</kbd> Steer</span>
       <span><kbd>E</kbd> Up / <kbd>Q</kbd> Down</span>
       <span><kbd>L-Shift</kbd> Clutch</span>
-      <span><kbd>X</kbd> Trans</span>
-      <span><kbd>V</kbd> Gauges</span>
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Signals</span>
+      <span><kbd>H</kbd>/<kbd>Space</kbd> Horn</span>
+      <span><kbd>N</kbd> Mirror</span>
       <span><kbd>G</kbd> Garage</span>
     </div>
 
     <!-- Bottom Right: Clean Speedometer, Gear/RPM, Distance & Earnings (Digital / Analog) -->
     <div class="hud-bottom-right">
       <div class="bonus-toast hidden" id="hud-bonus-pill">+$50 Clean Pass</div>
+      <div class="signal-strip" id="hud-signal-strip">
+        <span class="sig-ind" id="sig-left" title="Left Turn Signal [1]">◀</span>
+        <span class="sig-ind sig-hazard" id="sig-hazard" title="Hazard Lights [2]">⚠</span>
+        <span class="sig-ind" id="sig-right" title="Right Turn Signal [3]">▶</span>
+        <span class="sig-horn hidden" id="sig-horn">HORN</span>
+      </div>
       <div class="clutch-pill hidden" id="hud-clutch-pill">CLUTCH · L-SHIFT</div>
 
       <div class="damage-card hidden" id="hud-damage-card">
@@ -215,8 +227,9 @@
       </div>
 
       <div class="shop-tabs">
-        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (6)</button>
-        <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades &amp; Setup</button>
+        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (10)</button>
+        <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades (7)</button>
+        <button class="shop-tab-btn" data-shop-tab="tab-custom">Customize &amp; Setup</button>
       </div>
 
       <div class="shop-body">
@@ -226,10 +239,39 @@
 
         <div class="shop-pane" id="tab-upgrades">
           <div class="upgrades-grid" id="garage-upgrades-grid"></div>
+        </div>
 
+        <div class="shop-pane" id="tab-custom">
           <div class="setup-section">
             <div class="setup-label">Factory Paint Finish</div>
             <div class="paint-swatches-row" id="garage-paints-row"></div>
+          </div>
+
+          <div class="custom-options-grid">
+            <div class="setup-section">
+              <div class="setup-label">Wheel Rims</div>
+              <div class="trans-selector-row" id="garage-rims-row"></div>
+            </div>
+
+            <div class="setup-section">
+              <div class="setup-label">Rear Wing / Spoiler</div>
+              <div class="trans-selector-row" id="garage-spoilers-row"></div>
+            </div>
+
+            <div class="setup-section">
+              <div class="setup-label">Window Tint</div>
+              <div class="trans-selector-row" id="garage-tints-row"></div>
+            </div>
+
+            <div class="setup-section">
+              <div class="setup-label">Racing Stripes</div>
+              <div class="trans-selector-row" id="garage-stripes-row"></div>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <div class="setup-label">Chassis Underglow Neon</div>
+            <div class="trans-selector-row" id="garage-underglow-row"></div>
           </div>
 
           <div class="setup-section">
@@ -267,8 +309,9 @@
         <div><span>Accelerate / Brake</span><kbd>W / S</kbd> or <kbd>↑ / ↓</kbd></div>
         <div><span>Steer</span><kbd>A / D</kbd> or <kbd>← / →</kbd></div>
         <div><span>Shift Up / Down / Clutch</span><kbd>E / Q</kbd> &amp; <kbd>L-Shift</kbd></div>
-        <div><span>Trans / Camera / Gauges / Weather</span><kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>T</kbd></div>
-        <div><span>Garage / Pause / Restart / Calc</span><kbd>G</kbd> <kbd>ESC</kbd> <kbd>R</kbd> <kbd>`</kbd></div>
+        <div><span>Signals / Hazards / Horn</span><kbd>1 2 3</kbd> <kbd>H / Space</kbd></div>
+        <div><span>Mirror / Camera / Gauges / Weather</span><kbd>N</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>T</kbd></div>
+        <div><span>Trans / Garage / Pause / Restart / Calc</span><kbd>X</kbd> <kbd>G</kbd> <kbd>ESC</kbd> <kbd>R</kbd> <kbd>`</kbd></div>
       </div>
     </div>
   </div>
@@ -305,14 +348,14 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw9"></script>
-  <script src="js/hardware.js?v=hw9"></script>
-  <script src="js/economy.js?v=hw9"></script>
-  <script src="js/audio.js?v=hw9"></script>
-  <script src="js/vehicles.js?v=hw9"></script>
-  <script src="js/highway.js?v=hw9"></script>
-  <script src="js/traffic.js?v=hw9"></script>
-  <script src="js/physics.js?v=hw9"></script>
-  <script src="js/main.js?v=hw9"></script>
+  <script src="vendor/three.min.js?v=hw12"></script>
+  <script src="js/hardware.js?v=hw12"></script>
+  <script src="js/economy.js?v=hw12"></script>
+  <script src="js/audio.js?v=hw12"></script>
+  <script src="js/vehicles.js?v=hw12"></script>
+  <script src="js/highway.js?v=hw12"></script>
+  <script src="js/traffic.js?v=hw12"></script>
+  <script src="js/physics.js?v=hw12"></script>
+  <script src="js/main.js?v=hw12"></script>
 </body>
 </html>

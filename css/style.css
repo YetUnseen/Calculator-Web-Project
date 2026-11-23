@@ -8,9 +8,9 @@
   --amber: #f59e0b;
   --danger: #ef4444;
   --ok: #22c55e;
-  --glass-bg: rgba(12, 16, 26, 0.74);
-  --glass-bg-hover: rgba(20, 27, 42, 0.90);
-  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-bg: rgba(9, 13, 22, 0.92);
+  --glass-bg-hover: rgba(18, 25, 40, 0.97);
+  --glass-border: rgba(255, 255, 255, 0.22);
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -134,17 +134,48 @@ html, body {
 }
 
 /* ==========================================================================
-   TOASTS & CONTROLS HINT
+   TOP CENTER REARVIEW MIRROR, TOASTS & CONTROLS HINT
    ========================================================================== */
-.hud-toast {
+.hud-rear-mirror {
   position: fixed;
-  top: 70px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(12, 16, 26, 0.88);
+  width: 264px;
+  height: 74px;
+  border-radius: 12px;
+  border: 3px solid rgba(15, 23, 42, 0.92);
+  outline: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 0 12px rgba(0, 0, 0, 0.45);
+  background: transparent;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.hud-rear-mirror.hidden {
+  display: none;
+}
+
+.mirror-tag {
+  position: absolute;
+  bottom: 3px;
+  right: 6px;
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  color: rgba(248, 250, 252, 0.72);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.hud-toast {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(9, 13, 22, 0.94);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
   padding: 7px 18px;
   font-size: 0.8rem;
@@ -212,8 +243,8 @@ html, body {
 }
 
 .bonus-toast {
-  background: rgba(16, 185, 129, 0.22);
-  border: 1px solid rgba(52, 211, 153, 0.45);
+  background: rgba(10, 32, 24, 0.92);
+  border: 1px solid rgba(52, 211, 153, 0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #6ee7b7;
@@ -230,8 +261,8 @@ html, body {
 }
 
 .clutch-pill {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(9, 13, 22, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #94a3b8;
@@ -252,6 +283,74 @@ html, body {
 
 .clutch-pill.hidden {
   display: none;
+}
+
+.signal-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.sig-ind {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(148, 163, 184, 0.35);
+  transition: color 0.06s ease, text-shadow 0.06s ease;
+}
+
+.sig-ind.on {
+  color: #4ade80;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.85);
+}
+
+.sig-ind.sig-hazard.on {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.85);
+}
+
+.sig-horn {
+  background: rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+  color: #fde68a;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.sig-horn.hidden {
+  display: none;
+}
+
+.custom-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1220px) {
+  .hud-top-left {
+    max-width: calc(50vw - 26px);
+  }
+  .hud-top-right {
+    max-width: calc(50vw - 26px);
+    justify-content: flex-end;
+  }
+  .hud-rear-mirror {
+    top: 96px;
+    width: 224px;
+    height: 62px;
+  }
+  .hud-toast {
+    top: 170px;
+  }
 }
 
 .damage-card {
@@ -461,6 +560,13 @@ html, body {
   display: flex;
   align-items: flex-end;
   gap: 10px;
+  background: rgba(9, 13, 22, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  padding: 10px 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
 }
 
 .dial-box {
@@ -469,11 +575,11 @@ html, body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, rgba(18, 24, 38, 0.92), rgba(8, 12, 20, 0.94));
+  background: radial-gradient(circle at 50% 42%, rgba(16, 22, 36, 0.96), rgba(6, 10, 18, 0.98));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .dial-rpm {

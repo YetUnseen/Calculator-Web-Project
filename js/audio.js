@@ -53,6 +53,13 @@
       this.rainGain = null;
       this.rumbleGain = null;
 
+      this.hornOsc1 = null;
+      this.hornOsc2 = null;
+      this.hornFilter = null;
+      this.hornGain = null;
+      this.hornIsOn = false;
+      this.customBuffers = {};
+
       this.roadNoiseBuffer = null;
       this.windNoiseBuffer = null;
       this.rainNoiseBuffer = null;
@@ -257,6 +264,33 @@
         rumbleOsc.connect(this.rumbleGain);
         this.rumbleGain.connect(this.masterGain);
         rumbleOsc.start();
+
+        // Dual-Tone Car Horn Bus
+        this.hornFilter = this.ctx.createBiquadFilter();
+        this.hornFilter.type = 'lowpass';
+        this.hornFilter.frequency.value = 1650;
+        this.hornFilter.Q.value = 0.8;
+        this.hornGain = this.ctx.createGain();
+        this.hornGain.gain.value = 0;
+
+        this.hornOsc1 = this.ctx.createOscillator();
+        this.hornOsc1.type = 'sawtooth';
+        this.hornOsc1.frequency.value = 405;
+        this.hornOsc2 = this.ctx.createOscillator();
+        this.hornOsc2.type = 'sawtooth';
+        this.hornOsc2.frequency.value = 505;
+        const hG1 = this.ctx.createGain();
+        const hG2 = this.ctx.createGain();
+        hG1.gain.value = 0.5;
+        hG2.gain.value = 0.5;
+        this.hornOsc1.connect(hG1);
+        this.hornOsc2.connect(hG2);
+        hG1.connect(this.hornFilter);
+        hG2.connect(this.hornFilter);
+        this.hornFilter.connect(this.hornGain);
+        this.hornGain.connect(this.masterGain);
+        this.hornOsc1.start();
+        this.hornOsc2.start();
 
         this.initialized = true;
         this.setEngineProfile(this.engineTone);
@@ -483,8 +517,76 @@
       } catch (e) {}
     }
 
+    setHorn(active, isPolice) {
+      if (!this.initialized || !this.ctx || !this.hornGain) return;
+      const on = !!active && !this.muted && !this.suspended;
+      const now = this.ctx.currentTime;
+      if (this.hornOsc1 && this.hornOsc2) {
+        const f1 = isPolice ? 370 : 405;
+        const f2 = isPolice ? 466 : 505;
+        this.hornOsc1.frequency.setTargetAtTime(f1, now, 0.01);
+        this.hornOsc2.frequency.setTargetAtTime(f2, now, 0.01);
+      }
+      if (on && !this.hornIsOn && this.customBuffers.horn) {
+        this._playCustomBuffer(this.customBuffers.horn, 0.35);
+      }
+      this.hornIsOn = on;
+      const targetVol = on && !this.customBuffers.horn ? 0.13 : 0;
+      this.hornGain.gain.setTargetAtTime(targetVol, now, on ? 0.015 : 0.02);
+    }
+
+    playBlinkerTick(isOn) {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(isOn ? 920 : 740, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.018);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.04, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.025);
+      } catch (e) {}
+    }
+
+    _playCustomBuffer(buf, gainVal) {
+      if (!buf || !this.ctx || !this.masterGain) return;
+      try {
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const g = this.ctx.createGain();
+        g.gain.value = gainVal || 0.35;
+        src.connect(g);
+        g.connect(this.masterGain);
+        src.start();
+      } catch (e) {}
+    }
+
+    async loadCustomSamples(manifest) {
+      if (!manifest || typeof manifest !== 'object') return;
+      if (!this.initialized) this.init();
+      if (!this.ctx || typeof fetch !== 'function') return;
+      const entries = Object.entries(manifest);
+      for (let i = 0; i < entries.length; i++) {
+        const [key, url] = entries[i];
+        if (!url) continue;
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) continue;
+          const arr = await resp.arrayBuffer();
+          this.customBuffers[key] = await this.ctx.decodeAudioData(arr);
+        } catch (e) {}
+      }
+    }
+
     setMuted(muted) {
       this.muted = !!muted;
+      if (this.muted) this.setHorn(false);
       if (this.masterGain && this.ctx) {
         this.masterGain.gain.setTargetAtTime(
           this.muted || this.suspended ? 0 : 0.42,
@@ -501,6 +603,7 @@
 
     suspend() {
       this.suspended = true;
+      this.setHorn(false);
       if (this.masterGain && this.ctx) {
         this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.02);
       }

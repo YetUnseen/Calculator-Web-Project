@@ -90,6 +90,12 @@
       this.playerMesh = null;
       this.interiorRig = null;
       this.cameraMode = 0;
+      this.hudMirrorEnabled = true;
+      this.mirrorFrameCounter = 1;
+      this.mirrorCamPos = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
+      this.mirrorLookPos = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
+
+      this.initMirrorSystem();
       this.rebuildPlayerMesh();
 
       if (window.HighwayAudio) {
@@ -108,6 +114,14 @@
       this.bonusTimer = 0;
       this.saveTimer = 0;
 
+      // Turn signals, hazards & horn state
+      this.signalMode = 0; // -1 = Left, 0 = Off, +1 = Right, 2 = Hazards
+      this.signalTimer = 0;
+      this.signalStartD = 0;
+      this.signalMovedEnough = false;
+      this.lastBlinkOn = false;
+      this.hornActive = false;
+
       this.rightShiftHeld = false;
       this.input = {
         throttle: 0,
@@ -121,6 +135,11 @@
       this.dom = {
         bank: document.getElementById('hud-bank'),
         clutchPill: document.getElementById('hud-clutch-pill'),
+        rearMirrorBox: document.getElementById('hud-rear-mirror'),
+        sigLeft: document.getElementById('sig-left'),
+        sigHazard: document.getElementById('sig-hazard'),
+        sigRight: document.getElementById('sig-right'),
+        sigHorn: document.getElementById('sig-horn'),
         digitalCluster: document.getElementById('hud-digital-cluster'),
         analogCluster: document.getElementById('hud-analog-cluster'),
         speed: document.getElementById('hud-speed'),
@@ -160,6 +179,11 @@
         garageCarsGrid: document.getElementById('garage-cars-grid'),
         garageUpgradesGrid: document.getElementById('garage-upgrades-grid'),
         garagePaintsRow: document.getElementById('garage-paints-row'),
+        garageRimsRow: document.getElementById('garage-rims-row'),
+        garageSpoilersRow: document.getElementById('garage-spoilers-row'),
+        garageTintsRow: document.getElementById('garage-tints-row'),
+        garageStripesRow: document.getElementById('garage-stripes-row'),
+        garageUnderglowRow: document.getElementById('garage-underglow-row'),
         garageTransRow: document.getElementById('garage-trans-row'),
         garageTransDesc: document.getElementById('garage-trans-desc'),
         garageGaugeRow: document.getElementById('garage-gauge-row'),
@@ -193,6 +217,36 @@
       requestAnimationFrame(this.animate);
     }
 
+    initMirrorSystem() {
+      try {
+        const rtOpts = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+        this.rearMirrorRT = new THREE.WebGLRenderTarget(320, 144, rtOpts);
+        this.leftMirrorRT = new THREE.WebGLRenderTarget(144, 112, rtOpts);
+        this.rightMirrorRT = new THREE.WebGLRenderTarget(144, 112, rtOpts);
+        this.mirrorCamera = new THREE.PerspectiveCamera(48, 320 / 144, 0.3, 420);
+
+        const quadGeo = new THREE.PlaneGeometry(2, 2);
+        const uv = quadGeo.attributes.uv;
+        for (let i = 0; i < uv.count; i++) {
+          uv.setX(i, 1 - uv.getX(i));
+        }
+        uv.needsUpdate = true;
+
+        this.mirrorHudMat = new THREE.MeshBasicMaterial({
+          map: this.rearMirrorRT.texture,
+          depthTest: false,
+          depthWrite: false
+        });
+        this.mirrorHudScene = new THREE.Scene();
+        const mirrorQuad = new THREE.Mesh(quadGeo, this.mirrorHudMat);
+        mirrorQuad.position.z = -0.5;
+        this.mirrorHudScene.add(mirrorQuad);
+        this.mirrorHudCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2);
+      } catch (e) {
+        this.rearMirrorRT = null;
+      }
+    }
+
     rebuildPlayerMesh() {
       if (this.playerMesh) {
         this.scene.remove(this.playerMesh.group);
@@ -201,6 +255,7 @@
       this.playerMesh = window.HighwayVehicles.createVehicleMesh({
         archetype: specs.archetype,
         color: specs.color,
+        custom: specs.custom,
         isPlayer: true,
         castShadow: !!this.gfx.shadowsEnabled
       });
@@ -208,7 +263,14 @@
         this.interiorRig = window.HighwayVehicles.createInteriorRig({
           spec: this.playerMesh.spec,
           bodyMat: this.playerMesh.bodyMat,
-          carName: specs.name
+          carName: specs.name,
+          mirrorTextures: this.rearMirrorRT
+            ? {
+                rear: this.rearMirrorRT.texture,
+                left: this.leftMirrorRT.texture,
+                right: this.rightMirrorRT.texture
+              }
+            : null
         });
         this.playerMesh.bodyTiltGroup.add(this.interiorRig.group);
       }
@@ -361,6 +423,7 @@
       this.input.right = false;
       this.input.clutch = false;
       this.rightShiftHeld = false;
+      this.setHornActive(false);
     }
 
     formatMoney(n) {
@@ -540,6 +603,7 @@
         window.HighwayAudio.init();
       }
 
+      this.updateHUD();
       this.lastTimestamp = performance.now();
 
       if (!this.hasUnlockedOnce) {
@@ -618,6 +682,7 @@
       this.renderGarageVehicles(bank);
       this.renderGarageUpgrades(bank);
       this.renderGaragePaints();
+      this.renderGarageCustomization();
       this.renderGarageTransmissions();
       this.renderGarageGauges();
     }
@@ -655,8 +720,8 @@
           const isActive = c.id === activeId;
           const merged = this.economy.getCarSpecs(c.id);
 
-          const speedPct = clamp(((merged.topSpeedKmh - 200) / 260) * 100, 12, 100);
-          const accelPct = clamp(((merged.accelPower - 4.5) / 11.5) * 100, 14, 100);
+          const speedPct = clamp(((merged.topSpeedKmh - 170) / 260) * 100, 12, 100);
+          const accelPct = clamp(((merged.accelPower - 4.5) / 13.5) * 100, 14, 100);
           const gripPct = clamp(((merged.weatherGripMult - 0.9) / 0.7) * 100, 18, 100);
 
           let btnHtml = '';
@@ -762,7 +827,7 @@
           if (res.ok) {
             const specs = this.economy.getActiveCarSpecs();
             this.player.applyCarSpecs(specs);
-            if (key === 'engine') this.rebuildSpeedDialTicks();
+            if (key === 'engine' || key === 'turbo') this.rebuildSpeedDialTicks();
             this.renderGarage();
             this.updateHUD();
             this.showToast(`${defs[key].label} Lv ${res.level}`, 1.4);
@@ -791,6 +856,35 @@
           }
         });
       });
+    }
+
+    renderCustomOptionRow(rowEl, field, items, activeCustom) {
+      if (!rowEl || !items) return;
+      const activeId = this.economy.state.activeCarId;
+      const currVal = activeCustom[field];
+      rowEl.innerHTML = items
+        .map((it) => `<button class="trans-pill-btn ${it.id === currVal ? 'active' : ''}" data-custom-${field}="${it.id}">${it.label}</button>`)
+        .join('');
+      rowEl.querySelectorAll(`[data-custom-${field}]`).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const val = btn.getAttribute(`data-custom-${field}`);
+          if (this.economy.setCustomization(activeId, field, val)) {
+            this.rebuildPlayerMesh();
+            this.renderGarageCustomization();
+            this.showToast(`Applied ${val}`, 1.1);
+          }
+        });
+      });
+    }
+
+    renderGarageCustomization() {
+      const econ = window.HighwayEconomy;
+      const custom = this.economy.getCustomization(this.economy.state.activeCarId);
+      this.renderCustomOptionRow(this.dom.garageRimsRow, 'rim', econ.RIM_STYLES, custom);
+      this.renderCustomOptionRow(this.dom.garageSpoilersRow, 'spoiler', econ.SPOILER_STYLES, custom);
+      this.renderCustomOptionRow(this.dom.garageTintsRow, 'tint', econ.TINT_STYLES, custom);
+      this.renderCustomOptionRow(this.dom.garageStripesRow, 'stripe', econ.STRIPE_STYLES, custom);
+      this.renderCustomOptionRow(this.dom.garageUnderglowRow, 'underglow', econ.UNDERGLOW_STYLES, custom);
     }
 
     renderGarageTransmissions() {
@@ -854,6 +948,9 @@
 
       this.player.reset();
       this.player.applyCarSpecs(this.economy.getActiveCarSpecs());
+      this.signalMode = 0;
+      this.lastBlinkOn = false;
+      this.setHornActive(false);
       this.economy.resetSession();
       this.traffic.reset(this.player.s, this.player.getLaneIndex());
       this.env.update(this.player.s, 0, 0);
@@ -908,6 +1005,38 @@
         this.dom.audioLabel.textContent = muted ? 'Muted' : 'Sound On';
       }
       this.showToast(muted ? 'Audio Muted' : 'Audio Enabled', 1.2);
+    }
+
+    toggleTurnSignal(mode) {
+      if (this.signalMode === mode) {
+        this.signalMode = 0;
+      } else {
+        this.signalMode = mode;
+        this.signalTimer = 0;
+        this.signalStartD = this.player.d;
+        this.signalMovedEnough = false;
+        this.lastBlinkOn = true;
+        if (window.HighwayAudio) window.HighwayAudio.playBlinkerTick(true);
+      }
+      this.updateHUD();
+    }
+
+    setHornActive(active) {
+      const next = !!active && !this.calcLocked && !this.paused && !this.garageOpen && !this.player.crashed;
+      if (next !== this.hornActive) {
+        this.hornActive = next;
+        if (window.HighwayAudio) {
+          const isPolice = this.player && this.player.archetype === 'police';
+          window.HighwayAudio.setHorn(next, isPolice);
+        }
+        this.updateHUD();
+      }
+    }
+
+    toggleHudMirror() {
+      this.hudMirrorEnabled = !this.hudMirrorEnabled;
+      this.updateHUD();
+      this.showToast(this.hudMirrorEnabled ? 'Rearview Mirror: On' : 'Rearview Mirror: Off', 1.2);
     }
 
     toggleSpeedUnits() {
@@ -1074,6 +1203,17 @@
           this.cycleLighting();
         } else if (code === 'KeyM') {
           this.toggleAudio();
+        } else if (code === 'KeyN') {
+          this.toggleHudMirror();
+        } else if (code === 'Digit1') {
+          if (!e.repeat) this.toggleTurnSignal(-1);
+        } else if (code === 'Digit2') {
+          if (!e.repeat) this.toggleTurnSignal(2);
+        } else if (code === 'Digit3') {
+          if (!e.repeat) this.toggleTurnSignal(1);
+        } else if (code === 'KeyH' || code === 'Space') {
+          e.preventDefault();
+          this.setHornActive(true);
         }
       });
 
@@ -1083,6 +1223,7 @@
         if (code === 'KeyS' || code === 'ArrowDown') this.input.brake = 0;
         if (code === 'KeyA' || code === 'ArrowLeft') this.input.left = false;
         if (code === 'KeyD' || code === 'ArrowRight') this.input.right = false;
+        if (code === 'KeyH' || code === 'Space') this.setHornActive(false);
         if (code === 'ShiftLeft') this.input.clutch = false;
         if (code === 'ShiftRight') this.rightShiftHeld = false;
         if (!e.shiftKey) {
@@ -1154,6 +1295,11 @@
       this.playerMesh.updateWheels(this.player.speed, dt, this.player.steer * 0.25);
       this.playerMesh.setBraking(this.player.braking);
       this.playerMesh.setHeadlights(Math.max(0.12, preset.headlightStrength));
+      const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
+      this.playerMesh.setBlinker(this.signalMode, blinkOn);
+      if (this.playerMesh.updateSpecialLights) {
+        this.playerMesh.updateSpecialLights(this.player.elapsedSeconds);
+      }
       if (this.playerMesh.setInteriorViewMode) {
         this.playerMesh.setInteriorViewMode(isInterior);
       }
@@ -1175,6 +1321,9 @@
               gaugeStyle: this.economy.getGaugeStyle(),
               distanceKm: this.player.distanceMeters / 1000,
               bank: this.economy.getBank(),
+              bankText: this.formatMoney(this.economy.getBank()),
+              signalMode: this.signalMode,
+              blinkOn,
               weatherName: preset.name,
               precip: preset.precip,
               paddleAnimTimer: this.player.paddleAnimTimer,
@@ -1253,6 +1402,25 @@
     updateHUD() {
       if (this.dom.bank) {
         this.dom.bank.textContent = this.formatMoney(this.economy.getBank());
+      }
+
+      if (this.dom.rearMirrorBox) {
+        const showHudMirror = this.cameraMode !== 2 && this.hudMirrorEnabled && !this.garageOpen;
+        this.dom.rearMirrorBox.classList.toggle('hidden', !showHudMirror);
+      }
+
+      const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
+      if (this.dom.sigLeft) {
+        this.dom.sigLeft.classList.toggle('on', blinkOn && (this.signalMode === -1 || this.signalMode === 2));
+      }
+      if (this.dom.sigHazard) {
+        this.dom.sigHazard.classList.toggle('on', blinkOn && this.signalMode === 2);
+      }
+      if (this.dom.sigRight) {
+        this.dom.sigRight.classList.toggle('on', blinkOn && (this.signalMode === 1 || this.signalMode === 2));
+      }
+      if (this.dom.sigHorn) {
+        this.dom.sigHorn.classList.toggle('hidden', !this.hornActive);
       }
 
       if (!this.dom.speed) return;
@@ -1359,6 +1527,90 @@
       }
     }
 
+    renderMirrors() {
+      if (!this.rearMirrorRT || !this.mirrorCamera) return;
+      const isInterior = this.cameraMode === 2;
+      if (!isInterior && !this.hudMirrorEnabled) return;
+
+      this.mirrorFrameCounter = (this.mirrorFrameCounter + 1) % 2;
+      if (this.mirrorFrameCounter !== 0) return;
+
+      const prevAutoShadow = this.renderer.shadowMap.autoUpdate;
+      this.renderer.shadowMap.autoUpdate = false;
+      this.playerMesh.group.visible = false;
+
+      // Center Rearview Mirror Camera
+      this.env.project(this.player.s + 0.5, this.player.d, this.mirrorCamPos, 1.38);
+      this.env.project(
+        this.player.s - 65,
+        this.player.d + Math.sin(this.player.yawRel) * 18,
+        this.mirrorLookPos,
+        1.05
+      );
+      this.mirrorCamera.fov = 48;
+      this.mirrorCamera.aspect = 320 / 144;
+      this.mirrorCamera.updateProjectionMatrix();
+      this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
+      this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
+      this.renderer.setRenderTarget(this.rearMirrorRT);
+      this.renderer.clear();
+      this.renderer.render(this.scene, this.mirrorCamera);
+
+      // Left & Right Wing Mirrors when inside Interior cockpit
+      if (isInterior) {
+        this.mirrorCamera.fov = 44;
+        this.mirrorCamera.aspect = 144 / 112;
+        this.mirrorCamera.updateProjectionMatrix();
+
+        this.env.project(this.player.s + 0.1, this.player.d - 1.15, this.mirrorCamPos, 1.12);
+        this.env.project(this.player.s - 45, this.player.d - 4.2, this.mirrorLookPos, 0.95);
+        this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
+        this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
+        this.renderer.setRenderTarget(this.leftMirrorRT);
+        this.renderer.clear();
+        this.renderer.render(this.scene, this.mirrorCamera);
+
+        this.env.project(this.player.s + 0.1, this.player.d + 1.15, this.mirrorCamPos, 1.12);
+        this.env.project(this.player.s - 45, this.player.d + 4.2, this.mirrorLookPos, 0.95);
+        this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
+        this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
+        this.renderer.setRenderTarget(this.rightMirrorRT);
+        this.renderer.clear();
+        this.renderer.render(this.scene, this.mirrorCamera);
+      }
+
+      this.renderer.setRenderTarget(null);
+      this.playerMesh.group.visible = true;
+      this.renderer.shadowMap.autoUpdate = prevAutoShadow;
+    }
+
+    compositeHudMirror() {
+      if (
+        !this.rearMirrorRT ||
+        !this.mirrorHudScene ||
+        this.cameraMode === 2 ||
+        !this.hudMirrorEnabled ||
+        this.garageOpen ||
+        this.paused ||
+        !this.dom.rearMirrorBox
+      ) {
+        return;
+      }
+      const rect = this.dom.rearMirrorBox.getBoundingClientRect();
+      if (rect.width < 16 || rect.height < 12) return;
+      const x = Math.round(rect.left + 3);
+      const y = Math.round(window.innerHeight - rect.bottom + 3);
+      const w = Math.max(8, Math.round(rect.width - 6));
+      const h = Math.max(8, Math.round(rect.height - 6));
+
+      this.renderer.setScissorTest(true);
+      this.renderer.setViewport(x, y, w, h);
+      this.renderer.setScissor(x, y, w, h);
+      this.renderer.render(this.mirrorHudScene, this.mirrorHudCamera);
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    }
+
     animate(now) {
       requestAnimationFrame(this.animate);
 
@@ -1389,6 +1641,32 @@
           this.profiler.updateFPS(dt);
         }
 
+        // Turn signal timer, audio relay tick & lane-change auto-cancel
+        if (this.signalMode !== 0) {
+          this.signalTimer += dt;
+          if (this.signalMode === -1 || this.signalMode === 1) {
+            if (Math.abs(this.player.d - this.signalStartD) > 1.85) {
+              this.signalMovedEnough = true;
+            }
+            if (
+              this.signalMovedEnough &&
+              Math.abs(this.player.steer) < 0.12 &&
+              Math.abs(this.player.yawRel) < 0.025
+            ) {
+              this.signalMode = 0;
+            }
+          }
+          const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
+          if (blinkOn !== this.lastBlinkOn) {
+            if (this.signalMode !== 0 && window.HighwayAudio) {
+              window.HighwayAudio.playBlinkerTick(blinkOn);
+            }
+            this.lastBlinkOn = blinkOn;
+          }
+        } else {
+          this.lastBlinkOn = false;
+        }
+
         const substeps = dt > 0.025 ? 2 : 1;
         const subDt = dt / substeps;
         const preset = this.env.getCurrentLightingPreset();
@@ -1396,7 +1674,7 @@
 
         for (let s = 0; s < substeps; s++) {
           const events = this.player.step(subDt, this.input, this.traffic, preset.grip);
-          this.traffic.step(subDt, this.player, preset.headlightStrength, preset);
+          this.traffic.step(subDt, this.player, preset.headlightStrength, preset, this.hornActive);
 
           for (let e = 0; e < events.length; e++) {
             const ev = events[e];
@@ -1449,6 +1727,7 @@
         this.env.update(this.player.s, dt, this.player.speed);
         this.syncPlayerAndCamera(dt, false);
         this.updateHUD();
+        this.renderMirrors();
 
         if (window.HighwayAudio) {
           window.HighwayAudio.update({
@@ -1465,6 +1744,7 @@
       }
 
       this.renderer.render(this.scene, this.camera);
+      this.compositeHudMirror();
     }
   }
 

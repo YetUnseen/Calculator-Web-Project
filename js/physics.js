@@ -50,9 +50,9 @@
       this.archetype = 'hatchback';
       this.length = 4.10;
       this.width = 1.78;
-      this.maxSpeedMs = 235 / 3.6;
-      this.accelPower = 6.1;
-      this.brakePower = 15.2;
+      this.maxSpeedMs = 192 / 3.6;
+      this.accelPower = 5.5;
+      this.brakePower = 14.5;
       this.brakeWeatherBonus = 1.0;
       this.gripMult = 1.0;
       this.weatherGripMult = 1.0;
@@ -61,6 +61,8 @@
       this.damageResist = 1.0;
       this.engineTone = 'i4';
       this.turboLevel = 0.55;
+      this.turboSpoolMult = 1.0;
+      this.rollStiffness = 1.0;
 
       if (opts.specs) {
         this.applyCarSpecs(opts.specs);
@@ -77,9 +79,9 @@
       this.length = arch ? arch.length : specs.length || 4.58;
       this.width = arch ? arch.width : specs.width || 1.88;
 
-      this.maxSpeedMs = specs.maxSpeedMs || (specs.topSpeedKmh ? specs.topSpeedKmh / 3.6 : 235 / 3.6);
-      this.accelPower = specs.accelPower || 6.1;
-      this.brakePower = specs.brakePower || 15.2;
+      this.maxSpeedMs = specs.maxSpeedMs || (specs.topSpeedKmh ? specs.topSpeedKmh / 3.6 : 192 / 3.6);
+      this.accelPower = specs.accelPower || 5.5;
+      this.brakePower = specs.brakePower || 14.5;
       this.brakeWeatherBonus = specs.brakeWeatherBonus || 1.0;
       this.gripMult = specs.gripMult || 1.0;
       this.weatherGripMult = specs.weatherGripMult || 1.0;
@@ -88,6 +90,8 @@
       this.damageResist = specs.damageResist || 1.0;
       this.engineTone = specs.engineTone || 'i4';
       this.turboLevel = specs.turboLevel || 0.7;
+      this.turboSpoolMult = specs.turboSpoolMult || 1.0;
+      this.rollStiffness = specs.rollStiffness || 1.0;
 
       if (this.gear > this.gearCount) {
         this.gear = this.gearCount;
@@ -449,11 +453,11 @@
         this.bovCooldown = 0.28;
       } else if (!clutchNow && this.gear > 0 && throttle > 0.25 && this.rpm > 2000 && !this.hitRevLimiter && this.shiftCutTimer <= 0) {
         const targetBoost = clamp(((this.rpm - 1850) / 3700) * throttle, 0, 1);
-        const spoolRate = targetBoost > this.turboBoost ? 2.6 : 4.2;
+        const spoolRate = targetBoost > this.turboBoost ? 2.6 * (this.turboSpoolMult || 1) : 4.2;
         this.turboBoost += (targetBoost - this.turboBoost) * Math.min(1, spoolRate * dt);
       } else if (clutchNow && throttle > 0.25 && this.rpm > 2000) {
         const freeBoost = clamp(((this.rpm - 1900) / 4200) * throttle * 0.45, 0, 0.45);
-        this.turboBoost += (freeBoost - this.turboBoost) * Math.min(1, 2.2 * dt);
+        this.turboBoost += (freeBoost - this.turboBoost) * Math.min(1, 2.2 * (this.turboSpoolMult || 1) * dt);
       } else {
         this.turboBoost = Math.max(0, this.turboBoost - 4.6 * dt);
       }
@@ -629,7 +633,8 @@
       const roadCurv = this.getCurvature(this.s);
       const curveLatForce = roadCurv * this.speed * this.speed * 0.0025;
       const steerLatForce = shapedSteer * clamp(absV / 22, 0, 1.25) * 0.025;
-      const targetRoll = clamp(steerLatForce + curveLatForce, -0.045, 0.045);
+      const rollDamp = 1 / (this.rollStiffness || 1.0);
+      const targetRoll = clamp((steerLatForce + curveLatForce) * rollDamp, -0.045, 0.045);
 
       this.pitch += (targetPitch - this.pitch) * Math.min(1, 13 * clampedDt);
       this.roll += (targetRoll - this.roll) * Math.min(1, 10 * clampedDt);

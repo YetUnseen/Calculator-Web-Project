@@ -98,7 +98,8 @@
         laneChangesStarted: 0,
         laneChangesCompleted: 0,
         laneChangesAborted: 0,
-        npcCollisions: 0
+        npcCollisions: 0,
+        hornYields: 0
       };
     }
 
@@ -240,6 +241,8 @@
         braking: false,
         collisionTimer: 0,
         hitCooldown: 0,
+        hornUrgencyTimer: 0,
+        hornYielding: false,
         passedByPlayer: false,
         meshObj
       };
@@ -272,7 +275,8 @@
         laneChangesStarted: 0,
         laneChangesCompleted: 0,
         laneChangesAborted: 0,
-        npcCollisions: 0
+        npcCollisions: 0,
+        hornYields: 0
       };
 
       const pS = playerS || 0;
@@ -572,9 +576,51 @@
       return true;
     }
 
+    isYieldLaneSafe(npc, targetLane, weatherMod) {
+      if (targetLane < 0 || targetLane > 3) return false;
+      if (this.hasReservationConflict(targetLane, npc.s, npc.length, npc.id)) return false;
+      const { follower, gapAhead, gapBehind } = this.findNeighborsInLane(
+        targetLane,
+        npc.s,
+        npc.length,
+        npc.id
+      );
+      if (gapAhead !== null && gapAhead < Math.max(8.5, npc.v * 0.65 * weatherMod.headwayScale)) {
+        return false;
+      }
+      if (follower) {
+        if (gapBehind < Math.max(9.0, follower.v * 0.65 * weatherMod.headwayScale)) return false;
+        if (follower.v > npc.v + 1 && gapBehind < (follower.v - npc.v) * 1.9 + 8.0) return false;
+      }
+      return true;
+    }
+
+    triggerHornYield(player) {
+      if (!player) return null;
+      let closest = null;
+      let minDs = Infinity;
+      const playerS = player.s || 0;
+      const playerD = player.d || 0;
+      for (let i = 0; i < this.vehicles.length; i++) {
+        const npc = this.vehicles[i];
+        const ds = npc.s - playerS;
+        const dd = Math.abs(npc.d - playerD);
+        if (dd < 2.25 && ds >= 4 && ds <= 95 && ds < minDs) {
+          minDs = ds;
+          closest = npc;
+        }
+      }
+      if (closest) {
+        closest.hornUrgencyTimer = 3.5;
+      }
+      return closest;
+    }
+
     onPlayerCollision(npc, impactSpeedMs, pushLateral) {
       npc.collisionTimer = 0.95;
       npc.hitCooldown = 0.5;
+      npc.hornYielding = false;
+      npc.hornUrgencyTimer = 0;
       npc.v = Math.max(4, npc.v - Math.min(10, impactSpeedMs * 0.35));
       npc.accel = -3.0;
       if (pushLateral) {
@@ -587,7 +633,7 @@
       }
     }
 
-    step(dt, player, headlightStrength, weather) {
+    step(dt, player, headlightStrength, weather, hornActive) {
       if (!dt || dt <= 0) return;
       const clampedDt = Math.min(dt, 0.05);
       this.simTime += clampedDt;
@@ -619,6 +665,10 @@
       // 3. Build sorted lane neighbor tables
       this.rebuildLaneBuckets(player);
 
+      if (hornActive && player) {
+        this.triggerHornYield(player);
+      }
+
       // 4. Longitudinal IDM + Lateral MOBIL update per NPC
       const blinkOn = Math.floor(this.simTime * 2.7) % 2 === 0;
       const hlStrength = headlightStrength !== undefined ? headlightStrength : 0.1;
@@ -627,6 +677,7 @@
         const npc = this.vehicles[i];
         if (npc.hitCooldown > 0) npc.hitCooldown = Math.max(0, npc.hitCooldown - clampedDt);
         if (npc.collisionTimer > 0) npc.collisionTimer = Math.max(0, npc.collisionTimer - clampedDt);
+        if (npc.hornUrgencyTimer > 0) npc.hornUrgencyTimer = Math.max(0, npc.hornUrgencyTimer - clampedDt);
         if (npc.laneChangeCooldown > 0) {
           npc.laneChangeCooldown = Math.max(0, npc.laneChangeCooldown - clampedDt);
         }
@@ -738,7 +789,34 @@
             npc.d += (desiredD - npc.d) * Math.min(1, 2.4 * clampedDt);
           }
 
+          if (npc.hornUrgencyTimer > 0 && npc.v > 5) {
+            const minLane =
+              npc.typeKey === 'semi' || npc.typeKey === 'bus' ? 2 : npc.isHeavy ? 1 : 0;
+            const candidates = [npc.lane + 1, npc.lane - 1].filter(
+              (l) => l >= minLane && l <= 3
+            );
+            let yieldLane = -1;
+            for (let c = 0; c < candidates.length; c++) {
+              if (this.isYieldLaneSafe(npc, candidates[c], weatherMod)) {
+                yieldLane = candidates[c];
+                break;
+              }
+            }
+            if (yieldLane !== -1) {
+              npc.laneState = 'SIGNALING';
+              npc.targetLane = yieldLane;
+              npc.signalTimer = 0.28;
+              npc.blinkerDir = yieldLane < npc.lane ? -1 : 1;
+              npc.hornYielding = true;
+              npc.hornUrgencyTimer = 0;
+              npc.laneChangeCooldown = 0;
+              this.stats.laneChangesStarted++;
+              this.stats.hornYields++;
+            }
+          }
+
           if (
+            npc.laneState === 'KEEP' &&
             npc.decisionTimer <= 0 &&
             npc.laneChangeCooldown <= 0 &&
             npc.v > 9 &&
@@ -765,10 +843,14 @@
           }
         } else if (npc.laneState === 'SIGNALING') {
           npc.signalTimer -= clampedDt;
-          if (!this.isTargetLaneSafeToEnter(npc, weatherMod)) {
+          const safeToEnter = npc.hornYielding
+            ? this.isYieldLaneSafe(npc, npc.targetLane, weatherMod)
+            : this.isTargetLaneSafeToEnter(npc, weatherMod);
+          if (!safeToEnter) {
             npc.laneState = 'KEEP';
             npc.targetLane = npc.lane;
             npc.blinkerDir = 0;
+            npc.hornYielding = false;
             npc.decisionTimer = 1.1;
             npc.laneChangeCooldown = 2.0;
             this.stats.laneChangesAborted++;
@@ -777,7 +859,11 @@
             npc.startD = npc.d;
             npc.targetD = LANE_CENTERS[npc.targetLane] + npc.laneOffsetBias;
             npc.changeElapsed = 0;
-            npc.changeDuration = npc.isHeavy
+            npc.changeDuration = npc.hornYielding
+              ? npc.isHeavy
+                ? 2.4
+                : 1.75
+              : npc.isHeavy
               ? 3.5 + this.rng() * 0.8
               : 2.55 + this.rng() * 0.75;
           }
@@ -804,6 +890,7 @@
             npc.steerAngle = 0;
             npc.roll = 0;
             npc.blinkerDir = 0;
+            npc.hornYielding = false;
             npc.laneChangeCooldown = 9.5 + this.rng() * 9.0;
             npc.decisionTimer = 0.7;
             this.stats.laneChangesCompleted++;

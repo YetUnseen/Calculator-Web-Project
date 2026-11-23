@@ -55,6 +55,51 @@
       minSpeedKmh: 0,
       maxSpeedKmh: 370
     },
+    jdm_coupe: {
+      id: 'jdm_coupe',
+      label: 'Skyline R-Spec',
+      length: 4.62,
+      width: 1.88,
+      height: 1.35,
+      wheelRadius: 0.34,
+      wheelWidth: 0.25,
+      clearance: 0.14,
+      hoodFrac: 0.32,
+      cabinFrac: 0.42,
+      cabinHeightFrac: 0.49,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 340
+    },
+    muscle: {
+      id: 'muscle',
+      label: 'Titan V8 Muscle',
+      length: 4.80,
+      width: 1.96,
+      height: 1.38,
+      wheelRadius: 0.35,
+      wheelWidth: 0.26,
+      clearance: 0.15,
+      hoodFrac: 0.35,
+      cabinFrac: 0.40,
+      cabinHeightFrac: 0.49,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 360
+    },
+    hypercar: {
+      id: 'hypercar',
+      label: 'Aether RS Hyper',
+      length: 4.68,
+      width: 2.04,
+      height: 1.15,
+      wheelRadius: 0.36,
+      wheelWidth: 0.29,
+      clearance: 0.11,
+      hoodFrac: 0.27,
+      cabinFrac: 0.38,
+      cabinHeightFrac: 0.45,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 480
+    },
     hatchback: {
       id: 'hatchback',
       label: 'Compact Hatchback',
@@ -328,14 +373,85 @@
     return EVERYDAY_PALETTE[Math.floor(r() * EVERYDAY_PALETTE.length)];
   }
 
+  const RIM_HEX = {
+    silver: 0xd0d7e2,
+    black: 0x161920,
+    bronze: 0xa17449,
+    gunmetal: 0x475569,
+    white: 0xf1f5f9
+  };
+
+  const TINT_SPECS = {
+    light: { hex: 0x1e293b, roughness: 0.12 },
+    smoke: { hex: 0x090d14, roughness: 0.08 },
+    limo: { hex: 0x04060a, roughness: 0.06 },
+    cobalt: { hex: 0x0f2547, roughness: 0.10 }
+  };
+
+  const STRIPE_HEX = {
+    white: 0xf8fafc,
+    black: 0x14171f,
+    red: 0xdc2626
+  };
+
+  const UNDERGLOW_RGB = {
+    cyan: '34, 211, 238',
+    red: '239, 68, 68',
+    green: '34, 197, 94',
+    violet: '168, 85, 247',
+    amber: '245, 158, 11'
+  };
+
+  const _underglowMatCache = {};
+  function getUnderglowMat(styleId) {
+    const rgb = UNDERGLOW_RGB[styleId];
+    if (!rgb) return null;
+    if (!_underglowMatCache[styleId]) {
+      _underglowMatCache[styleId] = new THREE.MeshBasicMaterial({
+        map: makeGlowTexture(rgb),
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.68
+      });
+    }
+    return _underglowMatCache[styleId];
+  }
+
   function createVehicleMesh(options) {
     const opts = options || {};
     const typeKey = opts.archetype && ARCHETYPES[opts.archetype] ? opts.archetype : 'sedan';
     const spec = ARCHETYPES[typeKey];
     const shared = getShared();
     const isPlayer =
-      !!opts.isPlayer || typeKey === 'player_gt' || typeKey === 'gt_v8' || typeKey === 'supercar';
+      !!opts.isPlayer ||
+      typeKey === 'player_gt' ||
+      typeKey === 'gt_v8' ||
+      typeKey === 'supercar' ||
+      typeKey === 'jdm_coupe' ||
+      typeKey === 'muscle' ||
+      typeKey === 'hypercar';
     const castShadow = opts.castShadow !== false;
+    const custom = opts.custom || {};
+
+    const activeRimMat =
+      custom.rim && RIM_HEX[custom.rim] !== undefined && (isPlayer || custom.rim !== 'silver')
+        ? new THREE.MeshStandardMaterial({
+            color: RIM_HEX[custom.rim],
+            roughness: 0.30,
+            metalness: 0.72
+          })
+        : shared.rimMat;
+
+    const tintCfg = custom.tint && TINT_SPECS[custom.tint];
+    const activeGlassMat =
+      tintCfg && (isPlayer || custom.tint !== 'light')
+        ? new THREE.MeshStandardMaterial({
+            color: tintCfg.hex,
+            roughness: tintCfg.roughness,
+            metalness: 0.65
+          })
+        : shared.glassMat;
 
     const L = spec.length;
     const W = spec.width;
@@ -514,7 +630,7 @@
       // Roof & core cabin
       addBox(exteriorCabinGroup, cabinW, cabinH * 0.94, cabinLen * 0.74, 0, cabinY, cabinCenterZ, bodyMat, castShadow);
       // Side greenhouse glass
-      addBox(exteriorCabinGroup, cabinW * 1.01, cabinH * 0.68, cabinLen * 0.70, 0, cabinY - 0.02, cabinCenterZ, shared.glassMat, false);
+      addBox(exteriorCabinGroup, cabinW * 1.01, cabinH * 0.68, cabinLen * 0.70, 0, cabinY - 0.02, cabinCenterZ, activeGlassMat, false);
 
       // Sloped Front Windshield (tilts backward at top: +rotX)
       const wsLen = Math.hypot(cabinH * 0.95, cabinLen * 0.20);
@@ -526,16 +642,16 @@
         0,
         cabinY - 0.02,
         cabinCenterZ - cabinLen * 0.39,
-        shared.glassMat,
+        activeGlassMat,
         false,
-        typeKey === 'supercar' ? 0.68 : 0.54
+        typeKey === 'supercar' || typeKey === 'hypercar' ? 0.68 : 0.54
       );
 
       // Sloped Rear Glass (tilts forward at top: -rotX)
       const rearSlopeAngle =
         typeKey === 'hatchback' || typeKey === 'suv' || typeKey === 'wagon'
           ? -0.26
-          : typeKey === 'supercar' || typeKey === 'coupe' || typeKey === 'gt_v8'
+          : typeKey === 'supercar' || typeKey === 'hypercar' || typeKey === 'coupe' || typeKey === 'gt_v8' || typeKey === 'jdm_coupe' || typeKey === 'muscle'
           ? -0.66
           : -0.50;
       const rgLen = Math.hypot(cabinH * 0.95, cabinLen * 0.20);
@@ -547,7 +663,7 @@
         0,
         cabinY - 0.02,
         cabinCenterZ + cabinLen * 0.39,
-        shared.glassMat,
+        activeGlassMat,
         false,
         rearSlopeAngle
       );
@@ -570,43 +686,116 @@
       }
 
       if (typeKey === 'police') {
-        // White patrol doors & roof cap + pushbar + red/blue lightbar
+        // White patrol doors & roof cap + pushbar + red/blue lightbar (roof cap/bar in exteriorCabinGroup so Interior view is unobstructed)
         addBox(bodyTiltGroup, W * 0.996, bodyLowerH * 0.78, L * 0.38, 0, clear + bodyLowerH * 0.48, 0.05, shared.whiteTrimMat, false);
-        addBox(bodyTiltGroup, cabinW * 0.98, 0.06, cabinLen * 0.68, 0, cabinY + cabinH * 0.48, cabinCenterZ, shared.whiteTrimMat, false);
+        addBox(exteriorCabinGroup, cabinW * 0.98, 0.06, cabinLen * 0.68, 0, cabinY + cabinH * 0.48, cabinCenterZ, shared.whiteTrimMat, false);
         addBox(bodyTiltGroup, W * 0.48, 0.26, 0.10, 0, clear + 0.28, -L * 0.51, shared.darkTrimMat, false);
 
         policeRedMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
         policeBlueMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
-        addBox(bodyTiltGroup, 0.48, 0.09, 0.18, -0.26, cabinY + cabinH * 0.53, cabinCenterZ - 0.05, policeRedMat, false);
-        addBox(bodyTiltGroup, 0.48, 0.09, 0.18, 0.26, cabinY + cabinH * 0.53, cabinCenterZ - 0.05, policeBlueMat, false);
+        addBox(exteriorCabinGroup, 0.48, 0.09, 0.18, -0.26, cabinY + cabinH * 0.53, cabinCenterZ - 0.05, policeRedMat, false);
+        addBox(exteriorCabinGroup, 0.48, 0.09, 0.18, 0.26, cabinY + cabinH * 0.53, cabinCenterZ - 0.05, policeBlueMat, false);
       }
 
       if (typeKey === 'player_gt') {
-        addBox(bodyTiltGroup, W * 0.82, 0.045, 0.14, 0, clear + bodyLowerH + 0.02, L * 0.45, shared.darkTrimMat, false);
         addBox(bodyTiltGroup, 0.11, 0.07, 0.14, -W * 0.31, clear + 0.08, L * 0.49, shared.chromeMat, false);
         addBox(bodyTiltGroup, 0.11, 0.07, 0.14, W * 0.31, clear + 0.08, L * 0.49, shared.chromeMat, false);
       }
 
       if (typeKey === 'gt_v8') {
-        // Quad exhausts + sleek trunk spoiler
-        addBox(bodyTiltGroup, W * 0.86, 0.055, 0.16, 0, clear + bodyLowerH + 0.02, L * 0.45, shared.darkTrimMat, false);
         [-0.36, -0.24, 0.24, 0.36].forEach((ex) => {
           addBox(bodyTiltGroup, 0.085, 0.065, 0.14, W * ex, clear + 0.08, L * 0.49, shared.chromeMat, false);
         });
       }
 
       if (typeKey === 'supercar') {
-        // Side intake scoops + carbon rear GT wing + quad center exhausts
         addBox(bodyTiltGroup, W * 1.02, bodyLowerH * 0.42, 0.58, 0, clear + bodyLowerH * 0.48, 0.48, shared.darkTrimMat, false);
-        addBox(bodyTiltGroup, W * 0.90, 0.045, 0.24, 0, clear + bodyLowerH + 0.20, L * 0.42, shared.darkTrimMat, castShadow);
-        addBox(bodyTiltGroup, 0.05, 0.18, 0.14, -W * 0.28, clear + bodyLowerH + 0.10, L * 0.42, shared.darkTrimMat, false);
-        addBox(bodyTiltGroup, 0.05, 0.18, 0.14, W * 0.28, clear + bodyLowerH + 0.10, L * 0.42, shared.darkTrimMat, false);
         addBox(bodyTiltGroup, 0.12, 0.07, 0.14, -0.14, clear + 0.10, L * 0.49, shared.chromeMat, false);
         addBox(bodyTiltGroup, 0.12, 0.07, 0.14, 0.14, clear + 0.10, L * 0.49, shared.chromeMat, false);
       }
 
+      if (typeKey === 'jdm_coupe') {
+        // Front intercooler & twin chrome cannon exhausts
+        addBox(bodyTiltGroup, W * 0.42, 0.16, 0.08, 0, clear + 0.18, -L * 0.485, shared.chromeMat, false);
+        addBox(bodyTiltGroup, 0.12, 0.10, 0.15, -W * 0.32, clear + 0.10, L * 0.49, shared.chromeMat, false);
+        addBox(bodyTiltGroup, 0.12, 0.10, 0.15, W * 0.32, clear + 0.10, L * 0.49, shared.chromeMat, false);
+      }
+
+      if (typeKey === 'muscle') {
+        // Raised supercharger hood bulge + quad exhausts
+        const scoopZ = -L * 0.5 + hoodLen * 0.56;
+        addBox(bodyTiltGroup, W * 0.34, 0.08, hoodLen * 0.56, 0, clear + bodyLowerH + 0.03, scoopZ, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 0.24, 0.05, 0.08, 0, clear + bodyLowerH + 0.05, scoopZ - hoodLen * 0.25, shared.chromeMat, false);
+        [-0.36, -0.25, 0.25, 0.36].forEach((ex) => {
+          addBox(bodyTiltGroup, 0.08, 0.07, 0.14, W * ex, clear + 0.09, L * 0.49, shared.chromeMat, false);
+        });
+      }
+
+      if (typeKey === 'hypercar') {
+        // Roof air scoop + rear dorsal aero fin + side carbon intakes + large twin exit exhaust
+        addBox(exteriorCabinGroup, 0.26, 0.10, 0.58, 0, cabinY + cabinH * 0.50, cabinCenterZ + 0.10, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.04, 0.20, 0.55, 0, clear + bodyLowerH + 0.10, cabinCenterZ + cabinLen * 0.42, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 1.03, bodyLowerH * 0.45, 0.65, 0, clear + bodyLowerH * 0.46, 0.42, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.22, 0.09, 0.16, 0, clear + 0.14, L * 0.49, shared.chromeMat, false);
+      }
+
+      // Spoiler System (per customization override or archetype default)
+      const spoilerStyle =
+        custom.spoiler && custom.spoiler !== 'stock'
+          ? custom.spoiler
+          : typeKey === 'supercar' || typeKey === 'hypercar' || typeKey === 'jdm_coupe'
+          ? 'gt'
+          : typeKey === 'player_gt' || typeKey === 'gt_v8' || typeKey === 'muscle'
+          ? 'lip'
+          : 'none';
+
+      const deckY = clear + bodyLowerH;
+      if (spoilerStyle === 'lip') {
+        addBox(bodyTiltGroup, W * 0.84, 0.05, 0.14, 0, deckY + 0.02, L * 0.45, shared.darkTrimMat, false);
+      } else if (spoilerStyle === 'street') {
+        addBox(bodyTiltGroup, W * 0.88, 0.04, 0.20, 0, deckY + 0.13, L * 0.43, shared.darkTrimMat, castShadow);
+        addBox(bodyTiltGroup, 0.045, 0.12, 0.12, -W * 0.26, deckY + 0.06, L * 0.43, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.045, 0.12, 0.12, W * 0.26, deckY + 0.06, L * 0.43, shared.darkTrimMat, false);
+      } else if (spoilerStyle === 'gt') {
+        addBox(bodyTiltGroup, W * 0.94, 0.045, 0.26, 0, deckY + 0.21, L * 0.42, shared.darkTrimMat, castShadow);
+        addBox(bodyTiltGroup, 0.05, 0.20, 0.14, -W * 0.30, deckY + 0.10, L * 0.42, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.05, 0.20, 0.14, W * 0.30, deckY + 0.10, L * 0.42, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.025, 0.11, 0.28, -W * 0.47, deckY + 0.21, L * 0.42, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.025, 0.11, 0.28, W * 0.47, deckY + 0.21, L * 0.42, shared.darkTrimMat, false);
+      }
+
+      // Racing Stripes (twin center stripes over hood, roof, and rear deck)
+      if (custom.stripe && STRIPE_HEX[custom.stripe] !== undefined) {
+        const stripeMat = new THREE.MeshStandardMaterial({
+          color: STRIPE_HEX[custom.stripe],
+          roughness: 0.32,
+          metalness: 0.15
+        });
+        const stripeW = 0.14;
+        const stripeSep = 0.11;
+        const hoodStripeZ = -L * 0.5 + hoodLen * 0.5;
+        const deckLen = L * Math.max(0.12, 1 - spec.hoodFrac - spec.cabinFrac);
+        const deckStripeZ = L * 0.5 - deckLen * 0.5;
+        [-stripeSep, stripeSep].forEach((sx) => {
+          addBox(bodyTiltGroup, stripeW, 0.012, hoodLen * 0.92, sx, deckY + 0.008, hoodStripeZ, stripeMat, false);
+          addBox(exteriorCabinGroup, stripeW, 0.012, cabinLen * 0.72, sx, cabinY + cabinH * 0.47, cabinCenterZ, stripeMat, false);
+          addBox(bodyTiltGroup, stripeW, 0.012, deckLen * 0.88, sx, deckY + 0.008, deckStripeZ, stripeMat, false);
+        });
+      }
+
       wheelZPositions.push(-L * 0.30, L * 0.30);
       frontZAxles.push(-L * 0.30);
+    }
+
+    // Chassis Underglow Neon (optional customization)
+    if (custom.underglow && custom.underglow !== 'none') {
+      const glowMat = getUnderglowMat(custom.underglow);
+      if (glowMat) {
+        const neonPlane = new THREE.Mesh(shared.planeGeo, glowMat);
+        neonPlane.scale.set(W * 1.42, L * 1.14, 1);
+        neonPlane.position.y = 0.036;
+        rootGroup.add(neonPlane);
+      }
     }
 
     // Front grille & rear license plate
@@ -665,7 +854,7 @@
     addBox(bodyTiltGroup, W * 0.16, 0.11, 0.06, -lightX + 0.02, rearLightY, rearZ + 0.005, brakeMat, false);
     addBox(bodyTiltGroup, W * 0.16, 0.11, 0.06, lightX - 0.02, rearLightY, rearZ + 0.005, brakeMat, false);
 
-    if (typeKey === 'gt_v8' || typeKey === 'supercar') {
+    if (typeKey === 'gt_v8' || typeKey === 'supercar' || typeKey === 'hypercar') {
       // Sleek full-width rear LED light bar
       addBox(bodyTiltGroup, W * 0.72, 0.035, 0.045, 0, rearLightY, rearZ + 0.003, tailRunningMat, false);
     }
@@ -751,7 +940,7 @@
       if (castShadow) tire.castShadow = true;
       spinGroup.add(tire);
 
-      const hub = new THREE.Mesh(shared.cylGeo, shared.rimMat);
+      const hub = new THREE.Mesh(shared.cylGeo, activeRimMat);
       hub.scale.set(wW * 1.03, rW * 0.60, rW * 0.60);
       spinGroup.add(hub);
 
@@ -936,10 +1125,18 @@
     addPart(interiorGroup, pillarGeo, pillarMat, -W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, -0.14);
     addPart(interiorGroup, pillarGeo, pillarMat, W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, 0.14);
 
-    // Upper roof header & interior rearview mirror
-    addPart(interiorGroup, shared.boxGeo, pillarMat, 0, eyeY + 0.28, cowlZ + 0.46, W * 0.78, 0.06, 0.14);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, 0, eyeY + 0.17, cowlZ + 0.36, 0.21, 0.055, 0.032);
-    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.22, cowlZ + 0.39, 0.02, 0.08, 0.025);
+    // Upper roof header & interior rearview + left/right side mirrors (live textures supported!)
+    const mirrorTex = opts.mirrorTextures || {};
+    function makeMirroredPlane(w, h) {
+      const g = new THREE.PlaneGeometry(w, h);
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setX(i, 1 - uv.getX(i));
+      }
+      uv.needsUpdate = true;
+      return g;
+    }
+
     const mirrorGlassCanvas = document.createElement('canvas');
     mirrorGlassCanvas.width = 128;
     mirrorGlassCanvas.height = 48;
@@ -951,13 +1148,30 @@
     mgGrad.addColorStop(1, '#1e242c');
     mgCtx.fillStyle = mgGrad;
     mgCtx.fillRect(0, 0, 128, 48);
-    const mirrorGlassTex = new THREE.CanvasTexture(mirrorGlassCanvas);
-    const mirrorGlassMat = new THREE.MeshBasicMaterial({ map: mirrorGlassTex });
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.19, 0.042), mirrorGlassMat, 0, eyeY + 0.17, cowlZ + 0.378);
+    const mirrorFallbackTex = new THREE.CanvasTexture(mirrorGlassCanvas);
 
-    // Driver Side Mirror visible just outside left A-pillar
-    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.50, dashY + 0.08, cowlZ + 0.17, 0.15, 0.085, 0.10);
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.12, 0.065), mirrorGlassMat, -W * 0.50, dashY + 0.08, cowlZ + 0.225);
+    const rearMirrorMat = mirrorTex.rear
+      ? new THREE.MeshBasicMaterial({ map: mirrorTex.rear })
+      : new THREE.MeshBasicMaterial({ map: mirrorFallbackTex });
+    const leftMirrorMat = mirrorTex.left
+      ? new THREE.MeshBasicMaterial({ map: mirrorTex.left })
+      : new THREE.MeshBasicMaterial({ map: mirrorFallbackTex });
+    const rightMirrorMat = mirrorTex.right
+      ? new THREE.MeshBasicMaterial({ map: mirrorTex.right })
+      : new THREE.MeshBasicMaterial({ map: mirrorFallbackTex });
+
+    addPart(interiorGroup, shared.boxGeo, pillarMat, 0, eyeY + 0.28, cowlZ + 0.46, W * 0.78, 0.06, 0.14);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, 0, eyeY + 0.17, cowlZ + 0.36, 0.26, 0.068, 0.032);
+    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.22, cowlZ + 0.39, 0.02, 0.08, 0.025);
+    addPart(interiorGroup, makeMirroredPlane(0.24, 0.054), rearMirrorMat, 0, eyeY + 0.17, cowlZ + 0.378);
+
+    // Driver Left Side Mirror outside left A-pillar
+    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.50, dashY + 0.08, cowlZ + 0.17, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.50, dashY + 0.08, cowlZ + 0.225);
+
+    // Passenger Right Side Mirror outside right A-pillar
+    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.50, dashY + 0.08, cowlZ + 0.17, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.50, dashY + 0.08, cowlZ + 0.225);
 
     // 3. Center Infotainment Screen (positioned cleanly left of bottom-right HUD dials)
     const infoCanvas = document.createElement('canvas');
@@ -1021,8 +1235,7 @@
       map: hudTex,
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      opacity: 0.78
+      opacity: 0.94
     });
     addPart(interiorGroup, new THREE.PlaneGeometry(0.28, 0.13), hudMat, driverX, dashY + 0.22, cowlZ + 0.11, 1, 1, 1, -0.35);
 
@@ -1252,13 +1465,35 @@
         cCtx.fillText(`${(state.distanceKm || 0).toFixed(2)} km`, 476, 134);
         cCtx.fillStyle = '#4ade80';
         cCtx.font = 'bold 18px sans-serif';
-        cCtx.fillText(`$${Math.floor(state.bank || 0).toLocaleString('en-US')}`, 476, 168);
+        const bankLabel = state.bankText || `$${Math.floor(state.bank || 0).toLocaleString('en-US')}`;
+        cCtx.fillText(bankLabel, 476, 168);
+      }
+
+      // Turn signal / hazard indicators on 3D dash
+      const sig = state.signalMode || 0;
+      const blinkActive = !!state.blinkOn && sig !== 0;
+      if (blinkActive) {
+        cCtx.fillStyle = sig === 2 ? '#fbbf24' : '#4ade80';
+        cCtx.font = 'bold 24px sans-serif';
+        if (sig === -1 || sig === 2) {
+          cCtx.textAlign = 'left';
+          cCtx.fillText('◀', 20, 72);
+        }
+        if (sig === 1 || sig === 2) {
+          cCtx.textAlign = 'right';
+          cCtx.fillText('▶', 492, 72);
+        }
       }
       clusterTex.needsUpdate = true;
 
-      // Draw Subtle Translucent Windshield HUD
+      // Draw Almost-Opaque Translucent Windshield HUD Backing
       hCtx.clearRect(0, 0, 256, 128);
-      hCtx.fillStyle = 'rgba(186, 230, 253, 0.92)';
+      hCtx.fillStyle = 'rgba(8, 12, 22, 0.86)';
+      hCtx.fillRect(6, 6, 244, 114);
+      hCtx.strokeStyle = 'rgba(56, 189, 248, 0.42)';
+      hCtx.lineWidth = 2;
+      hCtx.strokeRect(6, 6, 244, 114);
+      hCtx.fillStyle = 'rgba(224, 242, 254, 0.98)';
       hCtx.font = 'bold 54px sans-serif';
       hCtx.textAlign = 'left';
       hCtx.fillText(String(dispSpeed), 18, 76);
@@ -1266,6 +1501,14 @@
       hCtx.font = 'bold 18px sans-serif';
       hCtx.fillStyle = 'rgba(125, 211, 252, 0.85)';
       hCtx.fillText(unitTxt, 20, 102);
+
+      if (blinkActive) {
+        hCtx.fillStyle = sig === 2 ? '#fbbf24' : '#4ade80';
+        hCtx.font = 'bold 20px sans-serif';
+        hCtx.textAlign = 'center';
+        const sigStr = sig === 2 ? '◀ ⚠ ▶' : sig < 0 ? '◀' : '▶';
+        hCtx.fillText(sigStr, 146, 30);
+      }
 
       hCtx.textAlign = 'right';
       hCtx.font = 'bold 34px sans-serif';
