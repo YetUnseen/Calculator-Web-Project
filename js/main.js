@@ -7,8 +7,8 @@
 
   const TRANS_DESCRIPTIONS = {
     AUTO: 'Automatic: smooth self-shifting gears that adapt automatically to highway throttle.',
-    SEMI: 'Semi-Automatic: snappy paddle shifting with [Q] Gear Up and [E] Gear Down.',
-    MANUAL: 'Manual + Clutch: hold [Left Shift] for clutch, then press [Q] Gear Up or [E] Gear Down.'
+    SEMI: 'Semi-Automatic: snappy paddle shifting with [E] Gear Up and [Q] Gear Down.',
+    MANUAL: 'Manual + Clutch: hold [Left Shift] for clutch, then press [E] Gear Up or [Q] Gear Down.'
   };
 
   function clamp(v, lo, hi) {
@@ -1044,7 +1044,7 @@
         } else if (code === 'ShiftLeft') {
           e.preventDefault();
           this.input.clutch = true;
-        } else if (code === 'KeyQ' || keyLower === 'q') {
+        } else if (code === 'KeyE' || keyLower === 'e') {
           e.preventDefault();
           if (!e.repeat) {
             if (this.player.transmissionMode === 'AUTO') {
@@ -1054,7 +1054,7 @@
               this.updateHUD();
             }
           }
-        } else if (code === 'KeyE' || keyLower === 'e') {
+        } else if (code === 'KeyQ' || keyLower === 'q') {
           e.preventDefault();
           if (!e.repeat) {
             if (this.player.transmissionMode === 'AUTO') {

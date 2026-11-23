@@ -1,7 +1,7 @@
 /* ==========================================================================
    HIGHWAY PLAYER PHYSICS — 3 TRANSMISSIONS, CLUTCH, TURBO & PLANTED STEERING
    - Curvilinear (s, d) motion relative to highway centerline
-   - 3 Transmission Systems: AUTO, SEMI (Q Up / E Down), MANUAL (L-Shift Clutch + Q/E)
+   - 3 Transmission Systems: AUTO, SEMI (E Up / Q Down), MANUAL (L-Shift Clutch + E/Q)
    - Turbocharger boost spool & blow-off valve events
    - Weather grip physics: Dry, Rain (wet), and Snow stopping/steering feel
    - Fair AABB traffic collisions + Clean Pass detection
