@@ -73,6 +73,7 @@
 
       // Economy & Progression
       this.economy = new window.HighwayEconomy.HighwayEconomy();
+      this.radio = window.HighwayRadio ? new window.HighwayRadio.HighwayRadio() : null;
       const activeSpecs = this.economy.getActiveCarSpecs();
 
       // Core simulation modules
@@ -156,6 +157,8 @@
       // Cached DOM handles
       this.dom = {
         bank: document.getElementById('hud-bank'),
+        radioBtn: document.getElementById('btn-radio'),
+        radioDot: document.getElementById('hud-radio-dot'),
         statusSummary: document.getElementById('hud-status-summary'),
         btnDriveSetup: document.getElementById('btn-drive-setup'),
         setupDrawer: document.getElementById('drive-setup-drawer'),
@@ -757,6 +760,9 @@
 
       if (window.HighwayAudio) {
         window.HighwayAudio.suspend();
+      }
+      if (this.radio) {
+        this.radio.onCalculatorLock();
       }
 
       if (document.activeElement && typeof document.activeElement.blur === 'function') {
@@ -1421,6 +1427,16 @@
           return;
         }
 
+        const activeEl = document.activeElement;
+        const activeTag = activeEl && activeEl.tagName;
+        if (
+          activeTag === 'TEXTAREA' ||
+          (activeTag === 'INPUT' && activeEl.type !== 'range')
+        ) {
+          if (e.code === 'Escape') activeEl.blur();
+          return;
+        }
+
         if (e.code === 'KeyG') {
           e.preventDefault();
           if (this.garageOpen) this.closeGarage();
@@ -1559,6 +1575,8 @@
           this.adjustSpeedAssist(-5);
         } else if (code === 'KeyF') {
           if (!e.repeat) this.cycleWiperMode();
+        } else if (code === 'KeyJ') {
+          if (!e.repeat && this.radio) this.radio.togglePanel();
         } else if (code === 'Tab') {
           e.preventDefault();
           if (!e.repeat) this.toggleSetupDrawer();
@@ -1665,6 +1683,40 @@
       bindClick('btn-open-garage', () => this.openGarage());
       bindClick('btn-close-garage', () => this.closeGarage());
       bindClick('btn-restart', () => this.restartDrive());
+      bindClick('btn-radio', () => {
+        if (this.radio) this.radio.togglePanel();
+      });
+      if (this.radio) {
+        this.radio.bindDOM(
+          {
+            dock: document.getElementById('hud-radio-dock'),
+            btnClose: document.getElementById('btn-radio-close'),
+            btnCompact: document.getElementById('btn-radio-compact'),
+            ytMount: document.getElementById('radio-yt-mount'),
+            emptyHint: document.getElementById('radio-empty-hint'),
+            nowPlaying: document.getElementById('radio-now-playing'),
+            btnPrev: document.getElementById('btn-radio-prev'),
+            btnPlay: document.getElementById('btn-radio-play'),
+            btnNext: document.getElementById('btn-radio-next'),
+            volumeSlider: document.getElementById('radio-volume'),
+            btnSave: document.getElementById('btn-radio-save'),
+            urlInput: document.getElementById('radio-url-input'),
+            btnLoad: document.getElementById('btn-radio-load'),
+            status: document.getElementById('radio-status'),
+            presetsList: document.getElementById('radio-presets-list')
+          },
+          {
+            onUpdate: (st) => {
+              if (this.dom.radioDot) {
+                this.dom.radioDot.classList.toggle('playing', !!(st && st.playing));
+              }
+              if (this.dom.radioBtn) {
+                this.dom.radioBtn.classList.toggle('active', !!(st && st.open));
+              }
+            }
+          }
+        );
+      }
       bindClick('btn-drive-setup', () => this.toggleSetupDrawer());
       bindClick('btn-close-setup', () => this.toggleSetupDrawer(false));
       bindClick('btn-assist-dec', () => this.adjustSpeedAssist(-5));
@@ -1751,6 +1803,7 @@
         if (isInterior) {
           const radarInfo = this.env.getRadarInfo(this.player.s);
           const radarSpeeding = radarInfo.nearby && this.player.speedKmh > radarInfo.limitKmh + 5;
+          const radioState = this.radio ? this.radio.getState() : null;
           this.interiorRig.updateInterior(
             {
               steer: this.player.steer,
@@ -1779,6 +1832,8 @@
               blindSpotLeft: !!(this.blindSpot && this.blindSpot.left),
               blindSpotRight: !!(this.blindSpot && this.blindSpot.right),
               wiperMode: this.wiperMode,
+              radioTitle: radioState ? radioState.title : '',
+              radioPlaying: !!(radioState && radioState.playing),
               speedAssistMode: this.speedAssistMode,
               speedAssistTargetKmh: this.speedAssistTargetKmh,
               hornActive: this.hornActive,

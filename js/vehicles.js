@@ -1710,7 +1710,7 @@
     addPart(interiorGroup, shared.boxGeo, leatherMat, infoX, dashY + 0.105, dashZ + 0.17, 0.23, 0.12, 0.025, 0, 0.20, 0);
     addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, infoX + 0.002, dashY + 0.105, dashZ + 0.185, 1, 1, 1, 0, 0.20, 0);
 
-    function drawInfotainment(weatherName, wiperMode) {
+    function drawInfotainment(weatherName, wiperMode, radioTitle, radioPlaying) {
       infoCtx.fillStyle = '#0c1220';
       infoCtx.fillRect(0, 0, 256, 128);
       infoCtx.strokeStyle = '#1e293b';
@@ -1736,14 +1736,22 @@
       infoCtx.fillStyle = '#38bdf8';
       infoCtx.font = 'bold 13px sans-serif';
       infoCtx.fillText(weatherName || 'Afternoon', 14, 48);
+      if (radioTitle) {
+        const prefix = radioPlaying ? '♪ ' : '❚❚ ';
+        const clipped =
+          radioTitle.length > 22 ? `${radioTitle.slice(0, 21)}…` : radioTitle;
+        infoCtx.fillStyle = radioPlaying ? '#5eead4' : '#94a3b8';
+        infoCtx.font = 'bold 11px sans-serif';
+        infoCtx.fillText(`${prefix}${clipped}`, 14, 92);
+      }
       if (wiperMode && wiperMode !== 'AUTO') {
         infoCtx.fillStyle = '#94a3b8';
         infoCtx.font = 'bold 11px sans-serif';
-        infoCtx.fillText(`WIPER: ${wiperMode}`, 14, 112);
+        infoCtx.fillText(`WIPER: ${wiperMode}`, 14, 114);
       }
       infoTex.needsUpdate = true;
     }
-    drawInfotainment('Afternoon', 'AUTO');
+    drawInfotainment('Afternoon', 'AUTO', '', false);
 
     // 4. High-Res Live 3D In-Dash Instrument Cluster (Digital OR Analog, crisp through wheel!)
     const clusterCanvas = document.createElement('canvas');
@@ -1818,6 +1826,7 @@
     let redrawAccum = 0;
     let lastWeatherDrawn = '';
     let lastWiperDrawn = 'AUTO';
+    let lastRadioDrawn = '';
 
     function drawAnalogDial(ctx, cx, cy, r, frac, needleColor, title, valueText, redZoneStart) {
       ctx.save();
@@ -2250,10 +2259,18 @@
       clusterTex.needsUpdate = true;
 
       const curWiper = state.wiperMode || 'AUTO';
-      if (state.weatherName !== lastWeatherDrawn || curWiper !== lastWiperDrawn) {
+      const curRadioTitle = state.radioTitle || '';
+      const curRadioPlaying = !!state.radioPlaying;
+      const curRadioKey = `${curRadioPlaying ? '1' : '0'}:${curRadioTitle}`;
+      if (
+        state.weatherName !== lastWeatherDrawn ||
+        curWiper !== lastWiperDrawn ||
+        curRadioKey !== lastRadioDrawn
+      ) {
         lastWeatherDrawn = state.weatherName || 'Afternoon';
         lastWiperDrawn = curWiper;
-        drawInfotainment(lastWeatherDrawn, curWiper);
+        lastRadioDrawn = curRadioKey;
+        drawInfotainment(lastWeatherDrawn, curWiper, curRadioTitle, curRadioPlaying);
       }
     }
 

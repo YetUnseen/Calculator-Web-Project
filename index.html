@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw18" />
+  <link rel="stylesheet" href="css/style.css?v=hw19" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -72,10 +72,60 @@
         <strong class="bank-chip" id="hud-bank">$0</strong>
         <kbd>G</kbd>
       </button>
+      <button class="hud-pill-btn hud-pill-radio" id="btn-radio" title="Car Radio — YouTube Player [J]">
+        <span class="radio-dot" id="hud-radio-dot"></span>
+        <span>Radio</span>
+        <kbd>J</kbd>
+      </button>
       <button class="hud-pill-btn hud-pill-calc" id="btn-lock-calc" title="Return to Calculator [`]">
         <span>Calc</span>
         <kbd>`</kbd>
       </button>
+    </div>
+
+    <!-- Bottom-Left Floating Car Radio (Official YouTube Embed Player) -->
+    <div class="hud-radio-dock hidden" id="hud-radio-dock">
+      <div class="radio-dock-head">
+        <div class="radio-title-wrap">
+          <span class="radio-brand">Car Radio · YT</span>
+          <span class="radio-now-playing" id="radio-now-playing">No station loaded</span>
+        </div>
+        <div class="radio-head-btns">
+          <button class="radio-icon-btn" id="btn-radio-compact" title="Collapse / Expand URL &amp; Presets">▾</button>
+          <button class="radio-icon-btn" id="btn-radio-close" title="Pause &amp; Close Radio [J]">×</button>
+        </div>
+      </div>
+
+      <div class="radio-yt-wrap" id="radio-yt-wrap">
+        <div id="radio-yt-mount"></div>
+        <div class="radio-empty-hint" id="radio-empty-hint">
+          Paste any YouTube / YouTube Music link or playlist below
+        </div>
+      </div>
+
+      <div class="radio-transport-row">
+        <button class="radio-tp-btn" id="btn-radio-prev" title="Previous Track / Preset">⏮</button>
+        <button class="radio-tp-btn" id="btn-radio-play" title="Play / Pause">▶</button>
+        <button class="radio-tp-btn" id="btn-radio-next" title="Next Track / Preset">⏭</button>
+        <input type="range" class="radio-volume" id="radio-volume" min="0" max="100" value="60" title="Radio Volume" />
+        <button class="radio-tp-btn" id="btn-radio-save" title="Save Current Station Preset">★</button>
+      </div>
+
+      <div class="radio-setup-body" id="radio-setup-body">
+        <div class="radio-url-row">
+          <input
+            type="text"
+            class="radio-url-input"
+            id="radio-url-input"
+            placeholder="YouTube URL, playlist, or ID..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="radio-load-btn" id="btn-radio-load">Load</button>
+        </div>
+        <div class="radio-status" id="radio-status">Paste a YouTube link or ID</div>
+        <div class="radio-presets-list" id="radio-presets-list"></div>
+      </div>
     </div>
 
     <!-- Top Right Dock: Drive Setup Drawer Toggle & Quick Restart -->
@@ -498,6 +548,7 @@
           <div class="hw-controls-ref">
             <div><span>Cycle Camera / Gauge Style</span><span class="key-group"><kbd>V</kbd> <kbd>B</kbd></span></div>
             <div><span>Rearview Mirror / Weather / Audio</span><span class="key-group"><kbd>N</kbd> <kbd>T</kbd> <kbd>K</kbd></span></div>
+            <div><span>Car Radio (YouTube Embed)</span><span class="key-group"><kbd>J</kbd></span></div>
             <div><span>Drive Setup / Garage / Restart</span><span class="key-group"><kbd>Tab</kbd> <kbd>G</kbd> <kbd>R</kbd></span></div>
             <div><span>Pause Menu / Calculator Disguise</span><span class="key-group"><kbd>ESC</kbd> <kbd>`</kbd></span></div>
           </div>
@@ -541,14 +592,15 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw18"></script>
-  <script src="js/hardware.js?v=hw18"></script>
-  <script src="js/economy.js?v=hw18"></script>
-  <script src="js/audio.js?v=hw18"></script>
-  <script src="js/vehicles.js?v=hw18"></script>
-  <script src="js/highway.js?v=hw18"></script>
-  <script src="js/traffic.js?v=hw18"></script>
-  <script src="js/physics.js?v=hw18"></script>
-  <script src="js/main.js?v=hw18"></script>
+  <script src="vendor/three.min.js?v=hw19"></script>
+  <script src="js/hardware.js?v=hw19"></script>
+  <script src="js/economy.js?v=hw19"></script>
+  <script src="js/audio.js?v=hw19"></script>
+  <script src="js/radio.js?v=hw19"></script>
+  <script src="js/vehicles.js?v=hw19"></script>
+  <script src="js/highway.js?v=hw19"></script>
+  <script src="js/traffic.js?v=hw19"></script>
+  <script src="js/physics.js?v=hw19"></script>
+  <script src="js/main.js?v=hw19"></script>
 </body>
 </html>

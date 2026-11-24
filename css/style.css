@@ -154,6 +154,283 @@ html, body {
   color: #fbbf24;
 }
 
+.hud-pill-radio {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.radio-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.45);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.radio-dot.playing {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+}
+
+/* Floating Bottom-Left Car Stereo (Official YouTube Embed Player) */
+.hud-radio-dock {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 280px;
+  background: rgba(9, 13, 22, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.58);
+  pointer-events: auto;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-radio-dock.hidden {
+  display: none;
+}
+
+.hud-radio-dock.compact .radio-setup-body {
+  display: none;
+}
+
+.radio-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.radio-title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.radio-brand {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #38bdf8;
+}
+
+.radio-now-playing {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.radio-head-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.radio-icon-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.radio-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.radio-yt-wrap {
+  width: 100%;
+  height: 142px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #050810;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  position: relative;
+}
+
+.radio-yt-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.radio-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.radio-empty-hint.hidden {
+  display: none;
+}
+
+.radio-transport-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.radio-tp-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  height: 26px;
+  min-width: 28px;
+  padding: 0 7px;
+  border-radius: 7px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.radio-tp-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #ffffff;
+}
+
+.radio-volume {
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.radio-setup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.radio-url-row {
+  display: flex;
+  gap: 5px;
+}
+
+.radio-url-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  outline: none;
+}
+
+.radio-url-input:focus {
+  border-color: #38bdf8;
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.radio-load-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  background: rgba(14, 165, 233, 0.22);
+  color: #e0f2fe;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.radio-load-btn:hover {
+  background: rgba(14, 165, 233, 0.36);
+}
+
+.radio-status {
+  font-size: 0.67rem;
+  color: #94a3b8;
+  min-height: 14px;
+  line-height: 1.25;
+}
+
+.radio-status.error {
+  color: #fca5a5;
+}
+
+.radio-presets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 66px;
+  overflow-y: auto;
+}
+
+.radio-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.radio-preset-play {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 3px 6px 3px 8px;
+  max-width: 190px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.radio-preset-play:hover {
+  color: #ffffff;
+}
+
+.radio-preset-del {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 6px 3px 2px;
+  cursor: pointer;
+}
+
+.radio-preset-del:hover {
+  color: #fca5a5;
+}
+
 .hud-pill-setup {
   gap: 10px;
 }
