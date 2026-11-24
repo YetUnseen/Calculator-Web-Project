@@ -57,6 +57,7 @@
       precip: 'none',
       wetRoad: false,
       snowy: false,
+      isNight: false,
       grip: 1.0,
       weatherMult: 1.0
     },
@@ -85,34 +86,36 @@
       precip: 'none',
       wetRoad: false,
       snowy: false,
+      isNight: false,
       grip: 1.0,
       weatherMult: 1.05
     },
     {
       id: 'dusk',
-      name: 'Dusk',
-      skyTop: 0x0b1228,
-      skyHorizon: 0x394b78,
-      fogColor: 0x2a3759,
+      name: 'Night',
+      skyTop: 0x050914,
+      skyHorizon: 0x182548,
+      fogColor: 0x131d38,
       fogNear: 155,
       fogFar: 495,
       sunColor: 0x9cb4ff,
-      sunIntensity: 0.72,
-      hemiSky: 0x4b5f94,
-      hemiGround: 0x1a1e2e,
-      hemiIntensity: 0.65,
-      ambientColor: 0x39476b,
-      ambientIntensity: 0.48,
+      sunIntensity: 0.42,
+      hemiSky: 0x3b4d7c,
+      hemiGround: 0x141824,
+      hemiIntensity: 0.56,
+      ambientColor: 0x2c3858,
+      ambientIntensity: 0.44,
       sunDir: [-0.45, 0.26, -0.85],
-      mountainColor: 0x202a45,
+      mountainColor: 0x172038,
       headlightStrength: 1.0,
       lampGlow: 0xffd98a,
-      cloudTint: 0x6376a6,
-      cloudAlpha: 0.16,
-      starAlpha: 0.72,
+      cloudTint: 0x455885,
+      cloudAlpha: 0.14,
+      starAlpha: 0.90,
       precip: 'none',
       wetRoad: false,
       snowy: false,
+      isNight: true,
       grip: 1.0,
       weatherMult: 1.15
     },
@@ -141,6 +144,7 @@
       precip: 'rain',
       wetRoad: true,
       snowy: false,
+      isNight: false,
       grip: 0.78,
       weatherMult: 1.25
     },
@@ -169,6 +173,7 @@
       precip: 'rain',
       wetRoad: true,
       snowy: false,
+      isNight: true,
       grip: 0.75,
       weatherMult: 1.35
     },
@@ -197,11 +202,38 @@
       precip: 'snow',
       wetRoad: false,
       snowy: true,
+      isNight: false,
       grip: 0.56,
       weatherMult: 1.40
     }
   ];
   const LIGHTING_PRESETS = WEATHER_PRESETS;
+
+  const RADAR_FIRST_S = 680;
+  const RADAR_STEP = 950;
+  const RADAR_WARN_DIST = 380;
+  const RADAR_LIMITS_KMH = [110, 130, 100, 120, 90, 140];
+
+  function getRadarBySlot(slot) {
+    const k = Math.max(0, Math.floor(slot || 0));
+    const radarS = RADAR_FIRST_S + k * RADAR_STEP;
+    const limitKmh = RADAR_LIMITS_KMH[k % RADAR_LIMITS_KMH.length];
+    return { slot: k, radarS, limitKmh };
+  }
+
+  function getRadarInfo(s) {
+    const currS = s || 0;
+    const slot = currS <= RADAR_FIRST_S ? 0 : Math.ceil((currS - RADAR_FIRST_S) / RADAR_STEP);
+    const info = getRadarBySlot(slot);
+    const distToRadar = info.radarS - currS;
+    return {
+      slot: info.slot,
+      radarS: info.radarS,
+      distToRadar,
+      limitKmh: info.limitKmh,
+      nearby: distToRadar <= RADAR_WARN_DIST
+    };
+  }
 
   // Pure curvilinear highway math (deterministic, C-infinity smooth, zero seams)
   function getCurvature(s) {
@@ -302,6 +334,8 @@
       this.initRoadRibbons();
       this.initRoadsideProps();
       this.initGantriesAndSigns();
+      this.radarFlashes = {};
+      this.initRadars();
       this.initFoliage();
       this.initPrecipitation();
       this.initOncomingTraffic();
@@ -912,6 +946,182 @@
       }
     }
 
+    makeSpeedLimitTexture(limitKmh, isRadarWarning) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 512, 256);
+
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(8, 8, 496, 240);
+
+      if (isRadarWarning) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(14, 14, 484, 54);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SPEED RADAR AHEAD', 256, 52);
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(14, 14, 484, 50);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SPEED LIMIT', 256, 50);
+      }
+
+      // Red-ring speed limit circle
+      const cx = 148;
+      const cy = 160;
+      const r = 74;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.lineWidth = 15;
+      ctx.strokeStyle = '#dc2626';
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(limitKmh), cx, cy + 3);
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.fillStyle = '#1e293b';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillText('KM/H', 250, 148);
+      ctx.fillStyle = isRadarWarning ? '#b91c1c' : '#475569';
+      ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillText(isRadarWarning ? 'CAMERA ENFORCED' : 'OBEY LIMIT', 250, 192);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = (this.gfx && this.gfx.anisotropy) || 2;
+      if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    initRadars() {
+      this.radarSignTextures = {};
+      this.limitSignTextures = {};
+      const uniq = Array.from(new Set(RADAR_LIMITS_KMH));
+      for (let i = 0; i < uniq.length; i++) {
+        const lim = uniq[i];
+        this.radarSignTextures[lim] = this.makeSpeedLimitTexture(lim, true);
+        this.limitSignTextures[lim] = this.makeSpeedLimitTexture(lim, false);
+      }
+
+      // Radial white camera flash texture
+      const fc = document.createElement('canvas');
+      fc.width = 64;
+      fc.height = 64;
+      const fctx = fc.getContext('2d');
+      const fgrad = fctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+      fgrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      fgrad.addColorStop(0.35, 'rgba(235, 248, 255, 0.85)');
+      fgrad.addColorStop(1.0, 'rgba(220, 240, 255, 0.0)');
+      fctx.fillStyle = fgrad;
+      fctx.fillRect(0, 0, 64, 64);
+      const flashTex = new THREE.CanvasTexture(fc);
+
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.65 });
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.45, metalness: 0.25 });
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.3 });
+      const lensMat = new THREE.MeshStandardMaterial({ color: 0x05080f, roughness: 0.15, metalness: 0.8 });
+
+      // Pool of 2 3D Speed Camera / Radar Towers on right shoulder
+      this.radarPool = [];
+      for (let i = 0; i < 2; i++) {
+        const rg = new THREE.Group();
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 4.1, 8), poleMat);
+        pole.position.set(0, 2.05, 0);
+        rg.add(pole);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 4.1, 0);
+        headGroup.rotation.y = -0.32;
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.78, 0.52), boxMat);
+        headGroup.add(body);
+
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.54), darkMat);
+        stripe.position.set(0, 0.22, 0);
+        headGroup.add(stripe);
+
+        // Twin camera lenses facing +Z (toward oncoming driver)
+        const lensTop = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 12), lensMat);
+        lensTop.rotation.x = Math.PI / 2;
+        lensTop.position.set(0, 0.08, 0.27);
+        headGroup.add(lensTop);
+
+        const lensBot = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12), lensMat);
+        lensBot.rotation.x = Math.PI / 2;
+        lensBot.position.set(-0.12, -0.16, 0.27);
+        headGroup.add(lensBot);
+
+        const ledMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.05), ledMat);
+        led.position.set(0.14, -0.16, 0.26);
+        headGroup.add(led);
+
+        const flashMat = new THREE.MeshBasicMaterial({
+          map: flashTex,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          opacity: 0.0
+        });
+        const flashSprite = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 3.8), flashMat);
+        flashSprite.position.set(0, 0.08, 0.34);
+        headGroup.add(flashSprite);
+
+        rg.add(headGroup);
+        this.scene.add(rg);
+        this.radarPool.push({ group: rg, ledMat, flashMat, lastSlot: -1 });
+      }
+
+      // Pool of 2 Radar Ahead Warning Signs (300m before each radar)
+      this.radarSignPool = [];
+      const signBackMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7, metalness: 0.3 });
+      for (let i = 0; i < 2; i++) {
+        const sg = new THREE.Group();
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 3.4, 6), poleMat);
+        leg.position.set(0, 1.7, 0);
+        sg.add(leg);
+
+        const plateMat = new THREE.MeshBasicMaterial({ map: this.radarSignTextures[RADAR_LIMITS_KMH[0]] });
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 1.25), plateMat);
+        face.position.set(0, 3.35, 0.05);
+        sg.add(face);
+
+        const back = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 0.06), signBackMat);
+        back.position.set(0, 3.35, 0.01);
+        sg.add(back);
+
+        this.scene.add(sg);
+        this.radarSignPool.push({ group: sg, plateMat, lastSlot: -1 });
+      }
+    }
+
+    getRadarInfo(s) {
+      return getRadarInfo(s);
+    }
+
+    getRadarBySlot(slot) {
+      return getRadarBySlot(slot);
+    }
+
+    triggerRadarFlash(slot) {
+      this.radarFlashes[slot] = 1.0;
+    }
+
     initFoliage() {
       const fMult = this.gfx && this.gfx.foliageMult !== undefined ? this.gfx.foliageMult : 0.75;
       this.treeStep = 22;
@@ -1354,9 +1564,38 @@
       }
     }
 
-    updateProps(s0) {
+    updateProps(s0, beamMode) {
       const obj = this.tempObj;
       const p = this.projOut;
+      const activePreset = WEATHER_PRESETS[this.lightingIndex];
+      const isNight = !!(activePreset && activePreset.isNight);
+      const bMode = beamMode || 'off';
+      const applyReflect = (mat, ds) => {
+        if (!mat || !mat.color) return;
+        if (!isNight) {
+          if (bMode === 'long' && ds > 12 && ds < 130) {
+            mat.color.setRGB(1.06, 1.07, 1.09);
+          } else {
+            mat.color.setRGB(1.0, 1.0, 1.0);
+          }
+          return;
+        }
+        let r = 0.62;
+        let g = 0.63;
+        let b = 0.66;
+        if (bMode === 'long' && ds > 10 && ds < 200) {
+          const t = Math.max(0, 1 - Math.abs(ds - 70) / 130);
+          r += 0.50 * t;
+          g += 0.53 * t;
+          b += 0.56 * t;
+        } else if (bMode === 'short' && ds > 6 && ds < 80) {
+          const t = Math.max(0, 1 - Math.abs(ds - 34) / 46);
+          r += 0.26 * t;
+          g += 0.27 * t;
+          b += 0.26 * t;
+        }
+        mat.color.setRGB(r, g, b);
+      };
 
       // 1. Guardrail Posts (every 8m)
       const postBase = Math.floor((s0 - 120) / this.postStep) * this.postStep;
@@ -1438,6 +1677,7 @@
         this.project(s, 0.5, p, 0);
         gObj.group.position.set(p.x, p.y, p.z);
         gObj.group.rotation.set(0, -p.yaw, 0);
+        applyReflect(gObj.boardMat, s - s0);
       }
 
       // 5. Roadside Signs (every 260m)
@@ -1451,7 +1691,15 @@
           continue;
         }
         sObj.group.visible = true;
-        if (sObj.lastSlot !== slot) {
+        if (slot % 4 === 0 && this.limitSignTextures) {
+          const zoneLimit = getRadarInfo(s).limitKmh;
+          const tex = this.limitSignTextures[zoneLimit];
+          if (tex && sObj.plateMat.map !== tex) {
+            sObj.plateMat.map = tex;
+            sObj.plateMat.needsUpdate = true;
+          }
+          sObj.lastSlot = slot;
+        } else if (sObj.lastSlot !== slot) {
           sObj.lastSlot = slot;
           sObj.plateMat.map = this.signTextures[slot % this.signTextures.length];
           sObj.plateMat.needsUpdate = true;
@@ -1459,6 +1707,49 @@
         this.project(s, 11.75, p, 0);
         sObj.group.position.set(p.x, p.y, p.z);
         sObj.group.rotation.set(0, -p.yaw, 0);
+        applyReflect(sObj.plateMat, s - s0);
+      }
+
+      // 5b. Speed Radars & Radar Ahead Warning Signs
+      if (this.radarPool && this.radarSignPool) {
+        const rStartSlot = Math.max(0, Math.floor((s0 - 80 - RADAR_FIRST_S) / RADAR_STEP));
+        const tNow = this.skyUniforms ? this.skyUniforms.uTime.value : 0;
+        for (let i = 0; i < this.radarPool.length; i++) {
+          const slot = rStartSlot + i;
+          const info = getRadarBySlot(slot);
+          const rObj = this.radarPool[i];
+          if (info.radarS < s0 - 110 || info.radarS > s0 + 660) {
+            rObj.group.visible = false;
+          } else {
+            rObj.group.visible = true;
+            this.project(info.radarS, 9.95, p, 0);
+            rObj.group.position.set(p.x, p.y, p.z);
+            rObj.group.rotation.set(0, -p.yaw, 0);
+            const pulse = 0.4 + 0.6 * Math.abs(Math.sin(tNow * 4.5 + i));
+            rObj.ledMat.color.setRGB(pulse, 0.06, 0.06);
+            rObj.flashMat.opacity = this.radarFlashes[slot] || 0;
+          }
+
+          const wObj = this.radarSignPool[i];
+          const warnS = info.radarS - 300;
+          if (warnS < s0 - 110 || warnS > s0 + 660) {
+            wObj.group.visible = false;
+          } else {
+            wObj.group.visible = true;
+            if (wObj.lastSlot !== slot) {
+              wObj.lastSlot = slot;
+              const tex = this.radarSignTextures[info.limitKmh];
+              if (tex) {
+                wObj.plateMat.map = tex;
+                wObj.plateMat.needsUpdate = true;
+              }
+            }
+            this.project(warnS, 11.4, p, 0);
+            wObj.group.position.set(p.x, p.y, p.z);
+            wObj.group.rotation.set(0, -p.yaw, 0);
+            applyReflect(wObj.plateMat, warnS - s0);
+          }
+        }
       }
 
       // 6. Sparse Roadside Trees
@@ -1489,35 +1780,67 @@
       this.treeCrowns.instanceMatrix.needsUpdate = true;
     }
 
-    updateOncomingTraffic(s0, dt) {
+    updateOncomingTraffic(s0, dt, beamMode) {
       const p = this.projOut;
+      const preset = WEATHER_PRESETS[this.lightingIndex];
+      const isNight = !!(preset && preset.isNight);
+      const baseHl = Math.max(0.35, preset ? preset.headlightStrength : 0.45);
       for (let i = 0; i < this.oncomingCars.length; i++) {
         const oc = this.oncomingCars[i];
         oc.s -= oc.speed * dt;
         if (oc.s < s0 - 140) {
           oc.s = s0 + 500 + (i * 41) % 140;
           oc.d = OPP_LANE_CENTERS[(i + Math.floor(s0 * 0.01)) % OPP_LANE_CENTERS.length];
+          oc.flashBackTimer = 0;
+          oc.flashBackCooldown = 0;
         } else if (oc.s > s0 + 660) {
           oc.s -= 620;
         }
-        const visible = oc.s > s0 - 135 && oc.s < s0 + 590;
+        if (oc.flashBackCooldown > 0) oc.flashBackCooldown = Math.max(0, oc.flashBackCooldown - dt);
+        const ds = oc.s - s0;
+        if (isNight && beamMode === 'long' && ds > 28 && ds < 105 && (oc.flashBackCooldown || 0) <= 0) {
+          oc.flashBackTimer = 0.44;
+          oc.flashBackCooldown = 9.0;
+        }
+        const visible = ds > -135 && ds < 590;
         oc.meshObj.group.visible = visible;
         if (visible) {
           this.project(oc.s, oc.d, p, 0);
           oc.meshObj.group.position.set(p.x, p.y, p.z);
           oc.meshObj.group.rotation.set(-p.pitch, -p.yaw + Math.PI, 0);
           oc.meshObj.updateWheels(oc.speed, dt, 0);
+          if (oc.flashBackTimer > 0) {
+            oc.flashBackTimer = Math.max(0, oc.flashBackTimer - dt);
+            const pulse = Math.floor((0.44 - oc.flashBackTimer) * 9.0) % 2 === 0;
+            oc.meshObj.setHeadlights(pulse ? 2.15 : 0.90);
+            if (oc.flashBackTimer === 0) {
+              oc.meshObj.setHeadlights(baseHl);
+            }
+          }
+        } else if (oc.flashBackTimer > 0) {
+          oc.flashBackTimer = 0;
+          oc.meshObj.setHeadlights(baseHl);
         }
       }
     }
 
-    update(s0, dt, playerSpeedMs) {
-      this.skyUniforms.uTime.value += dt || 0;
+    update(s0, dt, playerSpeedMs, beamMode) {
+      const stepDt = dt || 0;
+      this.skyUniforms.uTime.value += stepDt;
+      if (this.radarFlashes) {
+        const keys = Object.keys(this.radarFlashes);
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i];
+          const nextVal = this.radarFlashes[k] - stepDt * 2.8;
+          if (nextVal <= 0) delete this.radarFlashes[k];
+          else this.radarFlashes[k] = nextVal;
+        }
+      }
       const baseIdx = this.updateFrameLUT(s0);
       this.updateRibbons(baseIdx);
-      this.updateProps(s0);
+      this.updateProps(s0, beamMode);
       this.updatePrecipitation(dt || 0, playerSpeedMs || 0);
-      this.updateOncomingTraffic(s0, dt || 0);
+      this.updateOncomingTraffic(s0, dt || 0, beamMode);
 
       // Keep sky, distant mountains, and sun locked in compass orientation
       const heading = getHeading(s0);
@@ -1544,9 +1867,15 @@
     OPP_LANE_CENTERS,
     WEATHER_PRESETS,
     LIGHTING_PRESETS,
+    RADAR_FIRST_S,
+    RADAR_STEP,
+    RADAR_WARN_DIST,
+    RADAR_LIMITS_KMH,
     getCurvature,
     getHeading,
-    getElevation
+    getElevation,
+    getRadarInfo,
+    getRadarBySlot
   };
 
   if (typeof window !== 'undefined') {

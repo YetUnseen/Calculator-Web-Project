@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw13" />
+  <link rel="stylesheet" href="css/style.css?v=hw16" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -55,8 +55,9 @@
   <!-- 3D WebGL Highway Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- Subtle Edge Vignette -->
+  <!-- Subtle Edge Vignette & Speed Radar Camera Flash -->
   <div id="fx-vignette"></div>
+  <div id="fx-radar-flash"></div>
 
   <!-- Clean Decluttered Highway HUD -->
   <div id="hud">
@@ -123,7 +124,7 @@
         <div class="drawer-pill-grid cols-3">
           <button class="drawer-opt-btn" data-set-weather="0">Afternoon</button>
           <button class="drawer-opt-btn" data-set-weather="1">Sunset</button>
-          <button class="drawer-opt-btn" data-set-weather="2">Dusk</button>
+          <button class="drawer-opt-btn" data-set-weather="2">Night</button>
           <button class="drawer-opt-btn" data-set-weather="3">Rain</button>
           <button class="drawer-opt-btn" data-set-weather="4">Night Rain</button>
           <button class="drawer-opt-btn" data-set-weather="5">Snow</button>
@@ -160,7 +161,7 @@
       <span><kbd>E</kbd><kbd>Q</kbd> Shift</span>
       <span><kbd>M</kbd> Trans</span>
       <span><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> Signals</span>
-      <span><kbd>L</kbd> Flash</span>
+      <span><kbd>L</kbd> Lights</span>
       <span><kbd>V</kbd> Cam</span>
       <span><kbd>G</kbd> Garage</span>
       <span><kbd>Tab</kbd> Setup</span>
@@ -168,11 +169,31 @@
 
     <!-- Bottom Right: Default Speedometer, Signals & Telemetry (Hidden in Interior mode) -->
     <div class="hud-bottom-right" id="hud-bottom-right">
+      <div class="hud-radar-pill" id="hud-radar-pill" title="Speed Limit &amp; Radar Monitor">
+        <span class="speed-limit-circle" id="hud-limit-num">110</span>
+        <span class="radar-dist-tag" id="hud-radar-dist">LIMIT 110</span>
+      </div>
       <div class="signal-strip" id="hud-signal-strip">
         <span class="sig-ind" id="sig-left" title="Left Turn Signal [Z]">◀</span>
         <span class="sig-ind sig-hazard" id="sig-hazard" title="Hazard Lights [X]">⚠</span>
         <span class="sig-ind" id="sig-right" title="Right Turn Signal [C]">▶</span>
-        <span class="sig-ind sig-highbeam" id="sig-highbeam" title="Flash High Beams [L]">≡D</span>
+        <span class="sig-ind sig-lowbeam" id="sig-lowbeam" title="Short / Low Beam (Night) [L]">
+          <svg width="18" height="14" viewBox="0 0 24 18" aria-hidden="true">
+            <path d="M13 3 C18.5 3 21.5 6 21.5 9 C21.5 12 18.5 15 13 15 Z" fill="currentColor"/>
+            <line x1="3" y1="7.5" x2="10.5" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="3" y1="11.5" x2="10.5" y2="9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="3" y1="15.5" x2="10.5" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="sig-ind sig-highbeam" id="sig-highbeam" title="Long / High Beam [L]">
+          <svg width="18" height="14" viewBox="0 0 24 18" aria-hidden="true">
+            <path d="M13 3 C18.5 3 21.5 6 21.5 9 C21.5 12 18.5 15 13 15 Z" fill="currentColor"/>
+            <line x1="3" y1="5.2" x2="10.5" y2="5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="3" y1="9" x2="10.5" y2="9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="3" y1="12.8" x2="10.5" y2="12.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="sig-assist hidden" id="sig-assist" title="Cruise Control [U] / Speed Limiter [Y]">CRU 110</span>
         <span class="sig-horn hidden" id="sig-horn">HORN</span>
       </div>
       <div class="clutch-pill hidden" id="hud-clutch-pill">CLUTCH · L-SHIFT</div>
@@ -393,7 +414,7 @@
           <div class="drawer-pill-grid cols-3">
             <button class="drawer-opt-btn" data-set-weather="0">Afternoon</button>
             <button class="drawer-opt-btn" data-set-weather="1">Sunset</button>
-            <button class="drawer-opt-btn" data-set-weather="2">Dusk</button>
+            <button class="drawer-opt-btn" data-set-weather="2">Night</button>
             <button class="drawer-opt-btn" data-set-weather="3">Rain</button>
             <button class="drawer-opt-btn" data-set-weather="4">Night Rain</button>
             <button class="drawer-opt-btn" data-set-weather="5">Snow</button>
@@ -421,6 +442,8 @@
             <div><span>Shift Up / Down</span><span class="key-group"><kbd>E</kbd> <kbd>Q</kbd></span></div>
             <div><span>Clutch (Manual Mode)</span><span class="key-group"><kbd>L-Shift</kbd></span></div>
             <div><span>Cycle Transmission</span><span class="key-group"><kbd>M</kbd></span></div>
+            <div><span>Cruise Control / Speed Limiter</span><span class="key-group"><kbd>U</kbd> <kbd>Y</kbd></span></div>
+            <div><span>Adjust Cruise / Limit (-/+ 5)</span><span class="key-group"><kbd>[</kbd> <kbd>]</kbd></span></div>
           </div>
         </div>
 
@@ -428,7 +451,8 @@
           <div class="controls-cat-title">Lights, Signals &amp; Horn</div>
           <div class="hw-controls-ref">
             <div><span>Left / Hazard / Right Signal</span><span class="key-group"><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></span></div>
-            <div><span>Flash High Beams</span><span class="key-group"><kbd>L</kbd></span></div>
+            <div><span>Headlights: Flash (Day) / Short↔Long (Night)</span><span class="key-group"><kbd>L</kbd></span></div>
+            <div><span>Windshield Wipers (Auto / Low / High / Off)</span><span class="key-group"><kbd>F</kbd></span></div>
             <div><span>Horn / Air Horn / Siren</span><span class="key-group"><kbd>H</kbd> or <kbd>Space</kbd></span></div>
           </div>
         </div>
@@ -481,14 +505,14 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw13"></script>
-  <script src="js/hardware.js?v=hw13"></script>
-  <script src="js/economy.js?v=hw13"></script>
-  <script src="js/audio.js?v=hw13"></script>
-  <script src="js/vehicles.js?v=hw13"></script>
-  <script src="js/highway.js?v=hw13"></script>
-  <script src="js/traffic.js?v=hw13"></script>
-  <script src="js/physics.js?v=hw13"></script>
-  <script src="js/main.js?v=hw13"></script>
+  <script src="vendor/three.min.js?v=hw16"></script>
+  <script src="js/hardware.js?v=hw16"></script>
+  <script src="js/economy.js?v=hw16"></script>
+  <script src="js/audio.js?v=hw16"></script>
+  <script src="js/vehicles.js?v=hw16"></script>
+  <script src="js/highway.js?v=hw16"></script>
+  <script src="js/traffic.js?v=hw16"></script>
+  <script src="js/physics.js?v=hw16"></script>
+  <script src="js/main.js?v=hw16"></script>
 </body>
 </html>

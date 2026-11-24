@@ -508,6 +508,22 @@
       const brake = clamp(inp.brake || 0, 0, 1);
       const clutch = !!inp.clutch;
       const steerDir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+      const cruiseTargetMs = inp.cruiseTargetMs > 0 ? inp.cruiseTargetMs : 0;
+      const limiterTargetMs = inp.limiterTargetMs > 0 ? inp.limiterTargetMs : 0;
+
+      const v = this.speed;
+      let effThrottle = throttle;
+      if (cruiseTargetMs > 0 && brake <= 0.05 && this.gear > 0 && !this.clutchPressed) {
+        const err = cruiseTargetMs - v;
+        if (err > -0.5) {
+          const cruiseThrot = clamp(0.14 + err * 0.24, 0, 0.88);
+          effThrottle = Math.max(effThrottle, cruiseThrot);
+        }
+      }
+      if (limiterTargetMs > 0 && v > 0 && effThrottle > 0) {
+        const capMult = clamp((limiterTargetMs - v) / 2.6, 0, 1);
+        effThrottle *= capMult;
+      }
 
       // Effective surface grip combining weather + car all-weather rating + tire upgrades
       const baseWeatherGrip = weatherGrip !== undefined ? weatherGrip : 1.0;
@@ -517,15 +533,14 @@
       if (this.transmissionMode === 'AUTO') {
         if (brake > 0.05 && this.speed <= 0.35) {
           this.gear = -1;
-        } else if (throttle > 0.05 && this.gear === -1 && this.speed >= -0.4) {
+        } else if (effThrottle > 0.05 && this.gear === -1 && this.speed >= -0.4) {
           this.gear = 1;
         }
       }
 
-      const torqueMult = this.updateTransmission(throttle, brake, clutch, clampedDt, events);
+      const torqueMult = this.updateTransmission(effThrottle, brake, clutch, clampedDt, events);
 
       // 1. Longitudinal Acceleration / Braking / Aero Drag
-      const v = this.speed;
       let targetAccel = 0;
       this.braking = false;
 
@@ -554,17 +569,17 @@
         } else {
           targetAccel = 0;
         }
-      } else if (throttle > 0.05) {
+      } else if (effThrottle > 0.05) {
         if (this.gear === -1) {
-          targetAccel = v < -0.1 ? 12.0 * throttle : 0;
+          targetAccel = v < -0.1 ? 12.0 * effThrottle : 0;
         } else if (v < 0) {
-          targetAccel = 14.0 * throttle;
+          targetAccel = 14.0 * effThrottle;
         } else {
           const speedFrac = clamp(v / this.maxSpeedMs, 0, 1);
           const driveCurve = this.accelPower * (1 - 0.48 * Math.pow(speedFrac, 1.35)) * torqueMult;
           const tractionCap = clamp(0.66 + 0.34 * effectiveGrip, 0.72, 1.0);
           const drag = effAero * v * v + 0.22;
-          targetAccel = driveCurve * tractionCap * throttle - drag;
+          targetAccel = driveCurve * tractionCap * effThrottle - drag;
         }
       } else {
         if (v > 0.05) {
@@ -583,7 +598,7 @@
           ? Math.min(this.maxSpeedMs, this.getGearTopSpeedMs(this.gear))
           : this.maxSpeedMs;
       this.speed = clamp(this.speed + targetAccel * clampedDt, -MAX_REVERSE_MS, forwardCap);
-      if (Math.abs(this.speed) < 0.04 && throttle === 0 && brake === 0) {
+      if (Math.abs(this.speed) < 0.04 && effThrottle === 0 && brake === 0) {
         this.speed = 0;
       }
 

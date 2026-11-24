@@ -117,7 +117,7 @@
       this.bonusTimer = 0;
       this.saveTimer = 0;
 
-      // Turn signals, hazards, high beams & horn state
+      // Turn signals, hazards, beams, radar & horn state
       this.signalMode = 0; // -1 = Left, 0 = Off, +1 = Right, 2 = Hazards
       this.signalTimer = 0;
       this.signalStartD = 0;
@@ -127,6 +127,22 @@
       this.headlightFlashHeld = false;
       this.headlightFlashPulse = 0;
       this.highBeamsActive = false;
+      this.nightBeamMode = 'short'; // 'short' (low) or 'long' (high) at night
+      this.beamMode = 'off';
+
+      this.lastCheckedRadarSlot = -1;
+      this.radarBeepTimer = 0;
+      this.radarFlashTimer = 0;
+      this.lastFineText = '';
+      this.lastFineBannerTimer = 0;
+
+      // Driving aids: Cruise Control [U], Electronic Speed Limiter [Y], Wipers [F] & Blind-Spot
+      this.speedAssistMode = 'off'; // 'off' | 'cruise' | 'limit'
+      this.speedAssistTargetKmh = 110;
+      this.speedAssistAutoZone = false;
+      this.wiperMode = 'AUTO'; // 'AUTO' | 'LOW' | 'HIGH' | 'OFF'
+      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
+      this.blindSpotChirpCooldown = 0;
 
       this.rightShiftHeld = false;
       this.input = {
@@ -152,10 +168,16 @@
         bottomRight: document.getElementById('hud-bottom-right'),
         clutchPill: document.getElementById('hud-clutch-pill'),
         rearMirrorBox: document.getElementById('hud-rear-mirror'),
+        fxRadarFlash: document.getElementById('fx-radar-flash'),
+        radarPill: document.getElementById('hud-radar-pill'),
+        radarLimitNum: document.getElementById('hud-limit-num'),
+        radarDist: document.getElementById('hud-radar-dist'),
         sigLeft: document.getElementById('sig-left'),
         sigHazard: document.getElementById('sig-hazard'),
         sigRight: document.getElementById('sig-right'),
+        sigLowBeam: document.getElementById('sig-lowbeam'),
         sigHighBeam: document.getElementById('sig-highbeam'),
+        sigAssist: document.getElementById('sig-assist'),
         sigHorn: document.getElementById('sig-horn'),
         digitalCluster: document.getElementById('hud-digital-cluster'),
         analogCluster: document.getElementById('hud-analog-cluster'),
@@ -461,6 +483,19 @@
       this.updateQualityLabel();
     }
 
+    getBeamState(preset) {
+      if (this.player && this.player.crashed) {
+        return { mode: 'off', highBeams: false };
+      }
+      const isNight = !!(preset && preset.isNight);
+      if (isNight) {
+        const mode = this.nightBeamMode === 'long' ? 'long' : 'short';
+        return { mode, highBeams: mode === 'long' };
+      }
+      const flashOn = !!(this.headlightFlashHeld || this.headlightFlashPulse > 0);
+      return { mode: flashOn ? 'long' : 'off', highBeams: flashOn };
+    }
+
     toggleSetupDrawer(forceState) {
       if (this.calcLocked || this.garageOpen || this.paused || this.player.crashed) {
         if (forceState !== false) return;
@@ -485,11 +520,12 @@
       this.toastTimer = durationSec || 1.7;
     }
 
-    showBonusToast(msg) {
+    showBonusToast(msg, isFine) {
       if (!this.dom.bonusPill) return;
       this.dom.bonusPill.textContent = msg;
+      this.dom.bonusPill.classList.toggle('fine', !!isFine);
       this.dom.bonusPill.classList.remove('hidden');
-      this.bonusTimer = 1.6;
+      this.bonusTimer = isFine ? 2.4 : 1.6;
     }
 
     clearInputs() {
@@ -501,7 +537,10 @@
       this.rightShiftHeld = false;
       this.headlightFlashHeld = false;
       this.headlightFlashPulse = 0;
-      this.highBeamsActive = false;
+      const preset = this.env ? this.env.getCurrentLightingPreset() : null;
+      const beam = this.getBeamState(preset);
+      this.beamMode = beam.mode;
+      this.highBeamsActive = beam.highBeams;
       this.setHornActive(false);
     }
 
@@ -1039,6 +1078,19 @@
       this.player.applyCarSpecs(this.economy.getActiveCarSpecs());
       this.signalMode = 0;
       this.lastBlinkOn = false;
+      this.nightBeamMode = 'short';
+      this.headlightFlashHeld = false;
+      this.headlightFlashPulse = 0;
+      this.lastCheckedRadarSlot = -1;
+      this.radarBeepTimer = 0;
+      this.radarFlashTimer = 0;
+      this.lastFineText = '';
+      this.lastFineBannerTimer = 0;
+      this.speedAssistMode = 'off';
+      this.speedAssistAutoZone = false;
+      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
+      this.blindSpotChirpCooldown = 0;
+      if (this.dom.fxRadarFlash) this.dom.fxRadarFlash.classList.remove('active');
       this.setHornActive(false);
       this.economy.resetSession();
       this.traffic.reset(this.player.s, this.player.getLaneIndex());
@@ -1086,13 +1138,19 @@
     setLightingPreset(index) {
       this.env.applyLightingPreset(index);
       const preset = this.env.getCurrentLightingPreset();
+      this.nightBeamMode = 'short';
+      this.syncPlayerAndCamera(0.016, false);
       this.syncSettingsUI();
+      this.updateHUD();
       this.showToast(`Weather: ${preset.name}`, 1.4);
     }
 
     cycleLighting() {
       const preset = this.env.cycleLightingPreset();
+      this.nightBeamMode = 'short';
+      this.syncPlayerAndCamera(0.016, false);
       this.syncSettingsUI();
+      this.updateHUD();
       this.showToast(`Weather: ${preset.name}`, 1.4);
     }
 
@@ -1135,6 +1193,78 @@
       this.syncSettingsUI();
       this.updateHUD();
       this.showToast(this.hudMirrorEnabled ? 'Rearview Mirror: On' : 'Rearview Mirror: Off', 1.2);
+    }
+
+    formatSpeedToastVal(kmh) {
+      return this.useKmh ? `${Math.round(kmh)} km/h` : `${Math.round(kmh * 0.621371)} mph`;
+    }
+
+    toggleCruiseControl() {
+      if (this.player.crashed) return;
+      if (this.speedAssistMode === 'cruise') {
+        this.speedAssistMode = 'off';
+        this.speedAssistAutoZone = false;
+        if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+        this.updateHUD();
+        this.showToast('Cruise Control: Off', 1.1);
+        return;
+      }
+      if (this.player.speedKmh < 30) {
+        this.showToast('Reach 30 km/h to set Cruise Control', 1.2);
+        return;
+      }
+      const maxKmh = Math.max(80, Math.round(this.player.maxSpeedMs * 3.6));
+      this.speedAssistTargetKmh = clamp(Math.round(this.player.speedKmh / 5) * 5, 40, maxKmh);
+      this.speedAssistMode = 'cruise';
+      this.speedAssistAutoZone = false;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
+      this.updateHUD();
+      this.showToast(`Cruise Control: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.3);
+    }
+
+    toggleSpeedLimiter() {
+      if (this.player.crashed) return;
+      if (this.speedAssistMode === 'limit') {
+        this.speedAssistMode = 'off';
+        this.speedAssistAutoZone = false;
+        if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+        this.updateHUD();
+        this.showToast('Speed Limiter: Off', 1.1);
+        return;
+      }
+      const zoneLimit = this.env.getRadarInfo(this.player.s).limitKmh;
+      this.speedAssistTargetKmh = zoneLimit;
+      this.speedAssistMode = 'limit';
+      this.speedAssistAutoZone = true;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
+      this.updateHUD();
+      this.showToast(`Speed Limiter: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)} (Auto Zone)`, 1.4);
+    }
+
+    adjustSpeedAssist(deltaKmh) {
+      if (this.player.crashed) return;
+      const maxKmh = Math.max(80, Math.round(this.player.maxSpeedMs * 3.6));
+      if (this.speedAssistMode === 'off') {
+        const base = this.env.getRadarInfo(this.player.s).limitKmh;
+        this.speedAssistMode = 'limit';
+        this.speedAssistTargetKmh = clamp(base + deltaKmh, 40, maxKmh);
+      } else {
+        this.speedAssistTargetKmh = clamp(this.speedAssistTargetKmh + deltaKmh, 40, maxKmh);
+      }
+      this.speedAssistAutoZone = false;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(deltaKmh > 0);
+      this.updateHUD();
+      const label = this.speedAssistMode === 'cruise' ? 'Cruise' : 'Speed Limiter';
+      this.showToast(`${label}: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.1);
+    }
+
+    cycleWiperMode() {
+      const modes = ['AUTO', 'LOW', 'HIGH', 'OFF'];
+      const next = modes[(modes.indexOf(this.wiperMode) + 1) % modes.length];
+      this.wiperMode = next;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(next !== 'OFF');
+      this.syncPlayerAndCamera(0.016, false);
+      this.showToast(`Wipers: ${next}`, 1.1);
     }
 
     toggleSpeedUnits() {
@@ -1291,6 +1421,13 @@
         } else if (code === 'KeyS' || code === 'ArrowDown') {
           e.preventDefault();
           this.input.brake = 1;
+          if (!e.repeat && this.speedAssistMode === 'cruise') {
+            this.speedAssistMode = 'off';
+            this.speedAssistAutoZone = false;
+            if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+            this.updateHUD();
+            this.showToast('Cruise Control: Off', 1.0);
+          }
         } else if (code === 'KeyA' || code === 'ArrowLeft') {
           e.preventDefault();
           this.input.left = true;
@@ -1330,10 +1467,21 @@
           if (!e.repeat) this.toggleTurnSignal(1);
         } else if (code === 'KeyL') {
           if (!e.repeat) {
-            this.headlightFlashHeld = true;
-            this.headlightFlashPulse = 0.40;
-            this.highBeamsActive = true;
-            if (window.HighwayAudio) window.HighwayAudio.playHeadlightFlash(true);
+            const preset = this.env.getCurrentLightingPreset();
+            if (preset && preset.isNight) {
+              this.nightBeamMode = this.nightBeamMode === 'short' ? 'long' : 'short';
+              const isLong = this.nightBeamMode === 'long';
+              this.beamMode = this.nightBeamMode;
+              this.highBeamsActive = isLong;
+              if (window.HighwayAudio) window.HighwayAudio.playHeadlightFlash(isLong);
+              this.showToast(isLong ? 'Headlights: Long Beam' : 'Headlights: Short Beam', 1.1);
+            } else {
+              this.headlightFlashHeld = true;
+              this.headlightFlashPulse = 0.40;
+              this.beamMode = 'long';
+              this.highBeamsActive = true;
+              if (window.HighwayAudio) window.HighwayAudio.playHeadlightFlash(true);
+            }
             this.updateHUD();
           }
         } else if (code === 'KeyV') {
@@ -1346,6 +1494,18 @@
           if (!e.repeat) this.cycleLighting();
         } else if (code === 'KeyN') {
           if (!e.repeat) this.toggleHudMirror();
+        } else if (code === 'KeyU') {
+          if (!e.repeat) this.toggleCruiseControl();
+        } else if (code === 'KeyY') {
+          if (!e.repeat) this.toggleSpeedLimiter();
+        } else if (code === 'BracketLeft') {
+          e.preventDefault();
+          if (!e.repeat) this.adjustSpeedAssist(-5);
+        } else if (code === 'BracketRight') {
+          e.preventDefault();
+          if (!e.repeat) this.adjustSpeedAssist(5);
+        } else if (code === 'KeyF') {
+          if (!e.repeat) this.cycleWiperMode();
         } else if (code === 'Tab') {
           e.preventDefault();
           if (!e.repeat) this.toggleSetupDrawer();
@@ -1499,7 +1659,12 @@
       this.playerMesh.setBraking(this.player.braking);
       const baseHl = Math.max(0.12, preset.headlightStrength);
       this.playerMesh.setHeadlights(baseHl);
-      if (this.playerMesh.setHighBeam) {
+      const beamState = this.getBeamState(preset);
+      this.beamMode = beamState.mode;
+      this.highBeamsActive = beamState.highBeams;
+      if (this.playerMesh.setBeamMode) {
+        this.playerMesh.setBeamMode(this.beamMode, baseHl);
+      } else if (this.playerMesh.setHighBeam) {
         this.playerMesh.setHighBeam(this.highBeamsActive, baseHl);
       }
       const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
@@ -1513,6 +1678,8 @@
       if (this.interiorRig) {
         this.interiorRig.group.visible = isInterior;
         if (isInterior) {
+          const radarInfo = this.env.getRadarInfo(this.player.s);
+          const radarSpeeding = radarInfo.nearby && this.player.speedKmh > radarInfo.limitKmh + 5;
           this.interiorRig.updateInterior(
             {
               steer: this.player.steer,
@@ -1532,6 +1699,17 @@
               signalMode: this.signalMode,
               blinkOn,
               highBeams: this.highBeamsActive,
+              beamMode: this.beamMode,
+              speedLimitKmh: radarInfo.limitKmh,
+              radarNearby: radarInfo.nearby,
+              radarDistM: Math.max(0, Math.round(radarInfo.distToRadar)),
+              radarSpeeding,
+              radarFineText: this.lastFineText,
+              blindSpotLeft: !!(this.blindSpot && this.blindSpot.left),
+              blindSpotRight: !!(this.blindSpot && this.blindSpot.right),
+              wiperMode: this.wiperMode,
+              speedAssistMode: this.speedAssistMode,
+              speedAssistTargetKmh: this.speedAssistTargetKmh,
               hornActive: this.hornActive,
               damage: this.player.damage,
               streakMult: this.economy.streakMult,
@@ -1550,7 +1728,7 @@
       this.playerMesh.group.visible = true;
 
       const speedFrac = clamp(this.player.speed / Math.max(40, this.player.maxSpeedMs), 0, 1);
-      const targetFov = isInterior ? 68 + speedFrac * 6 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
+      const targetFov = isInterior ? 70 + speedFrac * 6 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
       if (Math.abs(targetFov - this.lastFov) > 0.05) {
         this.lastFov += (targetFov - this.lastFov) * (snap ? 1 : Math.min(1, 6 * dt));
         this.camera.fov = this.lastFov;
@@ -1565,7 +1743,11 @@
           eye.y - this.player.pitch * 0.14,
           eye.z + this.player.camSurgeZ * 0.22
         );
-        this.lookWorldVec.set(eye.x, eye.lookY + this.player.pitch * 0.35, eye.lookZ);
+        this.lookWorldVec.set(
+          eye.x,
+          eye.lookY + this.player.pitch * 0.35,
+          eye.lookZ
+        );
         this.playerMesh.group.localToWorld(this.eyeWorldVec);
         this.playerMesh.group.localToWorld(this.lookWorldVec);
         this.camPos.copy(this.eyeWorldVec);
@@ -1652,11 +1834,49 @@
       if (this.dom.sigRight) {
         this.dom.sigRight.classList.toggle('on', blinkOn && (this.signalMode === 1 || this.signalMode === 2));
       }
+      const preset = this.env.getCurrentLightingPreset();
+      const beamState = this.getBeamState(preset);
+      this.beamMode = beamState.mode;
+      this.highBeamsActive = beamState.highBeams;
+      if (this.dom.sigLowBeam) {
+        this.dom.sigLowBeam.classList.toggle('on', beamState.mode === 'short');
+      }
       if (this.dom.sigHighBeam) {
-        this.dom.sigHighBeam.classList.toggle('on', !!this.highBeamsActive);
+        this.dom.sigHighBeam.classList.toggle('on', beamState.mode === 'long');
+      }
+      if (this.dom.sigAssist) {
+        const showAssist = !this.player.crashed && this.speedAssistMode !== 'off';
+        this.dom.sigAssist.classList.toggle('hidden', !showAssist);
+        if (showAssist) {
+          const isLim = this.speedAssistMode === 'limit';
+          this.dom.sigAssist.classList.toggle('limit', isLim);
+          const dispVal = this.useKmh
+            ? Math.round(this.speedAssistTargetKmh)
+            : Math.round(this.speedAssistTargetKmh * 0.621371);
+          this.dom.sigAssist.textContent = `${isLim ? 'LIM' : 'CRU'} ${dispVal}`;
+        }
       }
       if (this.dom.sigHorn) {
         this.dom.sigHorn.classList.toggle('hidden', !this.hornActive);
+      }
+
+      const radarInfo = this.env.getRadarInfo(this.player.s);
+      const speeding = this.player.speedKmh > radarInfo.limitKmh + 5;
+      const limitDisp = this.useKmh ? radarInfo.limitKmh : Math.round(radarInfo.limitKmh * 0.621371);
+      if (this.dom.radarLimitNum) {
+        this.dom.radarLimitNum.textContent = String(limitDisp);
+      }
+      if (this.dom.radarDist) {
+        const distM = Math.max(0, Math.round(radarInfo.distToRadar));
+        if (radarInfo.nearby) {
+          this.dom.radarDist.textContent = speeding ? `SLOW! RADAR ${distM}m` : `RADAR ${distM}m`;
+        } else {
+          this.dom.radarDist.textContent = speeding ? 'OVER LIMIT' : `LIMIT ${limitDisp}`;
+        }
+      }
+      if (this.dom.radarPill) {
+        this.dom.radarPill.classList.toggle('speeding', speeding && radarInfo.nearby);
+        this.dom.radarPill.classList.toggle('warning', (speeding && !radarInfo.nearby) || (!speeding && radarInfo.nearby));
       }
 
       if (!this.dom.speed) return;
@@ -1855,6 +2075,61 @@
       this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     }
 
+    updateRadarEnforcement(dt, prevS) {
+      let checkSlot = this.lastCheckedRadarSlot + 1;
+      while (checkSlot < 100000) {
+        const r = this.env.getRadarBySlot(checkSlot);
+        if (!r || this.player.s < r.radarS) break;
+        this.lastCheckedRadarSlot = checkSlot;
+        if (prevS < r.radarS) {
+          const speedKmh = this.player.speedKmh;
+          const speedDisp = Math.round(this.useKmh ? speedKmh : this.player.speedMph);
+          const limitDisp = this.useKmh ? r.limitKmh : Math.round(r.limitKmh * 0.621371);
+          const unitLabel = this.useKmh ? 'km/h' : 'mph';
+          if (speedKmh > r.limitKmh + 5) {
+            const overKmh = Math.round(speedKmh - r.limitKmh);
+            const fineAmount = Math.min(2500, 120 + Math.round(overKmh / 10) * 65);
+            const res = this.economy.applyFine(fineAmount);
+            this.env.triggerRadarFlash(r.slot);
+            if (this.dom.fxRadarFlash) {
+              this.dom.fxRadarFlash.classList.add('active');
+            }
+            this.radarFlashTimer = 0.085;
+            this.lastFineText = `-${this.formatMoney(res.ticket)}`;
+            this.lastFineBannerTimer = 3.2;
+            this.shakeMag = Math.max(this.shakeMag, 0.14);
+            if (window.HighwayAudio) {
+              window.HighwayAudio.playRadarFlash();
+            }
+            this.showBonusToast(
+              `RADAR ${speedDisp}/${limitDisp} ${unitLabel} · FINE -${this.formatMoney(res.ticket)}`,
+              true
+            );
+          } else {
+            if (window.HighwayAudio) {
+              window.HighwayAudio.playRadarPass();
+            }
+            this.showBonusToast(`Radar OK · ${speedDisp}/${limitDisp} ${unitLabel}`, false);
+          }
+        }
+        checkSlot++;
+      }
+
+      const info = this.env.getRadarInfo(this.player.s);
+      if (this.radarBeepTimer > 0) {
+        this.radarBeepTimer = Math.max(0, this.radarBeepTimer - dt);
+      }
+      if (info.nearby && this.player.speedKmh > info.limitKmh + 5) {
+        const proximity = 1 - clamp(info.distToRadar / 380, 0, 1);
+        if (this.radarBeepTimer <= 0) {
+          if (window.HighwayAudio) {
+            window.HighwayAudio.playRadarBeep(proximity);
+          }
+          this.radarBeepTimer = 0.62 - proximity * 0.42;
+        }
+      }
+    }
+
     animate(now) {
       requestAnimationFrame(this.animate);
 
@@ -1880,16 +2155,32 @@
         }
       }
 
+      if (this.radarFlashTimer > 0) {
+        this.radarFlashTimer -= dt;
+        if (this.radarFlashTimer <= 0 && this.dom.fxRadarFlash) {
+          this.dom.fxRadarFlash.classList.remove('active');
+        }
+      }
+
+      if (this.lastFineBannerTimer > 0) {
+        this.lastFineBannerTimer -= dt;
+        if (this.lastFineBannerTimer <= 0) {
+          this.lastFineText = '';
+        }
+      }
+
       if (!this.paused && !this.garageOpen) {
         if (this.profiler) {
           this.profiler.updateFPS(dt);
         }
 
+        const preset = this.env.getCurrentLightingPreset();
         if (this.headlightFlashPulse > 0) {
           this.headlightFlashPulse = Math.max(0, this.headlightFlashPulse - dt);
         }
-        this.highBeamsActive =
-          !this.player.crashed && (this.headlightFlashHeld || this.headlightFlashPulse > 0);
+        const beamState = this.getBeamState(preset);
+        this.beamMode = beamState.mode;
+        this.highBeamsActive = beamState.highBeams;
 
         if (!this.cleanStreakResetDone && this.player.distanceMeters >= 3000) {
           this.economy.resetCrashStreak();
@@ -1922,13 +2213,26 @@
           this.lastBlinkOn = false;
         }
 
+        if (this.speedAssistMode === 'limit' && this.speedAssistAutoZone) {
+          this.speedAssistTargetKmh = this.env.getRadarInfo(this.player.s).limitKmh;
+        }
+        const stepInput = {
+          throttle: this.input.throttle,
+          brake: this.input.brake,
+          left: this.input.left,
+          right: this.input.right,
+          clutch: this.input.clutch,
+          cruiseTargetMs: this.speedAssistMode === 'cruise' ? this.speedAssistTargetKmh / 3.6 : 0,
+          limiterTargetMs: this.speedAssistMode === 'limit' ? this.speedAssistTargetKmh / 3.6 : 0
+        };
+
         const substeps = dt > 0.025 ? 2 : 1;
         const subDt = dt / substeps;
-        const preset = this.env.getCurrentLightingPreset();
         const prevDist = this.player.distanceMeters;
+        const prevS = this.player.s;
 
         for (let s = 0; s < substeps; s++) {
-          const events = this.player.step(subDt, this.input, this.traffic, preset.grip);
+          const events = this.player.step(subDt, stepInput, this.traffic, preset.grip);
           this.traffic.step(
             subDt,
             this.player,
@@ -1966,6 +2270,8 @@
                 this.economy.onCollision();
                 this.showToast('Traffic Contact', 1.2);
               } else if (ev.type === 'crash') {
+                this.speedAssistMode = 'off';
+                this.speedAssistAutoZone = false;
                 const crashRes = this.economy.recordCrash();
                 this.clearInputs();
                 this.openCrashModal(crashRes);
@@ -1979,13 +2285,30 @@
           this.economy.awardDistance(deltaMeters, this.player.speedKmh, preset.weatherMult);
         }
 
+        if (this.blindSpotChirpCooldown > 0) {
+          this.blindSpotChirpCooldown = Math.max(0, this.blindSpotChirpCooldown - dt);
+        }
+        if (!this.player.crashed) {
+          this.updateRadarEnforcement(dt, prevS);
+          this.blindSpot = this.traffic.getBlindSpotState(this.player);
+          const conflictSide =
+            (this.signalMode === -1 && this.blindSpot.left) ||
+            (this.signalMode === 1 && this.blindSpot.right);
+          if (conflictSide && this.blindSpotChirpCooldown <= 0) {
+            if (window.HighwayAudio) window.HighwayAudio.playBlindSpotChirp();
+            this.blindSpotChirpCooldown = 0.95;
+          }
+        } else {
+          this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
+        }
+
         this.saveTimer += dt;
         if (this.saveTimer >= 5.0) {
           this.saveTimer = 0;
           this.economy.save();
         }
 
-        this.env.update(this.player.s, dt, this.player.speed);
+        this.env.update(this.player.s, dt, this.player.speed, this.beamMode);
         this.syncPlayerAndCamera(dt, false);
         this.updateHUD();
         this.renderMirrors();
@@ -1994,7 +2317,7 @@
           window.HighwayAudio.update({
             speedMs: this.player.speed,
             rpm: this.player.rpm,
-            throttle: this.input.throttle,
+            throttle: this.speedAssistMode === 'cruise' ? Math.max(this.input.throttle, 0.25) : this.input.throttle,
             turboBoost: this.player.turboBoost,
             turboLevel: this.player.turboLevel,
             exhaustLevel: this.player.exhaustLevel,

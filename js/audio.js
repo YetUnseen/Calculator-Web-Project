@@ -581,6 +581,120 @@
       } catch (e) {}
     }
 
+    playRadarBeep(urgency) {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        const u = clamp(urgency || 0, 0, 1);
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2100 + u * 550, now);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.045, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.036);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      } catch (e) {}
+    }
+
+    playRadarFlash() {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        if (this.fxNoiseBuffer) {
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.fxNoiseBuffer;
+          const hp = this.ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 1800;
+          const ng = this.ctx.createGain();
+          ng.gain.setValueAtTime(0.08, now);
+          ng.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+          src.connect(hp);
+          hp.connect(ng);
+          ng.connect(this.masterGain);
+          src.start(now, 0.05);
+          src.stop(now + 0.04);
+        }
+
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now + 0.03);
+        osc.frequency.setValueAtTime(520, now + 0.14);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.001, now);
+        g.gain.linearRampToValueAtTime(0.09, now + 0.04);
+        g.gain.setValueAtTime(0.085, now + 0.15);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now + 0.025);
+        osc.stop(now + 0.31);
+      } catch (e) {}
+    }
+
+    playRadarPass() {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.setValueAtTime(880, now + 0.07);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.04, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      } catch (e) {}
+    }
+
+    playSwitchClick(high) {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(high ? 740 : 520, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.024);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.028, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.026);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.03);
+      } catch (e) {}
+    }
+
+    playBlindSpotChirp() {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        for (let i = 0; i < 2; i++) {
+          const t0 = now + i * 0.075;
+          const osc = this.ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(980, t0);
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0.030, t0);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(t0);
+          osc.stop(t0 + 0.05);
+        }
+      } catch (e) {}
+    }
+
     _playCustomBuffer(buf, gainVal) {
       if (!buf || !this.ctx || !this.masterGain) return;
       try {

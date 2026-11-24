@@ -48,6 +48,21 @@ html, body {
   background: radial-gradient(circle at center, transparent 65%, rgba(0, 0, 0, 0.34) 100%);
 }
 
+#fx-radar-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 22;
+  background: rgba(255, 255, 255, 0.92);
+  opacity: 0;
+  transition: opacity 0.24s ease-out;
+}
+
+#fx-radar-flash.active {
+  opacity: 0.78;
+  transition: none;
+}
+
 #hud {
   position: fixed;
   inset: 0;
@@ -426,6 +441,12 @@ html, body {
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
+.bonus-toast.fine {
+  background: rgba(69, 10, 10, 0.94);
+  border-color: rgba(248, 113, 113, 0.75);
+  color: #fecaca;
+}
+
 .bonus-toast.hidden {
   opacity: 0;
   transform: translateY(4px);
@@ -456,6 +477,63 @@ html, body {
   display: none;
 }
 
+.hud-radar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 4px 11px 4px 5px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hud-radar-pill.warning {
+  border-color: rgba(251, 191, 36, 0.78);
+  background: rgba(45, 26, 6, 0.88);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.25);
+}
+
+.hud-radar-pill.speeding {
+  border-color: rgba(248, 113, 113, 0.92);
+  background: rgba(69, 10, 10, 0.92);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.42);
+}
+
+.speed-limit-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f8fafc;
+  border: 3px solid #dc2626;
+  color: #0f172a;
+  font-size: 0.74rem;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.radar-dist-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-radar-pill.warning .radar-dist-tag {
+  color: #fde68a;
+}
+
+.hud-radar-pill.speeding .radar-dist-tag {
+  color: #fca5a5;
+}
+
 .signal-strip {
   display: flex;
   align-items: center;
@@ -472,7 +550,7 @@ html, body {
   font-size: 0.78rem;
   font-weight: 800;
   color: rgba(148, 163, 184, 0.35);
-  transition: color 0.06s ease, text-shadow 0.06s ease;
+  transition: color 0.06s ease, text-shadow 0.06s ease, filter 0.06s ease;
 }
 
 .sig-ind.on {
@@ -485,15 +563,27 @@ html, body {
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.85);
 }
 
+.sig-ind.sig-lowbeam,
 .sig-ind.sig-highbeam {
-  font-size: 0.72rem;
-  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 3px;
+}
+
+.sig-ind.sig-lowbeam svg,
+.sig-ind.sig-highbeam svg {
+  display: block;
+}
+
+.sig-ind.sig-lowbeam.on {
+  color: #22c55e;
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.92));
 }
 
 .sig-ind.sig-highbeam.on {
   color: #38bdf8;
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.95);
+  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.95));
 }
 
 .sig-horn {
@@ -508,6 +598,27 @@ html, body {
 }
 
 .sig-horn.hidden {
+  display: none;
+}
+
+.sig-assist {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(45, 212, 191, 0.72);
+  color: #5eead4;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sig-assist.limit {
+  border-color: rgba(251, 191, 36, 0.78);
+  color: #fde68a;
+}
+
+.sig-assist.hidden {
   display: none;
 }
 

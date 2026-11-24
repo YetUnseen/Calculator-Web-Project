@@ -492,6 +492,8 @@
         this.load();
       }
       this.sessionEarned = 0;
+      this.sessionFines = 0;
+      this.sessionFineCount = 0;
       this.streakMult = 1.0;
       this.cleanMeters = 0;
       this.cleanPasses = 0;
@@ -609,6 +611,8 @@
 
     resetSession() {
       this.sessionEarned = 0;
+      this.sessionFines = 0;
+      this.sessionFineCount = 0;
       this.streakMult = 1.0;
       this.cleanMeters = 0;
       this.cleanPasses = 0;
@@ -869,6 +873,17 @@
     onCollision() {
       this.streakMult = 1.0;
       this.cleanMeters = 0;
+    }
+
+    applyFine(amount) {
+      const ticket = Math.max(0, Math.round(amount || 0));
+      const deducted = Math.min(Math.floor(this.state.bank), ticket);
+      this.state.bank = Math.max(0, this.state.bank - ticket);
+      this.sessionFines += ticket;
+      this.sessionFineCount += 1;
+      this.onCollision();
+      this.save();
+      return { ticket, deducted, bank: this.getBank() };
     }
 
     buyCar(carId) {

@@ -243,6 +243,9 @@
         hitCooldown: 0,
         hornUrgencyTimer: 0,
         hornYielding: false,
+        glareAccum: 0,
+        glareFlashTimer: 0,
+        glareCooldown: 0,
         passedByPlayer: false,
         meshObj
       };
@@ -617,6 +620,32 @@
       return closest;
     }
 
+    getBlindSpotState(player) {
+      if (!player) return { left: false, right: false, leftClose: false, rightClose: false };
+      let left = false;
+      let right = false;
+      let leftClose = false;
+      let rightClose = false;
+      const ps = player.s || 0;
+      const pd = player.d || 0;
+      for (let i = 0; i < this.vehicles.length; i++) {
+        const npc = this.vehicles[i];
+        const ds = npc.s - ps;
+        const halfL = (npc.length || 4.6) * 0.5;
+        if (ds > -(halfL + 8.5) && ds < halfL + 3.2) {
+          const dd = npc.d - pd;
+          if (dd < -2.1 && dd > -5.4) {
+            left = true;
+            if (Math.abs(ds) < 4.5) leftClose = true;
+          } else if (dd > 2.1 && dd < 5.4) {
+            right = true;
+            if (Math.abs(ds) < 4.5) rightClose = true;
+          }
+        }
+      }
+      return { left, right, leftClose, rightClose };
+    }
+
     onPlayerCollision(npc, impactSpeedMs, pushLateral) {
       npc.collisionTimer = 0.95;
       npc.hitCooldown = 0.5;
@@ -679,8 +708,24 @@
         if (npc.hitCooldown > 0) npc.hitCooldown = Math.max(0, npc.hitCooldown - clampedDt);
         if (npc.collisionTimer > 0) npc.collisionTimer = Math.max(0, npc.collisionTimer - clampedDt);
         if (npc.hornUrgencyTimer > 0) npc.hornUrgencyTimer = Math.max(0, npc.hornUrgencyTimer - clampedDt);
+        if (npc.glareFlashTimer > 0) npc.glareFlashTimer = Math.max(0, npc.glareFlashTimer - clampedDt);
+        if (npc.glareCooldown > 0) npc.glareCooldown = Math.max(0, npc.glareCooldown - clampedDt);
         if (npc.laneChangeCooldown > 0) {
           npc.laneChangeCooldown = Math.max(0, npc.laneChangeCooldown - clampedDt);
+        }
+
+        const dsPlayer = npc.s - playerS;
+        const ddPlayer = player ? Math.abs(npc.d - player.d) : 99;
+        const isNightWeather = !!(weather && weather.isNight);
+        if (highBeamsActive && player && ddPlayer < 2.25 && dsPlayer >= 7 && dsPlayer <= 65) {
+          npc.glareAccum = (npc.glareAccum || 0) + clampedDt * (isNightWeather ? 1.25 : 0.75);
+          if (npc.glareAccum >= 1.05 && (npc.glareCooldown || 0) <= 0) {
+            npc.glareFlashTimer = 0.78;
+            npc.glareCooldown = 6.5;
+            npc.glareAccum = 0;
+          }
+        } else if (npc.glareAccum > 0) {
+          npc.glareAccum = Math.max(0, npc.glareAccum - clampedDt * 1.4);
         }
 
         const effV0 = npc.desiredSpeed * weatherMod.speedScale;
@@ -909,11 +954,17 @@
             group.rotation.set(p.pitch, -(p.yaw + npc.yaw), 0);
             npc.meshObj.setBodyTilt(clamp(npc.accel * 0.009, -0.032, 0.026), npc.roll);
             npc.meshObj.updateWheels(npc.v, clampedDt, npc.steerAngle);
-            npc.meshObj.setBraking(npc.braking);
+            const glareTapBrake = npc.glareFlashTimer > 0.58;
+            npc.meshObj.setBraking(npc.braking || glareTapBrake);
 
+            const glareBlink = Math.floor(this.simTime * 5.2) % 2 === 0;
             const hazard =
-              npc.laneState === 'KEEP' && (npc.collisionTimer > 0 || npc.accel < -4.5);
-            npc.meshObj.setBlinker(hazard ? 2 : npc.blinkerDir, blinkOn);
+              npc.laneState === 'KEEP' &&
+              (npc.collisionTimer > 0 || npc.accel < -4.5 || npc.glareFlashTimer > 0);
+            npc.meshObj.setBlinker(
+              hazard ? 2 : npc.blinkerDir,
+              npc.glareFlashTimer > 0 ? glareBlink : blinkOn
+            );
             npc.meshObj.setHeadlights(hlStrength);
             if (npc.meshObj.updateSpecialLights) {
               npc.meshObj.updateSpecialLights(this.simTime);

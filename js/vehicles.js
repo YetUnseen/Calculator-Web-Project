@@ -1266,56 +1266,90 @@
       makeWheel(trackX, wz, isFront);
     }
 
-    // High-beam flasher cones, road pool & dynamic SpotLight (player vehicles only)
-    let highBeamGroup = null;
+    // Two-mode headlights: Short (low beam) & Long (high beam) + SpotLight (player vehicles)
+    let shortBeamGroup = null;
+    let longBeamGroup = null;
     let highBeamSpot = null;
     if (isPlayer && shared.beamTex) {
-      highBeamGroup = new THREE.Group();
-      highBeamGroup.visible = false;
+      shortBeamGroup = new THREE.Group();
+      shortBeamGroup.visible = false;
 
-      const beamMat = new THREE.MeshBasicMaterial({
+      const shortBeamMat = new THREE.MeshBasicMaterial({
         map: shared.beamTex,
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
-        opacity: 0.55
+        opacity: 0.28
       });
 
-      const poolMat = new THREE.MeshBasicMaterial({
+      const shortPoolMat = new THREE.MeshBasicMaterial({
         map: shared.beamTex,
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        opacity: 0.48
+        opacity: 0.30
       });
 
       [-lightX, lightX].forEach((bx) => {
-        const horizBeam = new THREE.Mesh(shared.planeGeo, beamMat);
-        horizBeam.scale.set(3.4, 34, 1);
-        horizBeam.position.set(bx, lightY - 0.14, frontZ - 17);
-        horizBeam.rotation.x = 0.018;
-        highBeamGroup.add(horizBeam);
-
-        const vertBeam = new THREE.Mesh(shared.planeGeo, beamMat);
-        vertBeam.scale.set(2.2, 34, 1);
-        vertBeam.position.set(bx, lightY - 0.08, frontZ - 17);
-        vertBeam.rotation.z = Math.PI / 2;
-        highBeamGroup.add(vertBeam);
+        const sBeam = new THREE.Mesh(shared.planeGeo, shortBeamMat);
+        sBeam.scale.set(2.0, 18, 1);
+        sBeam.position.set(bx, lightY - 0.16, frontZ - 9);
+        sBeam.rotation.x = 0.036;
+        shortBeamGroup.add(sBeam);
       });
 
-      const roadPool = new THREE.Mesh(shared.planeGeo, poolMat);
-      roadPool.scale.set(6.8, 44, 1);
-      roadPool.position.set(0, 0.09, frontZ - 22);
-      highBeamGroup.add(roadPool);
+      const shortPool = new THREE.Mesh(shared.planeGeo, shortPoolMat);
+      shortPool.scale.set(5.4, 24, 1);
+      shortPool.position.set(0, 0.08, frontZ - 12);
+      shortBeamGroup.add(shortPool);
+      bodyTiltGroup.add(shortBeamGroup);
 
-      bodyTiltGroup.add(highBeamGroup);
+      longBeamGroup = new THREE.Group();
+      longBeamGroup.visible = false;
+
+      const longBeamMat = new THREE.MeshBasicMaterial({
+        map: shared.beamTex,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        opacity: 0.58
+      });
+
+      const longPoolMat = new THREE.MeshBasicMaterial({
+        map: shared.beamTex,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.54
+      });
+
+      [-lightX, lightX].forEach((bx) => {
+        const horizBeam = new THREE.Mesh(shared.planeGeo, longBeamMat);
+        horizBeam.scale.set(3.8, 42, 1);
+        horizBeam.position.set(bx, lightY - 0.12, frontZ - 21);
+        horizBeam.rotation.x = 0.015;
+        longBeamGroup.add(horizBeam);
+
+        const vertBeam = new THREE.Mesh(shared.planeGeo, longBeamMat);
+        vertBeam.scale.set(2.5, 42, 1);
+        vertBeam.position.set(bx, lightY - 0.06, frontZ - 21);
+        vertBeam.rotation.z = Math.PI / 2;
+        longBeamGroup.add(vertBeam);
+      });
+
+      const longPool = new THREE.Mesh(shared.planeGeo, longPoolMat);
+      longPool.scale.set(7.6, 52, 1);
+      longPool.position.set(0, 0.09, frontZ - 26);
+      longBeamGroup.add(longPool);
+      bodyTiltGroup.add(longBeamGroup);
 
       if (typeof THREE.SpotLight === 'function') {
-        highBeamSpot = new THREE.SpotLight(0xeef7ff, 0, 145, Math.PI / 4.8, 0.48, 1.05);
+        highBeamSpot = new THREE.SpotLight(0xeef7ff, 0, 175, Math.PI / 4.2, 0.48, 1.02);
         highBeamSpot.castShadow = false;
         highBeamSpot.position.set(0, lightY + 0.25, frontZ);
-        highBeamSpot.target.position.set(0, 0.2, frontZ - 42);
+        highBeamSpot.target.position.set(0, 0.2, frontZ - 48);
         bodyTiltGroup.add(highBeamSpot);
         bodyTiltGroup.add(highBeamSpot.target);
       }
@@ -1324,7 +1358,7 @@
     let lastBraking = null;
     let lastSignalState = null;
     let lastHeadlightBoost = null;
-    let lastHighBeamActive = false;
+    let currentBeamMode = 'off';
     let currentBaseStrength = 0.1;
 
     function setBraking(on) {
@@ -1350,7 +1384,7 @@
 
     function setHeadlights(intensity) {
       currentBaseStrength = intensity;
-      if (lastHighBeamActive) return;
+      if (currentBeamMode !== 'off') return;
       const q = Math.round(intensity * 10);
       if (q === lastHeadlightBoost) return;
       lastHeadlightBoost = q;
@@ -1365,30 +1399,54 @@
       }
     }
 
-    function setHighBeam(active, baseStrength) {
+    function setBeamMode(mode, baseStrength) {
       if (baseStrength !== undefined) {
         currentBaseStrength = baseStrength;
       }
-      const on = !!active;
+      const next = mode === 'long' ? 'long' : mode === 'short' ? 'short' : 'off';
       if (highBeamSpot) {
-        highBeamSpot.intensity = on ? 5.2 : currentBaseStrength > 0.5 ? 1.1 : 0.0;
+        if (next === 'long') {
+          highBeamSpot.intensity = 6.2;
+          highBeamSpot.distance = 175;
+          highBeamSpot.angle = Math.PI / 4.2;
+          highBeamSpot.target.position.set(0, 0.25, frontZ - 55);
+        } else if (next === 'short') {
+          highBeamSpot.intensity = currentBaseStrength > 0.7 ? 2.6 : 1.1;
+          highBeamSpot.distance = 82;
+          highBeamSpot.angle = Math.PI / 5.4;
+          highBeamSpot.target.position.set(0, 0.1, frontZ - 24);
+        } else {
+          highBeamSpot.intensity = 0.0;
+        }
       }
-      if (on === lastHighBeamActive) return;
-      lastHighBeamActive = on;
-      if (highBeamGroup) {
-        highBeamGroup.visible = on;
-      }
-      if (on) {
+      if (next === currentBeamMode) return;
+      currentBeamMode = next;
+      if (shortBeamGroup) shortBeamGroup.visible = next === 'short';
+      if (longBeamGroup) longBeamGroup.visible = next === 'long';
+
+      if (next === 'long') {
         headlightMat.color.setHex(0xffffff);
-        hlGlowL.scale.set(1.35, 1.35, 1);
-        hlGlowR.scale.set(1.35, 1.35, 1);
+        hlGlowL.scale.set(1.38, 1.38, 1);
+        hlGlowR.scale.set(1.38, 1.38, 1);
         headlightGlowMat.opacity = 1.0;
+        tailRunningMat.color.setHex(0xdc2626);
+      } else if (next === 'short') {
+        headlightMat.color.setHex(0xfef9e7);
+        hlGlowL.scale.set(0.88, 0.88, 1);
+        hlGlowR.scale.set(0.88, 0.88, 1);
+        headlightGlowMat.opacity = 0.62;
+        tailRunningMat.color.setHex(0xdc2626);
       } else {
         hlGlowL.scale.set(0.65, 0.65, 1);
         hlGlowR.scale.set(0.65, 0.65, 1);
         lastHeadlightBoost = null;
         setHeadlights(currentBaseStrength);
       }
+    }
+
+    function setHighBeam(active, baseStrength) {
+      const base = baseStrength !== undefined ? baseStrength : currentBaseStrength;
+      setBeamMode(active ? 'long' : base > 0.5 ? 'short' : 'off', base);
     }
 
     function updateSpecialLights(timeSec) {
@@ -1439,6 +1497,7 @@
       setBraking,
       setBlinker,
       setHeadlights,
+      setBeamMode,
       setHighBeam,
       updateSpecialLights,
       updateWheels,
@@ -1471,8 +1530,8 @@
     const cowlZ = isBigRig ? -L * 0.5 + 1.95 : -L * 0.5 + hoodLen;
 
     const driverX = isBigRig ? -W * 0.24 : -W * 0.20;
-    const eyeY = hoodTopY + 0.265;
-    const eyeZ = cowlZ + 0.86;
+    const eyeY = hoodTopY + 0.315;
+    const eyeZ = cowlZ + 0.90;
 
     const interiorGroup = new THREE.Group();
     interiorGroup.visible = false;
@@ -1562,13 +1621,72 @@
     addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.24, cowlZ + 0.39, 0.02, 0.08, 0.025);
     addPart(interiorGroup, makeMirroredPlane(0.24, 0.054), rearMirrorMat, 0, eyeY + 0.19, cowlZ + 0.378);
 
+    // Blind-spot amber/red warning triangles in outer upper corners of 3D wing mirrors
+    const bsmCanvas = document.createElement('canvas');
+    bsmCanvas.width = 64;
+    bsmCanvas.height = 64;
+    const bsmCtx = bsmCanvas.getContext('2d');
+    const bsmGrad = bsmCtx.createRadialGradient(32, 34, 2, 32, 34, 26);
+    bsmGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+    bsmGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.35)');
+    bsmGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+    bsmCtx.fillStyle = bsmGrad;
+    bsmCtx.fillRect(0, 0, 64, 64);
+    bsmCtx.fillStyle = '#ffffff';
+    bsmCtx.beginPath();
+    bsmCtx.moveTo(32, 12);
+    bsmCtx.lineTo(52, 48);
+    bsmCtx.lineTo(12, 48);
+    bsmCtx.closePath();
+    bsmCtx.fill();
+    const bsmTex = new THREE.CanvasTexture(bsmCanvas);
+    if (THREE.sRGBEncoding !== undefined) bsmTex.encoding = THREE.sRGBEncoding;
+
+    const leftBsmMat = new THREE.MeshBasicMaterial({
+      map: bsmTex,
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    const rightBsmMat = leftBsmMat.clone();
+    const bsmGeo = new THREE.PlaneGeometry(0.022, 0.020);
+
     // Driver Left Side Mirror outside left A-pillar
     addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
     addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.49, dashY + 0.085, cowlZ + 0.245);
+    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.49 - 0.044, dashY + 0.104, cowlZ + 0.247);
 
     // Passenger Right Side Mirror outside right A-pillar
     addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
     addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.49, dashY + 0.085, cowlZ + 0.245);
+    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.49 + 0.044, dashY + 0.104, cowlZ + 0.247);
+
+    // Subtle interior windshield weather layer (raindrops & snow flecks cleared by wipers)
+    const glassCanvas = document.createElement('canvas');
+    glassCanvas.width = 384;
+    glassCanvas.height = 192;
+    const glassCtx = glassCanvas.getContext('2d');
+    const glassTex = new THREE.CanvasTexture(glassCanvas);
+    const glassMat = new THREE.MeshBasicMaterial({
+      map: glassTex,
+      transparent: true,
+      opacity: 1,
+      depthWrite: false
+    });
+    const glassMesh = addPart(
+      interiorGroup,
+      new THREE.PlaneGeometry(W * 0.78, pillarLen * 0.92),
+      glassMat,
+      0,
+      pillarMidY,
+      pillarMidZ - 0.015,
+      1,
+      1,
+      1,
+      pillarPitch
+    );
+    glassMesh.visible = false;
 
     // 3. Center Infotainment Screen (shifted right of steering rim for clear view)
     const infoCanvas = document.createElement('canvas');
@@ -1582,7 +1700,7 @@
     addPart(interiorGroup, shared.boxGeo, leatherMat, infoX, dashY + 0.105, dashZ + 0.17, 0.23, 0.12, 0.025, 0, 0.20, 0);
     addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, infoX + 0.002, dashY + 0.105, dashZ + 0.185, 1, 1, 1, 0, 0.20, 0);
 
-    function drawInfotainment(weatherName) {
+    function drawInfotainment(weatherName, wiperMode) {
       infoCtx.fillStyle = '#0c1220';
       infoCtx.fillRect(0, 0, 256, 128);
       infoCtx.strokeStyle = '#1e293b';
@@ -1608,9 +1726,14 @@
       infoCtx.fillStyle = '#38bdf8';
       infoCtx.font = 'bold 13px sans-serif';
       infoCtx.fillText(weatherName || 'Afternoon', 14, 48);
+      if (wiperMode && wiperMode !== 'AUTO') {
+        infoCtx.fillStyle = '#94a3b8';
+        infoCtx.font = 'bold 11px sans-serif';
+        infoCtx.fillText(`WIPER: ${wiperMode}`, 14, 112);
+      }
       infoTex.needsUpdate = true;
     }
-    drawInfotainment('Afternoon');
+    drawInfotainment('Afternoon', 'AUTO');
 
     // 4. High-Res Live 3D In-Dash Instrument Cluster (Digital OR Analog, crisp through wheel!)
     const clusterCanvas = document.createElement('canvas');
@@ -1678,8 +1801,13 @@
     wiperTiltGroup.add(wiperRightPivot);
 
     let wiperPhase = 0;
+    let wiperPrevAng = 0.06;
+    let glassAccum = 0;
+    let glassWasVisible = false;
+    const glassDrops = [];
     let redrawAccum = 0;
     let lastWeatherDrawn = '';
+    let lastWiperDrawn = 'AUTO';
 
     function drawAnalogDial(ctx, cx, cy, r, frac, needleColor, title, valueText, redZoneStart) {
       ctx.save();
@@ -1741,46 +1869,142 @@
       return v < 0 ? 0 : v > 1 ? 1 : v;
     }
 
-    function drawDashIcons(state, yCenter) {
+    function drawTurnArrow(ctx, x, y, dir, active, activeColor) {
+      ctx.save();
+      ctx.beginPath();
+      if (dir < 0) {
+        ctx.moveTo(x - 13, y);
+        ctx.lineTo(x - 1, y - 9);
+        ctx.lineTo(x - 1, y - 4);
+        ctx.lineTo(x + 12, y - 4);
+        ctx.lineTo(x + 12, y + 4);
+        ctx.lineTo(x - 1, y + 4);
+        ctx.lineTo(x - 1, y + 9);
+      } else {
+        ctx.moveTo(x + 13, y);
+        ctx.lineTo(x + 1, y - 9);
+        ctx.lineTo(x + 1, y - 4);
+        ctx.lineTo(x - 12, y - 4);
+        ctx.lineTo(x - 12, y + 4);
+        ctx.lineTo(x + 1, y + 4);
+        ctx.lineTo(x + 1, y + 9);
+      }
+      ctx.closePath();
+      if (active) {
+        ctx.shadowColor = activeColor;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = activeColor;
+      } else {
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.20)';
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawHeadlightIcon(ctx, x, y, isLong, active) {
+      const color = isLong ? '#38bdf8' : '#22c55e';
+      ctx.save();
+      if (active) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
+      }
+      ctx.strokeStyle = active ? color : 'rgba(148, 163, 184, 0.24)';
+      ctx.fillStyle = active ? color : 'rgba(148, 163, 184, 0.20)';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+
+      // Lamp housing dome on right
+      ctx.beginPath();
+      ctx.arc(x + 3, y, 7.5, -Math.PI * 0.5, Math.PI * 0.5, false);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3 rays shooting left (straight for blue long beam, angled down for green short beam)
+      const dy = isLong ? 0 : 4.2;
+      [-5, 0, 5].forEach((oy) => {
+        ctx.beginPath();
+        ctx.moveTo(x - 2, y + oy);
+        ctx.lineTo(x - 14, y + oy + dy);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function drawHazardIcon(ctx, x, y, active) {
+      ctx.save();
+      if (active) {
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 12;
+      }
+      ctx.strokeStyle = active ? '#fbbf24' : 'rgba(148, 163, 184, 0.24)';
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y - 9);
+      ctx.lineTo(x + 10, y + 8);
+      ctx.lineTo(x - 10, y + 8);
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSpeedLimitBadge(ctx, x, y, r, limitDisp, speeding) {
+      ctx.save();
+      if (speeding) {
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 12;
+      }
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.lineWidth = speeding ? 4.2 : 3.4;
+      ctx.strokeStyle = speeding ? '#ff2424' : '#dc2626';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold ${r >= 15 ? 12 : 10}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(limitDisp), x, y + 1);
+      ctx.restore();
+    }
+
+    function drawIndicatorStrip(state, x0, yCenter, width) {
+      const h = 34;
+      cCtx.save();
+      cCtx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      cCtx.fillRect(x0, yCenter - h * 0.5, width, h);
+      cCtx.strokeStyle = state.radarSpeeding
+        ? 'rgba(239, 68, 68, 0.75)'
+        : 'rgba(148, 163, 184, 0.25)';
+      cCtx.lineWidth = 1.5;
+      cCtx.strokeRect(x0, yCenter - h * 0.5, width, h);
+      cCtx.restore();
+
       const sig = state.signalMode || 0;
       const blinkActive = !!state.blinkOn && sig !== 0;
       const leftOn = blinkActive && (sig === -1 || sig === 2);
       const rightOn = blinkActive && (sig === 1 || sig === 2);
       const hazOn = blinkActive && sig === 2;
+      const beam = state.beamMode || (state.highBeams ? 'long' : 'off');
+      const limitRaw = state.speedLimitKmh || 110;
+      const limitDisp = state.useKmh ? limitRaw : Math.round(limitRaw * 0.621371);
 
-      cCtx.font = 'bold 24px sans-serif';
-      cCtx.textAlign = 'left';
-      cCtx.fillStyle = leftOn ? (sig === 2 ? '#fbbf24' : '#4ade80') : 'rgba(148, 163, 184, 0.22)';
-      cCtx.fillText('◀', 26, yCenter);
-
-      cCtx.textAlign = 'right';
-      cCtx.fillStyle = rightOn ? (sig === 2 ? '#fbbf24' : '#4ade80') : 'rgba(148, 163, 184, 0.22)';
-      cCtx.fillText('▶', 614, yCenter);
-
-      // High-beam flash indicator (blue ≡D icon) & hazard / horn badges
-      cCtx.textAlign = 'center';
-      cCtx.font = 'bold 17px sans-serif';
-      if (state.highBeams) {
-        cCtx.fillStyle = 'rgba(56, 189, 248, 0.22)';
-        cCtx.fillRect(246, yCenter - 20, 62, 26);
-        cCtx.strokeStyle = '#38bdf8';
-        cCtx.lineWidth = 2;
-        cCtx.strokeRect(246, yCenter - 20, 62, 26);
-        cCtx.fillStyle = '#38bdf8';
-      } else {
-        cCtx.fillStyle = 'rgba(148, 163, 184, 0.26)';
-      }
-      cCtx.fillText('≡D', 277, yCenter - 1);
-
-      if (hazOn) {
-        cCtx.fillStyle = '#fbbf24';
-        cCtx.fillText('⚠', 332, yCenter - 1);
-      }
-      if (state.hornActive) {
-        cCtx.fillStyle = '#fde68a';
-        cCtx.font = 'bold 14px sans-serif';
-        cCtx.fillText('HORN', 384, yCenter - 2);
-      }
+      drawTurnArrow(cCtx, x0 + width * 0.10, yCenter, -1, leftOn, sig === 2 ? '#fbbf24' : '#22c55e');
+      drawHeadlightIcon(cCtx, x0 + width * 0.27, yCenter, false, beam === 'short');
+      drawHeadlightIcon(cCtx, x0 + width * 0.43, yCenter, true, beam === 'long');
+      drawHazardIcon(cCtx, x0 + width * 0.58, yCenter, hazOn);
+      drawSpeedLimitBadge(cCtx, x0 + width * 0.74, yCenter, 14, limitDisp, !!state.radarSpeeding);
+      drawTurnArrow(cCtx, x0 + width * 0.90, yCenter, 1, rightOn, sig === 2 ? '#fbbf24' : '#22c55e');
     }
 
     function redrawClusterAndHud(state) {
@@ -1797,22 +2021,25 @@
       cCtx.fillRect(0, 0, 640, 280);
 
       if (state.gaugeStyle === 'analog') {
-        drawAnalogDial(cCtx, 152, 148, 102, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
-        drawAnalogDial(cCtx, 488, 148, 102, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
+        // Indicator strip centered cleanly above dials inside steering wheel
+        drawIndicatorStrip(state, 174, 34, 292);
+
+        drawAnalogDial(cCtx, 150, 166, 90, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
+        drawAnalogDial(cCtx, 490, 166, 90, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
 
         // Center Gear Badge & Telemetry
         cCtx.fillStyle = state.clutchPressed ? '#78350f' : rpmFrac > 0.9 ? '#991b1b' : '#0f172a';
-        cCtx.fillRect(284, 82, 72, 66);
+        cCtx.fillRect(286, 86, 68, 56);
         cCtx.strokeStyle = state.clutchPressed ? '#fbbf24' : rpmFrac > 0.9 ? '#ef4444' : '#38bdf8';
         cCtx.lineWidth = 2;
-        cCtx.strokeRect(284, 82, 72, 66);
+        cCtx.strokeRect(286, 86, 68, 56);
         cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'bold 30px sans-serif';
+        cCtx.font = 'bold 28px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(gearTxt, 320, 126);
+        cCtx.fillText(gearTxt, 320, 124);
 
         cCtx.fillStyle = state.clutchPressed ? '#fbbf24' : '#94a3b8';
-        cCtx.font = 'bold 14px sans-serif';
+        cCtx.font = 'bold 13px sans-serif';
         cCtx.fillText(
           state.clutchPressed
             ? 'CLUTCH'
@@ -1820,24 +2047,40 @@
             ? 'SHIFT ▲'
             : `${(state.distanceKm || 0).toFixed(1)} km`,
           320,
-          176
+          166
         );
 
         const bankLabel = state.bankText || `$${Math.floor(state.bank || 0).toLocaleString('en-US')}`;
         cCtx.fillStyle = '#4ade80';
-        cCtx.font = 'bold 16px sans-serif';
-        cCtx.fillText(bankLabel, 320, 204);
+        cCtx.font = 'bold 15px sans-serif';
+        cCtx.fillText(bankLabel, 320, 192);
 
-        if ((state.damage || 0) > 0) {
-          const cond = Math.max(0, Math.round(100 - state.damage));
-          cCtx.fillStyle = cond > 60 ? '#22c55e' : cond > 30 ? '#f59e0b' : '#ef4444';
+        if (state.radarFineText) {
+          cCtx.fillStyle = '#ef4444';
+          cCtx.font = 'bold 14px sans-serif';
+          cCtx.fillText(`FINE ${state.radarFineText}`, 320, 222);
+        } else if (state.radarNearby) {
+          cCtx.fillStyle = state.radarSpeeding ? '#f87171' : '#fbbf24';
           cCtx.font = 'bold 13px sans-serif';
-          cCtx.fillText(`COND ${cond}%`, 320, 232);
+          cCtx.fillText(
+            state.radarSpeeding ? `⚠ SLOW ${state.radarDistM || 0}m` : `RADAR ${state.radarDistM || 0}m`,
+            320,
+            222
+          );
         }
 
-        drawDashIcons(state, 36);
+        if (state.hornActive) {
+          cCtx.fillStyle = '#fde68a';
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.fillText('HORN', 320, 248);
+        } else if ((state.damage || 0) > 0) {
+          const cond = Math.max(0, Math.round(100 - state.damage));
+          cCtx.fillStyle = cond > 60 ? '#22c55e' : cond > 30 ? '#f59e0b' : '#ef4444';
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.fillText(`COND ${cond}%`, 320, 248);
+        }
       } else {
-        // Crisp Digital Dash
+        // Crisp Digital Dash with Dedicated Indicator Panel
         cCtx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
         cCtx.lineWidth = 2;
         cCtx.strokeRect(10, 10, 620, 260);
@@ -1853,10 +2096,47 @@
             : i >= 18
             ? '#f59e0b'
             : '#38bdf8';
-          cCtx.fillRect(30 + i * 21, 24, 15, 22);
+          cCtx.fillRect(30 + i * 21, 18, 15, 14);
         }
 
-        drawDashIcons(state, 82);
+        // Centered Indicator Panel (Left | Short Green | Long Blue | Hazard | Speed Limit | Right)
+        drawIndicatorStrip(state, 172, 56, 296);
+
+        // Left side radar warning / fine pill
+        if (state.radarFineText) {
+          cCtx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+          cCtx.fillRect(38, 42, 122, 28);
+          cCtx.strokeStyle = '#ef4444';
+          cCtx.strokeRect(38, 42, 122, 28);
+          cCtx.fillStyle = '#fecaca';
+          cCtx.font = 'bold 13px sans-serif';
+          cCtx.textAlign = 'center';
+          cCtx.fillText(`FINE ${state.radarFineText}`, 99, 61);
+        } else if (state.radarNearby) {
+          cCtx.fillStyle = state.radarSpeeding ? 'rgba(239, 68, 68, 0.25)' : 'rgba(245, 158, 11, 0.18)';
+          cCtx.fillRect(38, 42, 122, 28);
+          cCtx.strokeStyle = state.radarSpeeding ? '#ef4444' : '#f59e0b';
+          cCtx.strokeRect(38, 42, 122, 28);
+          cCtx.fillStyle = state.radarSpeeding ? '#fca5a5' : '#fde68a';
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.textAlign = 'center';
+          cCtx.fillText(
+            state.radarSpeeding ? `⚠ SLOW ${state.radarDistM || 0}m` : `RADAR ${state.radarDistM || 0}m`,
+            99,
+            60
+          );
+        }
+
+        if (state.hornActive) {
+          cCtx.fillStyle = 'rgba(245, 158, 11, 0.24)';
+          cCtx.fillRect(486, 42, 112, 28);
+          cCtx.strokeStyle = '#fbbf24';
+          cCtx.strokeRect(486, 42, 112, 28);
+          cCtx.fillStyle = '#fde68a';
+          cCtx.font = 'bold 13px sans-serif';
+          cCtx.textAlign = 'center';
+          cCtx.fillText('HORN', 542, 61);
+        }
 
         // Gear badge left
         cCtx.fillStyle = state.clutchPressed
@@ -1864,30 +2144,30 @@
           : rpmFrac > 0.9
           ? 'rgba(239,68,68,0.28)'
           : 'rgba(56,189,248,0.16)';
-        cCtx.fillRect(40, 106, 110, 96);
+        cCtx.fillRect(40, 100, 110, 96);
         cCtx.strokeStyle = state.clutchPressed ? '#fbbf24' : rpmFrac > 0.9 ? '#ef4444' : '#38bdf8';
-        cCtx.strokeRect(40, 106, 110, 96);
+        cCtx.strokeRect(40, 100, 110, 96);
         cCtx.fillStyle = '#e0f2fe';
         cCtx.font = 'bold 46px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(gearTxt, 95, 168);
+        cCtx.fillText(gearTxt, 95, 162);
 
         if (state.clutchPressed) {
           cCtx.fillStyle = '#fbbf24';
           cCtx.font = 'bold 14px sans-serif';
-          cCtx.fillText('CLUTCH', 95, 224);
+          cCtx.fillText('CLUTCH', 95, 218);
         } else if (state.shiftPrompt === 1) {
           cCtx.fillStyle = '#fbbf24';
           cCtx.font = 'bold 14px sans-serif';
-          cCtx.fillText('SHIFT ▲', 95, 224);
+          cCtx.fillText('SHIFT ▲', 95, 218);
         } else if (state.shiftPrompt === -1) {
           cCtx.fillStyle = '#fbbf24';
           cCtx.font = 'bold 14px sans-serif';
-          cCtx.fillText('DOWN ▼', 95, 224);
+          cCtx.fillText('DOWN ▼', 95, 218);
         }
 
         // Big digital speed center
-        cCtx.fillStyle = '#ffffff';
+        cCtx.fillStyle = state.radarSpeeding ? '#fca5a5' : '#ffffff';
         cCtx.font = 'bold 104px sans-serif';
         cCtx.textAlign = 'center';
         cCtx.fillText(String(dispSpeed), 336, 188);
@@ -1932,12 +2212,133 @@
         }
       }
 
+      const assistVal =
+        state.speedAssistMode && state.speedAssistMode !== 'off'
+          ? state.useKmh
+            ? Math.round(state.speedAssistTargetKmh || 110)
+            : Math.round((state.speedAssistTargetKmh || 110) * 0.621371)
+          : 0;
+      const assistText =
+        state.speedAssistMode === 'limit'
+          ? `LIM ${assistVal}`
+          : state.speedAssistMode === 'cruise'
+          ? `CRU ${assistVal}`
+          : '';
+      if (assistText) {
+        cCtx.fillStyle = state.speedAssistMode === 'limit' ? '#fbbf24' : '#2dd4bf';
+        if (state.gaugeStyle === 'analog') {
+          cCtx.textAlign = 'center';
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.fillText(assistText, 320, 269);
+        } else {
+          cCtx.textAlign = 'right';
+          cCtx.font = 'bold 15px sans-serif';
+          cCtx.fillText(assistText, 598, 94);
+        }
+      }
+
       clusterTex.needsUpdate = true;
 
-      if (state.weatherName !== lastWeatherDrawn) {
+      const curWiper = state.wiperMode || 'AUTO';
+      if (state.weatherName !== lastWeatherDrawn || curWiper !== lastWiperDrawn) {
         lastWeatherDrawn = state.weatherName || 'Afternoon';
-        drawInfotainment(lastWeatherDrawn);
+        lastWiperDrawn = curWiper;
+        drawInfotainment(lastWeatherDrawn, curWiper);
       }
+    }
+
+    function updateWindshieldGlass(dt, precip, speedKmh, curAng, prevAng, sweepingNow) {
+      const aMin = Math.min(prevAng, curAng) - 0.10;
+      const aMax = Math.max(prevAng, curAng) + 0.10;
+      const activelyWiping = sweepingNow && Math.abs(curAng - prevAng) > 0.008;
+
+      if (precip === 'rain' || precip === 'snow') {
+        const spawnCount = precip === 'rain' ? 2 : 1;
+        for (let i = 0; i < spawnCount; i++) {
+          if (glassDrops.length < 44 && Math.random() < (precip === 'rain' ? 0.65 : 0.45)) {
+            glassDrops.push({
+              kind: precip,
+              x: 18 + Math.random() * 348,
+              y: 12 + Math.random() * 156,
+              r: precip === 'rain' ? 1.5 + Math.random() * 1.4 : 1.7 + Math.random() * 1.5,
+              len: precip === 'rain' ? 2.5 + Math.random() * 4.5 : 0,
+              alpha: (precip === 'rain' ? 0.18 : 0.22) + Math.random() * 0.14,
+              vx: (Math.random() - 0.5) * 8,
+              vy: precip === 'rain' ? -(3 + (speedKmh || 0) * 0.16) : 14 + Math.random() * 12,
+              age: 0,
+              maxAge: precip === 'rain' ? 2.4 + Math.random() * 1.6 : 1.9 + Math.random() * 1.3
+            });
+          }
+        }
+      }
+
+      for (let i = glassDrops.length - 1; i >= 0; i--) {
+        const d = glassDrops[i];
+        d.age += dt;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        if (d.age >= d.maxAge || d.y < 2 || d.y > 190 || d.x < 4 || d.x > 380) {
+          glassDrops.splice(i, 1);
+          continue;
+        }
+        if (activelyWiping) {
+          const dx1 = d.x - 92;
+          const dy1 = 188 - d.y;
+          const dist1 = Math.hypot(dx1, dy1);
+          const ang1 = Math.atan2(dy1, dx1);
+          const hit1 = dist1 >= 16 && dist1 <= 158 && ang1 >= aMin && ang1 <= aMax;
+
+          const dx2 = d.x - 238;
+          const dy2 = 188 - d.y;
+          const dist2 = Math.hypot(dx2, dy2);
+          const ang2 = Math.atan2(dy2, dx2);
+          const hit2 = dist2 >= 16 && dist2 <= 158 && ang2 >= aMin && ang2 <= aMax;
+
+          if (hit1 || hit2) {
+            glassDrops.splice(i, 1);
+          }
+        }
+      }
+
+      const shouldShow = precip === 'rain' || precip === 'snow' || glassDrops.length > 0;
+      glassMesh.visible = shouldShow;
+      if (!shouldShow && !glassWasVisible) return;
+      glassWasVisible = shouldShow;
+
+      glassCtx.clearRect(0, 0, 384, 192);
+      if (activelyWiping) {
+        glassCtx.strokeStyle = 'rgba(220, 238, 255, 0.05)';
+        glassCtx.lineWidth = 3;
+        glassCtx.beginPath();
+        glassCtx.moveTo(92, 188);
+        glassCtx.lineTo(92 + Math.cos(curAng) * 150, 188 - Math.sin(curAng) * 150);
+        glassCtx.moveTo(238, 188);
+        glassCtx.lineTo(238 + Math.cos(curAng) * 150, 188 - Math.sin(curAng) * 150);
+        glassCtx.stroke();
+      }
+      for (let i = 0; i < glassDrops.length; i++) {
+        const d = glassDrops[i];
+        const fade = Math.max(0, 1 - d.age / d.maxAge);
+        const a = d.alpha * (0.4 + 0.6 * fade);
+        if (d.kind === 'rain') {
+          glassCtx.strokeStyle = `rgba(210, 232, 255, ${a.toFixed(3)})`;
+          glassCtx.fillStyle = `rgba(225, 242, 255, ${a.toFixed(3)})`;
+          glassCtx.lineWidth = Math.max(1.1, d.r * 0.65);
+          glassCtx.beginPath();
+          glassCtx.moveTo(d.x, d.y);
+          glassCtx.lineTo(d.x + d.vx * 0.03, d.y + d.len);
+          glassCtx.stroke();
+          glassCtx.beginPath();
+          glassCtx.arc(d.x, d.y, d.r * 0.72, 0, Math.PI * 2);
+          glassCtx.fill();
+        } else {
+          glassCtx.fillStyle = `rgba(242, 248, 255, ${a.toFixed(3)})`;
+          glassCtx.beginPath();
+          glassCtx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          glassCtx.fill();
+        }
+      }
+      glassTex.needsUpdate = true;
     }
 
     function updateInterior(state, dt) {
@@ -1951,18 +2352,73 @@
       leftPaddlePivot.rotation.y = pTimer > 0 && pDir < 0 ? 0.28 : 0;
       rightPaddlePivot.rotation.y = pTimer > 0 && pDir > 0 ? -0.28 : 0;
 
-      // Windshield wipers active in Rain, Night Rain & Snow
-      const wipersActive = state.precip === 'rain' || state.precip === 'snow';
+      // Blind-spot mirror triangles (subtle amber when occupied, red flash if signaling toward car)
+      const sig = state.signalMode || 0;
+      const elapsed = state.elapsed || 0;
+      const updateBsmMat = (mat, active, signalingInto) => {
+        if (active) {
+          mat.color.setHex(signalingInto ? 0xef4444 : 0xf59e0b);
+          const targetOp = signalingInto
+            ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(elapsed * 28))
+            : 0.82;
+          mat.opacity += (targetOp - mat.opacity) * Math.min(1, 18 * dt);
+        } else if (mat.opacity > 0.005) {
+          mat.opacity = Math.max(0, mat.opacity - 7 * dt);
+        } else {
+          mat.opacity = 0;
+        }
+      };
+      updateBsmMat(leftBsmMat, !!state.blindSpotLeft, sig === -1);
+      updateBsmMat(rightBsmMat, !!state.blindSpotRight, sig === 1);
+
+      // Windshield wipers with AUTO / LOW / HIGH / OFF speed stages
+      const wiperMode = state.wiperMode || 'AUTO';
+      const precip = state.precip || 'none';
+      let wipersActive = false;
+      let wiperRate = 4.3;
+      let wiperPause = 0.32;
+      if (wiperMode === 'LOW') {
+        wipersActive = true;
+        wiperRate = 2.7;
+        wiperPause = 1.35;
+      } else if (wiperMode === 'HIGH') {
+        wipersActive = true;
+        wiperRate = 5.4;
+        wiperPause = 0.14;
+      } else if (wiperMode === 'AUTO') {
+        if (precip === 'rain') {
+          wipersActive = true;
+          wiperRate = 4.3;
+          wiperPause = 0.32;
+        } else if (precip === 'snow') {
+          wipersActive = true;
+          wiperRate = 2.7;
+          wiperPause = 0.90;
+        }
+      }
+
+      let curAng = wiperLeftPivot.rotation.z;
+      let sweepingNow = false;
       if (wipersActive) {
-        const rate = state.precip === 'rain' ? 4.4 : 2.9;
-        wiperPhase = (wiperPhase + dt * rate) % (Math.PI * 2.35);
-        const sweep = wiperPhase < Math.PI * 2 ? 0.5 * (1 - Math.cos(wiperPhase)) : 0;
-        const ang = 0.08 + sweep * 1.18;
-        wiperLeftPivot.rotation.z = ang;
-        wiperRightPivot.rotation.z = ang;
+        const cycleLen = Math.PI * 2 + wiperPause * wiperRate;
+        wiperPhase = (wiperPhase + dt * wiperRate) % cycleLen;
+        sweepingNow = wiperPhase < Math.PI * 2;
+        const sweep = sweepingNow ? 0.5 * (1 - Math.cos(wiperPhase)) : 0;
+        curAng = 0.08 + sweep * 1.18;
+        wiperLeftPivot.rotation.z = curAng;
+        wiperRightPivot.rotation.z = curAng;
       } else {
-        wiperLeftPivot.rotation.z += (0.06 - wiperLeftPivot.rotation.z) * Math.min(1, 8 * dt);
-        wiperRightPivot.rotation.z += (0.06 - wiperRightPivot.rotation.z) * Math.min(1, 8 * dt);
+        curAng += (0.06 - curAng) * Math.min(1, 8 * dt);
+        wiperLeftPivot.rotation.z = curAng;
+        wiperRightPivot.rotation.z = curAng;
+      }
+
+      glassAccum += dt;
+      if (glassAccum >= 0.045) {
+        const stepGlassDt = glassAccum;
+        glassAccum = 0;
+        updateWindshieldGlass(stepGlassDt, precip, state.speedKmh || 0, curAng, wiperPrevAng, sweepingNow);
+        wiperPrevAng = curAng;
       }
 
       redrawAccum += dt;
@@ -1977,7 +2433,7 @@
         x: driverX,
         y: eyeY,
         z: eyeZ,
-        lookY: eyeY - 2.35,
+        lookY: eyeY - 2.02,
         lookZ: -38
       };
     }
