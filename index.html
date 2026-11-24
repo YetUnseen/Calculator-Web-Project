@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw17" />
+  <link rel="stylesheet" href="css/style.css?v=hw18" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -90,6 +90,14 @@
       </button>
     </div>
 
+    <!-- Floating Quick Cruise / Speed Limiter Bar (always accessible in every camera) -->
+    <div class="hud-assist-bar hidden" id="hud-assist-controls">
+      <button class="assist-step-btn" id="btn-assist-dec" title="Decrease Target Speed [-]">−</button>
+      <button class="assist-mode-btn" id="btn-assist-mode" title="Switch Cruise / Limiter [U / Y]">CRU 110</button>
+      <button class="assist-step-btn" id="btn-assist-inc" title="Increase Target Speed [5]">+</button>
+      <button class="assist-off-btn" id="btn-assist-off" title="Turn Off Cruise / Limiter">×</button>
+    </div>
+
     <!-- Designated Floating Drive Setup Drawer (Camera, Transmission, Weather & Display) -->
     <div id="drive-setup-drawer" class="drive-setup-drawer" aria-hidden="true">
       <div class="drawer-header">
@@ -128,6 +136,20 @@
           <button class="drawer-opt-btn" data-set-weather="3">Rain</button>
           <button class="drawer-opt-btn" data-set-weather="4">Night Rain</button>
           <button class="drawer-opt-btn" data-set-weather="5">Snow</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">Cruise &amp; Speed Limiter <kbd>U</kbd> <kbd>Y</kbd></div>
+        <div class="drawer-pill-grid cols-3">
+          <button class="drawer-opt-btn" data-set-assist="off">Off</button>
+          <button class="drawer-opt-btn" data-set-assist="cruise">Cruise</button>
+          <button class="drawer-opt-btn" data-set-assist="limit">Limiter</button>
+        </div>
+        <div class="assist-stepper-row">
+          <button class="drawer-opt-btn" data-assist-step="-5">−5 [-]</button>
+          <span class="assist-readout" data-assist-readout>110 km/h</span>
+          <button class="drawer-opt-btn" data-assist-step="5">+5 [5]</button>
         </div>
       </div>
 
@@ -422,6 +444,20 @@
         </div>
 
         <div class="drawer-section">
+          <div class="drawer-label">Cruise &amp; Speed Limiter <kbd>U</kbd> <kbd>Y</kbd></div>
+          <div class="drawer-pill-grid cols-3">
+            <button class="drawer-opt-btn" data-set-assist="off">Off</button>
+            <button class="drawer-opt-btn" data-set-assist="cruise">Cruise</button>
+            <button class="drawer-opt-btn" data-set-assist="limit">Limiter</button>
+          </div>
+          <div class="assist-stepper-row">
+            <button class="drawer-opt-btn" data-assist-step="-5">−5 [-]</button>
+            <span class="assist-readout" data-assist-readout>110 km/h</span>
+            <button class="drawer-opt-btn" data-assist-step="5">+5 [5]</button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
           <div class="drawer-label">Display &amp; System</div>
           <div class="drawer-pill-grid cols-2">
             <button class="drawer-opt-btn" id="btn-pause-gauge">Gauges: Digital [B]</button>
@@ -443,7 +479,7 @@
             <div><span>Clutch (Manual Mode)</span><span class="key-group"><kbd>L-Shift</kbd></span></div>
             <div><span>Cycle Transmission</span><span class="key-group"><kbd>M</kbd></span></div>
             <div><span>Cruise Control / Speed Limiter</span><span class="key-group"><kbd>U</kbd> <kbd>Y</kbd></span></div>
-            <div><span>Adjust Cruise / Limit (-/+ 5)</span><span class="key-group"><kbd>[</kbd> <kbd>]</kbd></span></div>
+            <div><span>Adjust Cruise / Limit (-/+ 5)</span><span class="key-group"><kbd>-</kbd> <kbd>5</kbd> or <kbd>[</kbd> <kbd>]</kbd></span></div>
           </div>
         </div>
 
@@ -505,14 +541,14 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw17"></script>
-  <script src="js/hardware.js?v=hw17"></script>
-  <script src="js/economy.js?v=hw17"></script>
-  <script src="js/audio.js?v=hw17"></script>
-  <script src="js/vehicles.js?v=hw17"></script>
-  <script src="js/highway.js?v=hw17"></script>
-  <script src="js/traffic.js?v=hw17"></script>
-  <script src="js/physics.js?v=hw17"></script>
-  <script src="js/main.js?v=hw17"></script>
+  <script src="vendor/three.min.js?v=hw18"></script>
+  <script src="js/hardware.js?v=hw18"></script>
+  <script src="js/economy.js?v=hw18"></script>
+  <script src="js/audio.js?v=hw18"></script>
+  <script src="js/vehicles.js?v=hw18"></script>
+  <script src="js/highway.js?v=hw18"></script>
+  <script src="js/traffic.js?v=hw18"></script>
+  <script src="js/physics.js?v=hw18"></script>
+  <script src="js/main.js?v=hw18"></script>
 </body>
 </html>

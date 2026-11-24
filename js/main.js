@@ -177,6 +177,8 @@
         sigRight: document.getElementById('sig-right'),
         sigLowBeam: document.getElementById('sig-lowbeam'),
         sigHighBeam: document.getElementById('sig-highbeam'),
+        assistControls: document.getElementById('hud-assist-controls'),
+        btnAssistMode: document.getElementById('btn-assist-mode'),
         sigAssist: document.getElementById('sig-assist'),
         sigHorn: document.getElementById('sig-horn'),
         digitalCluster: document.getElementById('hud-digital-cluster'),
@@ -480,6 +482,16 @@
       if (this.dom.btnPauseMirror) this.dom.btnPauseMirror.textContent = mirrorText;
       if (this.dom.btnSetupAudio) this.dom.btnSetupAudio.textContent = audioText;
       if (this.dom.btnPauseAudio) this.dom.btnPauseAudio.textContent = audioText;
+
+      document.querySelectorAll('[data-set-assist]').forEach((btn) => {
+        const mode = btn.getAttribute('data-set-assist');
+        btn.classList.toggle('active', mode === this.speedAssistMode);
+      });
+      const assistTargetTxt = this.formatSpeedToastVal(this.speedAssistTargetKmh);
+      document.querySelectorAll('[data-assist-readout]').forEach((el) => {
+        el.textContent = assistTargetTxt;
+      });
+
       this.updateQualityLabel();
     }
 
@@ -1199,60 +1211,94 @@
       return this.useKmh ? `${Math.round(kmh)} km/h` : `${Math.round(kmh * 0.621371)} mph`;
     }
 
-    toggleCruiseControl() {
+    setSpeedAssistMode(mode, targetOverrideKmh) {
       if (this.player.crashed) return;
-      if (this.speedAssistMode === 'cruise') {
+      const next = mode === 'cruise' || mode === 'limit' ? mode : 'off';
+      if (next === 'off') {
         this.speedAssistMode = 'off';
         this.speedAssistAutoZone = false;
         if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+        this.syncSettingsUI();
         this.updateHUD();
-        this.showToast('Cruise Control: Off', 1.1);
+        this.showToast('Cruise / Limiter: Off', 1.1);
+        return;
+      }
+      const maxKmh = Math.max(80, Math.round(this.player.maxSpeedMs * 3.6));
+      if (next === 'cruise') {
+        if (targetOverrideKmh !== undefined) {
+          this.speedAssistTargetKmh = clamp(targetOverrideKmh, 40, maxKmh);
+        } else if (this.speedAssistMode === 'off') {
+          const base =
+            this.player.speedKmh >= 30
+              ? this.player.speedKmh
+              : this.env.getRadarInfo(this.player.s).limitKmh;
+          this.speedAssistTargetKmh = clamp(Math.round(base / 5) * 5, 40, maxKmh);
+        }
+        this.speedAssistMode = 'cruise';
+        this.speedAssistAutoZone = false;
+        if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
+        this.syncSettingsUI();
+        this.updateHUD();
+        this.showToast(`Cruise Control: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.3);
+        return;
+      }
+      const zoneLimit = this.env.getRadarInfo(this.player.s).limitKmh;
+      this.speedAssistTargetKmh = clamp(
+        targetOverrideKmh !== undefined ? targetOverrideKmh : zoneLimit,
+        40,
+        maxKmh
+      );
+      this.speedAssistMode = 'limit';
+      this.speedAssistAutoZone = targetOverrideKmh === undefined;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
+      this.syncSettingsUI();
+      this.updateHUD();
+      this.showToast(
+        `Speed Limiter: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}${
+          this.speedAssistAutoZone ? ' (Auto Zone)' : ''
+        }`,
+        1.4
+      );
+    }
+
+    toggleCruiseControl() {
+      if (this.player.crashed) return;
+      if (this.speedAssistMode === 'cruise') {
+        this.setSpeedAssistMode('off');
         return;
       }
       if (this.player.speedKmh < 30) {
         this.showToast('Reach 30 km/h to set Cruise Control', 1.2);
         return;
       }
-      const maxKmh = Math.max(80, Math.round(this.player.maxSpeedMs * 3.6));
-      this.speedAssistTargetKmh = clamp(Math.round(this.player.speedKmh / 5) * 5, 40, maxKmh);
-      this.speedAssistMode = 'cruise';
-      this.speedAssistAutoZone = false;
-      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
-      this.updateHUD();
-      this.showToast(`Cruise Control: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.3);
+      this.setSpeedAssistMode('cruise', Math.round(this.player.speedKmh / 5) * 5);
     }
 
     toggleSpeedLimiter() {
       if (this.player.crashed) return;
       if (this.speedAssistMode === 'limit') {
-        this.speedAssistMode = 'off';
-        this.speedAssistAutoZone = false;
-        if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
-        this.updateHUD();
-        this.showToast('Speed Limiter: Off', 1.1);
+        this.setSpeedAssistMode('off');
         return;
       }
-      const zoneLimit = this.env.getRadarInfo(this.player.s).limitKmh;
-      this.speedAssistTargetKmh = zoneLimit;
-      this.speedAssistMode = 'limit';
-      this.speedAssistAutoZone = true;
-      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
-      this.updateHUD();
-      this.showToast(`Speed Limiter: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)} (Auto Zone)`, 1.4);
+      this.setSpeedAssistMode('limit');
     }
 
     adjustSpeedAssist(deltaKmh) {
       if (this.player.crashed) return;
       const maxKmh = Math.max(80, Math.round(this.player.maxSpeedMs * 3.6));
       if (this.speedAssistMode === 'off') {
-        const base = this.env.getRadarInfo(this.player.s).limitKmh;
-        this.speedAssistMode = 'limit';
-        this.speedAssistTargetKmh = clamp(base + deltaKmh, 40, maxKmh);
+        const base =
+          this.player.speedKmh >= 30
+            ? this.player.speedKmh
+            : this.env.getRadarInfo(this.player.s).limitKmh;
+        this.speedAssistMode = 'cruise';
+        this.speedAssistTargetKmh = clamp(Math.round(base / 5) * 5 + deltaKmh, 40, maxKmh);
       } else {
         this.speedAssistTargetKmh = clamp(this.speedAssistTargetKmh + deltaKmh, 40, maxKmh);
       }
       this.speedAssistAutoZone = false;
       if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(deltaKmh > 0);
+      this.syncSettingsUI();
       this.updateHUD();
       const label = this.speedAssistMode === 'cruise' ? 'Cruise' : 'Speed Limiter';
       this.showToast(`${label}: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.1);
@@ -1425,6 +1471,7 @@
             this.speedAssistMode = 'off';
             this.speedAssistAutoZone = false;
             if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+            this.syncSettingsUI();
             this.updateHUD();
             this.showToast('Cruise Control: Off', 1.0);
           }
@@ -1498,12 +1545,18 @@
           if (!e.repeat) this.toggleCruiseControl();
         } else if (code === 'KeyY') {
           if (!e.repeat) this.toggleSpeedLimiter();
-        } else if (code === 'BracketLeft') {
+        } else if (
+          code === 'Digit5' ||
+          code === 'Numpad5' ||
+          code === 'Equal' ||
+          code === 'NumpadAdd' ||
+          code === 'BracketRight'
+        ) {
           e.preventDefault();
-          if (!e.repeat) this.adjustSpeedAssist(-5);
-        } else if (code === 'BracketRight') {
+          this.adjustSpeedAssist(5);
+        } else if (code === 'Minus' || code === 'NumpadSubtract' || code === 'BracketLeft') {
           e.preventDefault();
-          if (!e.repeat) this.adjustSpeedAssist(5);
+          this.adjustSpeedAssist(-5);
         } else if (code === 'KeyF') {
           if (!e.repeat) this.cycleWiperMode();
         } else if (code === 'Tab') {
@@ -1585,6 +1638,18 @@
           this.setLightingPreset(parseInt(btn.getAttribute('data-set-weather'), 10));
         });
       });
+      document.querySelectorAll('[data-set-assist]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.setSpeedAssistMode(btn.getAttribute('data-set-assist'));
+        });
+      });
+      document.querySelectorAll('[data-assist-step]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.adjustSpeedAssist(parseInt(btn.getAttribute('data-assist-step'), 10) || 0);
+        });
+      });
 
       const bindClick = (id, fn) => {
         const el = document.getElementById(id);
@@ -1602,6 +1667,12 @@
       bindClick('btn-restart', () => this.restartDrive());
       bindClick('btn-drive-setup', () => this.toggleSetupDrawer());
       bindClick('btn-close-setup', () => this.toggleSetupDrawer(false));
+      bindClick('btn-assist-dec', () => this.adjustSpeedAssist(-5));
+      bindClick('btn-assist-inc', () => this.adjustSpeedAssist(5));
+      bindClick('btn-assist-mode', () =>
+        this.setSpeedAssistMode(this.speedAssistMode === 'cruise' ? 'limit' : 'cruise')
+      );
+      bindClick('btn-assist-off', () => this.setSpeedAssistMode('off'));
 
       bindClick('btn-setup-gauge', () => this.toggleGaugeStyle());
       bindClick('btn-setup-unit', () => this.toggleSpeedUnits());
@@ -1819,6 +1890,19 @@
 
       if (this.dom.bottomRight) {
         this.dom.bottomRight.classList.toggle('hidden', isInterior);
+      }
+      if (this.dom.assistControls) {
+        const showAssistBar =
+          !this.player.crashed && !this.garageOpen && this.speedAssistMode !== 'off';
+        this.dom.assistControls.classList.toggle('hidden', !showAssistBar);
+        if (showAssistBar && this.dom.btnAssistMode) {
+          const isLim = this.speedAssistMode === 'limit';
+          this.dom.btnAssistMode.classList.toggle('limit', isLim);
+          const dispVal = this.useKmh
+            ? Math.round(this.speedAssistTargetKmh)
+            : Math.round(this.speedAssistTargetKmh * 0.621371);
+          this.dom.btnAssistMode.textContent = `${isLim ? 'LIM' : 'CRU'} ${dispVal}`;
+        }
       }
       if (isInterior) {
         return;

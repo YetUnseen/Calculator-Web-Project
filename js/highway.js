@@ -209,22 +209,27 @@
   ];
   const LIGHTING_PRESETS = WEATHER_PRESETS;
 
-  const RADAR_FIRST_S = 680;
-  const RADAR_STEP = 950;
+  const RADAR_FIRST_S = 1850;
+  const RADAR_STEP = 2850;
   const RADAR_WARN_DIST = 380;
   const RADAR_LIMITS_KMH = [110, 130, 100, 120, 90, 140];
 
   function getRadarBySlot(slot) {
     const k = Math.max(0, Math.floor(slot || 0));
-    const radarS = RADAR_FIRST_S + k * RADAR_STEP;
+    const jitter = k === 0 ? 0 : Math.round((hash01(k * 17.3 + 5.1) - 0.5) * 600);
+    const radarS = RADAR_FIRST_S + k * RADAR_STEP + jitter;
     const limitKmh = RADAR_LIMITS_KMH[k % RADAR_LIMITS_KMH.length];
     return { slot: k, radarS, limitKmh };
   }
 
   function getRadarInfo(s) {
     const currS = s || 0;
-    const slot = currS <= RADAR_FIRST_S ? 0 : Math.ceil((currS - RADAR_FIRST_S) / RADAR_STEP);
-    const info = getRadarBySlot(slot);
+    let slot = currS <= RADAR_FIRST_S - 400 ? 0 : Math.max(0, Math.floor((currS - RADAR_FIRST_S) / RADAR_STEP) - 1);
+    let info = getRadarBySlot(slot);
+    while (info.radarS < currS) {
+      slot++;
+      info = getRadarBySlot(slot);
+    }
     const distToRadar = info.radarS - currS;
     return {
       slot: info.slot,
@@ -1000,7 +1005,7 @@
       ctx.fillText('KM/H', 250, 148);
       ctx.fillStyle = isRadarWarning ? '#b91c1c' : '#475569';
       ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-      ctx.fillText(isRadarWarning ? 'CAMERA ENFORCED' : 'OBEY LIMIT', 250, 192);
+      ctx.fillText(isRadarWarning ? 'RADAR PATROL' : 'OBEY LIMIT', 250, 192);
 
       const tex = new THREE.CanvasTexture(c);
       tex.anisotropy = (this.gfx && this.gfx.anisotropy) || 2;
@@ -1009,6 +1014,7 @@
     }
 
     initRadars() {
+      this.radarAlerts = {};
       this.radarSignTextures = {};
       this.limitSignTextures = {};
       const uniq = Array.from(new Set(RADAR_LIMITS_KMH));
@@ -1032,44 +1038,79 @@
       const flashTex = new THREE.CanvasTexture(fc);
 
       const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.65 });
-      const boxMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.45, metalness: 0.25 });
       const darkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.3 });
       const lensMat = new THREE.MeshStandardMaterial({ color: 0x05080f, roughness: 0.15, metalness: 0.8 });
 
-      // Pool of 2 3D Speed Camera / Radar Towers on right shoulder
+      // Pool of 2 Disguised Undercover Police Radar Cars parked on right emergency shoulder
       this.radarPool = [];
       for (let i = 0; i < 2; i++) {
         const rg = new THREE.Group();
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 4.1, 8), poleMat);
-        pole.position.set(0, 2.05, 0);
-        rg.add(pole);
+        const isSuv = i % 2 === 1;
+        let carMesh = null;
+        if (root.HighwayVehicles && root.HighwayVehicles.createVehicleMesh) {
+          carMesh = root.HighwayVehicles.createVehicleMesh({
+            archetype: isSuv ? 'suv' : 'sedan',
+            color: isSuv ? 0x2b3442 : 0xdbe2ea,
+            custom: { tint: 'limo' },
+            castShadow: false
+          });
+          carMesh.group.rotation.y = 0.05;
+          carMesh.setHeadlights(0.20);
+          rg.add(carMesh.group);
+        } else {
+          const fallbackBody = new THREE.Mesh(new THREE.BoxGeometry(1.85, 1.38, 4.5), darkMat);
+          fallbackBody.position.set(0, 0.74, 0);
+          rg.add(fallbackBody);
+        }
 
-        const headGroup = new THREE.Group();
-        headGroup.position.set(0, 4.1, 0);
-        headGroup.rotation.y = -0.32;
+        const camY = isSuv ? 1.38 : 1.12;
+        const camZ = isSuv ? 1.24 : 0.92;
+        const roofY = isSuv ? 1.72 : 1.44;
+        const antZ = isSuv ? 1.05 : 0.72;
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.78, 0.52), boxMat);
-        headGroup.add(body);
+        // Compact rear-deck radar unit + recording LED facing approaching traffic (+Z)
+        const radarBox = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.13, 0.22), darkMat);
+        radarBox.position.set(0, camY, camZ);
+        rg.add(radarBox);
 
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.54), darkMat);
-        stripe.position.set(0, 0.22, 0);
-        headGroup.add(stripe);
-
-        // Twin camera lenses facing +Z (toward oncoming driver)
-        const lensTop = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 12), lensMat);
-        lensTop.rotation.x = Math.PI / 2;
-        lensTop.position.set(0, 0.08, 0.27);
-        headGroup.add(lensTop);
-
-        const lensBot = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12), lensMat);
-        lensBot.rotation.x = Math.PI / 2;
-        lensBot.position.set(-0.12, -0.16, 0.27);
-        headGroup.add(lensBot);
+        const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.04, 10), lensMat);
+        lens.rotation.x = Math.PI / 2;
+        lens.position.set(0, camY, camZ + 0.12);
+        rg.add(lens);
 
         const ledMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-        const led = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.05), ledMat);
-        led.position.set(0.14, -0.16, 0.26);
-        headGroup.add(led);
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), ledMat);
+        led.position.set(0.08, camY, camZ + 0.13);
+        rg.add(led);
+
+        // Subtle roof whip antenna
+        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.44, 5), poleMat);
+        antenna.position.set(0, roofY + 0.22, antZ);
+        rg.add(antenna);
+
+        // Concealed undercover rear-window red & blue strobe strips (off until triggered)
+        const redStrobeMat = new THREE.MeshBasicMaterial({
+          color: 0xff1e2d,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const blueStrobeMat = new THREE.MeshBasicMaterial({
+          color: 0x1e88ff,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const strobeGeo = new THREE.PlaneGeometry(0.28, 0.075);
+        const redStrobe = new THREE.Mesh(strobeGeo, redStrobeMat);
+        redStrobe.position.set(-0.24, camY + 0.06, camZ + 0.08);
+        rg.add(redStrobe);
+
+        const blueStrobe = new THREE.Mesh(strobeGeo, blueStrobeMat);
+        blueStrobe.position.set(0.24, camY + 0.06, camZ + 0.08);
+        rg.add(blueStrobe);
 
         const flashMat = new THREE.MeshBasicMaterial({
           map: flashTex,
@@ -1078,16 +1119,23 @@
           blending: THREE.AdditiveBlending,
           opacity: 0.0
         });
-        const flashSprite = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 3.8), flashMat);
-        flashSprite.position.set(0, 0.08, 0.34);
-        headGroup.add(flashSprite);
+        const flashSprite = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), flashMat);
+        flashSprite.position.set(0, camY + 0.06, camZ + 0.28);
+        rg.add(flashSprite);
 
-        rg.add(headGroup);
         this.scene.add(rg);
-        this.radarPool.push({ group: rg, ledMat, flashMat, lastSlot: -1 });
+        this.radarPool.push({
+          group: rg,
+          carMesh,
+          ledMat,
+          flashMat,
+          redStrobeMat,
+          blueStrobeMat,
+          lastSlot: -1
+        });
       }
 
-      // Pool of 2 Radar Ahead Warning Signs (300m before each radar)
+      // Pool of 2 Radar Ahead Warning Signs (300m before each patrol)
       this.radarSignPool = [];
       const signBackMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7, metalness: 0.3 });
       for (let i = 0; i < 2; i++) {
@@ -1120,6 +1168,7 @@
 
     triggerRadarFlash(slot) {
       this.radarFlashes[slot] = 1.0;
+      if (this.radarAlerts) this.radarAlerts[slot] = 4.0;
     }
 
     initFoliage() {
@@ -1710,24 +1759,39 @@
         applyReflect(sObj.plateMat, s - s0);
       }
 
-      // 5b. Speed Radars & Radar Ahead Warning Signs
+      // 5b. Disguised Undercover Police Radar Cars & Warning Signs
       if (this.radarPool && this.radarSignPool) {
-        const rStartSlot = Math.max(0, Math.floor((s0 - 80 - RADAR_FIRST_S) / RADAR_STEP));
+        const rStartSlot = Math.max(0, getRadarInfo(Math.max(0, s0 - 120)).slot);
         const tNow = this.skyUniforms ? this.skyUniforms.uTime.value : 0;
         for (let i = 0; i < this.radarPool.length; i++) {
           const slot = rStartSlot + i;
           const info = getRadarBySlot(slot);
           const rObj = this.radarPool[i];
-          if (info.radarS < s0 - 110 || info.radarS > s0 + 660) {
+          if (info.radarS < s0 - 120 || info.radarS > s0 + 660) {
             rObj.group.visible = false;
           } else {
             rObj.group.visible = true;
-            this.project(info.radarS, 9.95, p, 0);
+            this.project(info.radarS, 9.45, p, 0);
             rObj.group.position.set(p.x, p.y, p.z);
-            rObj.group.rotation.set(0, -p.yaw, 0);
+            rObj.group.rotation.set(p.pitch, -p.yaw, 0);
+            if (rObj.carMesh) {
+              rObj.carMesh.setHeadlights(isNight ? 0.55 : 0.15);
+            }
             const pulse = 0.4 + 0.6 * Math.abs(Math.sin(tNow * 4.5 + i));
             rObj.ledMat.color.setRGB(pulse, 0.06, 0.06);
             rObj.flashMat.opacity = this.radarFlashes[slot] || 0;
+
+            const alerting = !!(this.radarAlerts && this.radarAlerts[slot] > 0);
+            if (rObj.redStrobeMat && rObj.blueStrobeMat) {
+              if (alerting) {
+                const phase = Math.floor(tNow * 9.5) % 2 === 0;
+                rObj.redStrobeMat.opacity = phase ? 0.95 : 0.05;
+                rObj.blueStrobeMat.opacity = phase ? 0.05 : 0.95;
+              } else {
+                rObj.redStrobeMat.opacity = 0;
+                rObj.blueStrobeMat.opacity = 0;
+              }
+            }
           }
 
           const wObj = this.radarSignPool[i];
@@ -1834,6 +1898,15 @@
           const nextVal = this.radarFlashes[k] - stepDt * 2.8;
           if (nextVal <= 0) delete this.radarFlashes[k];
           else this.radarFlashes[k] = nextVal;
+        }
+      }
+      if (this.radarAlerts) {
+        const aKeys = Object.keys(this.radarAlerts);
+        for (let i = 0; i < aKeys.length; i++) {
+          const k = aKeys[i];
+          const nextA = this.radarAlerts[k] - stepDt;
+          if (nextA <= 0) delete this.radarAlerts[k];
+          else this.radarAlerts[k] = nextA;
         }
       }
       const baseIdx = this.updateFrameLUT(s0);
