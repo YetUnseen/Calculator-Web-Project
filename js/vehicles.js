@@ -1530,7 +1530,7 @@
     const cowlZ = isBigRig ? -L * 0.5 + 1.95 : -L * 0.5 + hoodLen;
 
     const driverX = isBigRig ? -W * 0.24 : -W * 0.20;
-    const eyeY = hoodTopY + 0.315;
+    const eyeY = hoodTopY + 0.278;
     const eyeZ = cowlZ + 0.90;
 
     const interiorGroup = new THREE.Group();
@@ -1559,10 +1559,10 @@
     addPart(interiorGroup, shared.boxGeo, dashMat, 0, dashY - 0.06, dashZ, dashW, 0.16, 0.36);
     addPart(interiorGroup, shared.boxGeo, trimMat, 0, dashY + 0.015, dashZ + 0.18, dashW * 0.96, 0.020, 0.025);
 
-    // Instrument binnacle hood framing the 3D gauge cluster cleanly
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.214, cowlZ + 0.24, 0.44, 0.025, 0.19, 0.06);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
+    // Instrument binnacle hood framing the 3D gauge cluster without clipping its top edge
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.222, cowlZ + 0.23, 0.44, 0.024, 0.14, 0.04);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.215, hoodTopY + 0.132, cowlZ + 0.23, 0.026, 0.17, 0.14);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.215, hoodTopY + 0.132, cowlZ + 0.23, 0.026, 0.17, 0.14);
 
     // Center console divider & armrest
     addPart(interiorGroup, shared.boxGeo, dashMat, 0, hoodTopY - 0.18, cowlZ + 0.56, 0.26, 0.36, 0.86);
@@ -1650,17 +1650,27 @@
       depthWrite: false
     });
     const rightBsmMat = leftBsmMat.clone();
-    const bsmGeo = new THREE.PlaneGeometry(0.022, 0.020);
+    const bsmGeo = new THREE.PlaneGeometry(0.026, 0.024);
 
-    // Driver Left Side Mirror outside left A-pillar
-    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.49, dashY + 0.085, cowlZ + 0.245);
-    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.49 - 0.044, dashY + 0.104, cowlZ + 0.247);
+    // Driver Left Side Mirror angled inward toward driver + visible A-pillar BSM indicator
+    const leftMirrorGroup = new THREE.Group();
+    leftMirrorGroup.position.set(-W * 0.49, dashY + 0.085, cowlZ + 0.19);
+    leftMirrorGroup.rotation.y = 0.14;
+    interiorGroup.add(leftMirrorGroup);
+    addPart(leftMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.16, 0.092, 0.10);
+    addPart(leftMirrorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, 0, 0, 0.055);
+    addPart(leftMirrorGroup, bsmGeo, leftBsmMat, -0.044, 0.019, 0.057);
+    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, 0.18, 0);
 
-    // Passenger Right Side Mirror outside right A-pillar
-    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.49, dashY + 0.085, cowlZ + 0.245);
-    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.49 + 0.044, dashY + 0.104, cowlZ + 0.247);
+    // Passenger Right Side Mirror angled inward toward driver + visible A-pillar BSM indicator
+    const rightMirrorGroup = new THREE.Group();
+    rightMirrorGroup.position.set(W * 0.49, dashY + 0.085, cowlZ + 0.19);
+    rightMirrorGroup.rotation.y = -0.14;
+    interiorGroup.add(rightMirrorGroup);
+    addPart(rightMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.16, 0.092, 0.10);
+    addPart(rightMirrorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, 0, 0, 0.055);
+    addPart(rightMirrorGroup, bsmGeo, rightBsmMat, 0.044, 0.019, 0.057);
+    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, -0.35, 0);
 
     // Subtle interior windshield weather layer (raindrops & snow flecks cleared by wipers)
     const glassCanvas = document.createElement('canvas');
@@ -1743,12 +1753,12 @@
     const clusterTex = new THREE.CanvasTexture(clusterCanvas);
     if (THREE.sRGBEncoding !== undefined) clusterTex.encoding = THREE.sRGBEncoding;
     const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex });
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.125, cowlZ + 0.26, 1, 1, 1, -0.08);
+    addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.120, cowlZ + 0.26, 1, 1, 1, -0.14);
 
-    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges are unobstructed)
+    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges & top indicator strip are completely clear)
     const wheelMount = new THREE.Group();
-    wheelMount.position.set(driverX, hoodTopY + 0.062, cowlZ + 0.54);
-    wheelMount.rotation.x = -0.16;
+    wheelMount.position.set(driverX, hoodTopY + 0.042, cowlZ + 0.54);
+    wheelMount.rotation.x = -0.22;
     interiorGroup.add(wheelMount);
 
     addPart(wheelMount, new THREE.CylinderGeometry(0.024, 0.028, 0.22, 10), leatherMat, 0, -0.022, -0.11, 1, 1, 1, Math.PI / 2);
@@ -1756,16 +1766,16 @@
     const wheelSpinGroup = new THREE.Group();
     wheelMount.add(wheelSpinGroup);
 
-    const rimGeo = new THREE.TorusGeometry(0.198, 0.013, 10, 32);
+    const rimGeo = new THREE.TorusGeometry(0.212, 0.013, 10, 32);
     const rimMesh = new THREE.Mesh(rimGeo, leatherMat);
     wheelSpinGroup.add(rimMesh);
 
     // 12 o'clock centering stripe
-    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.198, 0, 0.020, 0.028, 0.030);
+    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.212, 0, 0.020, 0.024, 0.028);
     // Angled 3 Spokes + Hub (keeps upper window wide open for gauges)
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, 0.22);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, -0.22);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.112, 0, 0.024, 0.135, 0.014);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.118, -0.024, 0, 0.146, 0.022, 0.014, 0, 0, 0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.118, -0.024, 0, 0.146, 0.022, 0.014, 0, 0, -0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.118, 0, 0.024, 0.146, 0.014);
     addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.040, 0.040, 0.026, 16), leatherMat, 0, 0, 0.005, 1, 1, 1, Math.PI / 2);
     addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.013, 0.013, 0.030, 12), trimMat, 0, 0, 0.007, 1, 1, 1, Math.PI / 2);
 
@@ -1895,7 +1905,7 @@
         ctx.shadowBlur = 12;
         ctx.fillStyle = activeColor;
       } else {
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.20)';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.42)';
       }
       ctx.fill();
       ctx.restore();
@@ -1908,8 +1918,8 @@
         ctx.shadowColor = color;
         ctx.shadowBlur = 12;
       }
-      ctx.strokeStyle = active ? color : 'rgba(148, 163, 184, 0.24)';
-      ctx.fillStyle = active ? color : 'rgba(148, 163, 184, 0.20)';
+      ctx.strokeStyle = active ? color : 'rgba(148, 163, 184, 0.44)';
+      ctx.fillStyle = active ? color : 'rgba(148, 163, 184, 0.40)';
       ctx.lineWidth = 2.2;
       ctx.lineCap = 'round';
 
@@ -1936,7 +1946,7 @@
         ctx.shadowColor = '#fbbf24';
         ctx.shadowBlur = 12;
       }
-      ctx.strokeStyle = active ? '#fbbf24' : 'rgba(148, 163, 184, 0.24)';
+      ctx.strokeStyle = active ? '#fbbf24' : 'rgba(148, 163, 184, 0.44)';
       ctx.lineWidth = 2.2;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -2021,22 +2031,22 @@
       cCtx.fillRect(0, 0, 640, 280);
 
       if (state.gaugeStyle === 'analog') {
-        // Indicator strip centered cleanly above dials inside steering wheel
-        drawIndicatorStrip(state, 174, 34, 292);
+        // Indicator strip centered cleanly inside steering wheel arch
+        drawIndicatorStrip(state, 190, 44, 260);
 
-        drawAnalogDial(cCtx, 150, 166, 90, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
-        drawAnalogDial(cCtx, 490, 166, 90, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
+        drawAnalogDial(cCtx, 158, 174, 86, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
+        drawAnalogDial(cCtx, 482, 174, 86, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
 
         // Center Gear Badge & Telemetry
         cCtx.fillStyle = state.clutchPressed ? '#78350f' : rpmFrac > 0.9 ? '#991b1b' : '#0f172a';
-        cCtx.fillRect(286, 86, 68, 56);
+        cCtx.fillRect(292, 90, 56, 52);
         cCtx.strokeStyle = state.clutchPressed ? '#fbbf24' : rpmFrac > 0.9 ? '#ef4444' : '#38bdf8';
         cCtx.lineWidth = 2;
-        cCtx.strokeRect(286, 86, 68, 56);
+        cCtx.strokeRect(292, 90, 56, 52);
         cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'bold 28px sans-serif';
+        cCtx.font = 'bold 26px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(gearTxt, 320, 124);
+        cCtx.fillText(gearTxt, 320, 126);
 
         cCtx.fillStyle = state.clutchPressed ? '#fbbf24' : '#94a3b8';
         cCtx.font = 'bold 13px sans-serif';
@@ -2047,95 +2057,84 @@
             ? 'SHIFT ▲'
             : `${(state.distanceKm || 0).toFixed(1)} km`,
           320,
-          166
+          164
         );
 
         const bankLabel = state.bankText || `$${Math.floor(state.bank || 0).toLocaleString('en-US')}`;
         cCtx.fillStyle = '#4ade80';
         cCtx.font = 'bold 15px sans-serif';
-        cCtx.fillText(bankLabel, 320, 192);
+        cCtx.fillText(bankLabel, 320, 188);
 
         if (state.radarFineText) {
           cCtx.fillStyle = '#ef4444';
           cCtx.font = 'bold 14px sans-serif';
-          cCtx.fillText(`FINE ${state.radarFineText}`, 320, 222);
+          cCtx.fillText(`FINE ${state.radarFineText}`, 320, 216);
         } else if (state.radarNearby) {
           cCtx.fillStyle = state.radarSpeeding ? '#f87171' : '#fbbf24';
           cCtx.font = 'bold 13px sans-serif';
           cCtx.fillText(
             state.radarSpeeding ? `⚠ SLOW ${state.radarDistM || 0}m` : `RADAR ${state.radarDistM || 0}m`,
             320,
-            222
+            216
           );
         }
 
         if (state.hornActive) {
           cCtx.fillStyle = '#fde68a';
           cCtx.font = 'bold 12px sans-serif';
-          cCtx.fillText('HORN', 320, 248);
+          cCtx.fillText('HORN', 320, 242);
         } else if ((state.damage || 0) > 0) {
           const cond = Math.max(0, Math.round(100 - state.damage));
           cCtx.fillStyle = cond > 60 ? '#22c55e' : cond > 30 ? '#f59e0b' : '#ef4444';
           cCtx.font = 'bold 12px sans-serif';
-          cCtx.fillText(`COND ${cond}%`, 320, 248);
+          cCtx.fillText(`COND ${cond}%`, 320, 242);
         }
       } else {
-        // Crisp Digital Dash with Dedicated Indicator Panel
+        // Crisp Digital Dash with Unobstructed Centered Indicator Panel
         cCtx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
         cCtx.lineWidth = 2;
         cCtx.strokeRect(10, 10, 620, 260);
 
-        // Segmented RPM bar across top
-        const segs = 28;
+        // Centered segmented RPM bar (120..520, clear inside wheel upper window)
+        const segs = 20;
         for (let i = 0; i < segs; i++) {
           const lit = i / segs < rpmFrac;
           cCtx.fillStyle = !lit
-            ? 'rgba(255,255,255,0.08)'
-            : i >= 23
+            ? 'rgba(255,255,255,0.10)'
+            : i >= 17
             ? '#ef4444'
-            : i >= 18
+            : i >= 13
             ? '#f59e0b'
             : '#38bdf8';
-          cCtx.fillRect(30 + i * 21, 18, 15, 14);
+          cCtx.fillRect(123 + i * 20, 16, 14, 12);
         }
 
         // Centered Indicator Panel (Left | Short Green | Long Blue | Hazard | Speed Limit | Right)
-        drawIndicatorStrip(state, 172, 56, 296);
+        drawIndicatorStrip(state, 190, 52, 260);
 
-        // Left side radar warning / fine pill
+        // Centered radar warning / fine pill directly under indicator strip
         if (state.radarFineText) {
           cCtx.fillStyle = 'rgba(239, 68, 68, 0.25)';
-          cCtx.fillRect(38, 42, 122, 28);
+          cCtx.fillRect(235, 76, 170, 24);
           cCtx.strokeStyle = '#ef4444';
-          cCtx.strokeRect(38, 42, 122, 28);
+          cCtx.strokeRect(235, 76, 170, 24);
           cCtx.fillStyle = '#fecaca';
           cCtx.font = 'bold 13px sans-serif';
           cCtx.textAlign = 'center';
-          cCtx.fillText(`FINE ${state.radarFineText}`, 99, 61);
+          cCtx.fillText(`FINE ${state.radarFineText}`, 320, 92);
         } else if (state.radarNearby) {
           cCtx.fillStyle = state.radarSpeeding ? 'rgba(239, 68, 68, 0.25)' : 'rgba(245, 158, 11, 0.18)';
-          cCtx.fillRect(38, 42, 122, 28);
+          cCtx.fillRect(235, 76, 170, 24);
           cCtx.strokeStyle = state.radarSpeeding ? '#ef4444' : '#f59e0b';
-          cCtx.strokeRect(38, 42, 122, 28);
+          cCtx.strokeRect(235, 76, 170, 24);
           cCtx.fillStyle = state.radarSpeeding ? '#fca5a5' : '#fde68a';
           cCtx.font = 'bold 12px sans-serif';
           cCtx.textAlign = 'center';
           cCtx.fillText(
             state.radarSpeeding ? `⚠ SLOW ${state.radarDistM || 0}m` : `RADAR ${state.radarDistM || 0}m`,
-            99,
-            60
+            320,
+            92
           );
-        }
-
-        if (state.hornActive) {
-          cCtx.fillStyle = 'rgba(245, 158, 11, 0.24)';
-          cCtx.fillRect(486, 42, 112, 28);
-          cCtx.strokeStyle = '#fbbf24';
-          cCtx.strokeRect(486, 42, 112, 28);
-          cCtx.fillStyle = '#fde68a';
-          cCtx.font = 'bold 13px sans-serif';
-          cCtx.textAlign = 'center';
-          cCtx.fillText('HORN', 542, 61);
         }
 
         // Gear badge left
@@ -2166,22 +2165,33 @@
           cCtx.fillText('DOWN ▼', 95, 218);
         }
 
+        if (state.hornActive) {
+          cCtx.fillStyle = 'rgba(245, 158, 11, 0.24)';
+          cCtx.fillRect(42, 232, 106, 24);
+          cCtx.strokeStyle = '#fbbf24';
+          cCtx.strokeRect(42, 232, 106, 24);
+          cCtx.fillStyle = '#fde68a';
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.textAlign = 'center';
+          cCtx.fillText('HORN', 95, 249);
+        }
+
         // Big digital speed center
         cCtx.fillStyle = state.radarSpeeding ? '#fca5a5' : '#ffffff';
-        cCtx.font = 'bold 104px sans-serif';
+        cCtx.font = 'bold 90px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(String(dispSpeed), 336, 188);
+        cCtx.fillText(String(dispSpeed), 336, 192);
         cCtx.fillStyle = '#38bdf8';
         cCtx.font = 'bold 20px sans-serif';
-        cCtx.fillText(unitTxt, 336, 218);
+        cCtx.fillText(unitTxt, 336, 220);
 
         // Turbo boost gauge bar at bottom center
         const boostFrac = clampFrac(state.turboBoost || 0);
         if (boostFrac > 0.04) {
           cCtx.fillStyle = 'rgba(255,255,255,0.08)';
-          cCtx.fillRect(256, 234, 160, 7);
+          cCtx.fillRect(256, 236, 160, 7);
           cCtx.fillStyle = boostFrac > 0.78 ? '#f59e0b' : '#38bdf8';
-          cCtx.fillRect(256, 234, 160 * boostFrac, 7);
+          cCtx.fillRect(256, 236, 160 * boostFrac, 7);
         }
 
         // Distance, streak, condition & bank right
@@ -2229,7 +2239,7 @@
         if (state.gaugeStyle === 'analog') {
           cCtx.textAlign = 'center';
           cCtx.font = 'bold 12px sans-serif';
-          cCtx.fillText(assistText, 320, 269);
+          cCtx.fillText(assistText, 320, 264);
         } else {
           cCtx.textAlign = 'right';
           cCtx.font = 'bold 15px sans-serif';
@@ -2433,7 +2443,7 @@
         x: driverX,
         y: eyeY,
         z: eyeZ,
-        lookY: eyeY - 2.02,
+        lookY: eyeY - 2.38,
         lookZ: -38
       };
     }
