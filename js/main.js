@@ -137,13 +137,10 @@
       this.lastFineText = '';
       this.lastFineBannerTimer = 0;
 
-      // Driving aids: Cruise Control [U], Electronic Speed Limiter [Y], Wipers [F] & Blind-Spot
+      // Driving aids: Cruise Control [U] & Electronic Speed Limiter [Y]
       this.speedAssistMode = 'off'; // 'off' | 'cruise' | 'limit'
       this.speedAssistTargetKmh = 110;
       this.speedAssistAutoZone = false;
-      this.wiperMode = 'AUTO'; // 'AUTO' | 'LOW' | 'HIGH' | 'OFF'
-      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
-      this.blindSpotChirpCooldown = 0;
 
       this.rightShiftHeld = false;
       this.input = {
@@ -215,6 +212,8 @@
         garageModal: document.getElementById('modal-garage'),
         garageBank: document.getElementById('garage-bank'),
         garageActiveCar: document.getElementById('garage-active-car'),
+        shopTabVehicles: document.getElementById('shop-tab-vehicles'),
+        filterCarsAll: document.getElementById('filter-cars-all'),
         garageCarFilters: document.getElementById('garage-car-filters'),
         garageCarsGrid: document.getElementById('garage-cars-grid'),
         garageUpgradesGrid: document.getElementById('garage-upgrades-grid'),
@@ -230,7 +229,7 @@
         pauseStatDist: document.getElementById('pause-stat-dist'),
         pauseStatBank: document.getElementById('pause-stat-bank'),
         pauseStatPasses: document.getElementById('pause-stat-passes'),
-        pauseStatStreak: document.getElementById('pause-stat-streak'),
+        pauseStatTopSpeed: document.getElementById('pause-stat-top-speed'),
         btnPauseGauge: document.getElementById('btn-pause-gauge'),
         btnPauseUnit: document.getElementById('btn-pause-unit'),
         btnPauseMirror: document.getElementById('btn-pause-mirror'),
@@ -495,7 +494,51 @@
         el.textContent = assistTargetTxt;
       });
 
+      this.syncSeatUI();
       this.updateQualityLabel();
+    }
+
+    syncSeatUI() {
+      const seat = this.economy.getSeatConfig();
+      const yCm = Math.round(seat.y * 100);
+      const zCm = Math.round(seat.z * 100);
+      const pitchTxt = `${seat.pitchDeg > 0 ? '+' : ''}${seat.pitchDeg.toFixed(1)}°`;
+      const yTxt = `${yCm > 0 ? '+' : ''}${yCm} cm`;
+      const zTxt = `${zCm > 0 ? '+' : ''}${zCm} cm`;
+      const fovTxt = `${Math.round(seat.fov)}°`;
+
+      document.querySelectorAll('[data-seat-field]').forEach((el) => {
+        const field = el.getAttribute('data-seat-field');
+        if (field === 'y') el.value = String(yCm);
+        else if (field === 'z') el.value = String(zCm);
+        else if (field === 'pitchDeg') el.value = String(seat.pitchDeg);
+        else if (field === 'fov') el.value = String(Math.round(seat.fov));
+      });
+      document.querySelectorAll('[data-seat-val]').forEach((el) => {
+        const field = el.getAttribute('data-seat-val');
+        if (field === 'y') el.textContent = yTxt;
+        else if (field === 'z') el.textContent = zTxt;
+        else if (field === 'pitchDeg') el.textContent = pitchTxt;
+        else if (field === 'fov') el.textContent = fovTxt;
+      });
+    }
+
+    updateSeatSetting(partial, autoSwitchInterior) {
+      this.economy.setSeatConfig(partial);
+      if (autoSwitchInterior && this.cameraMode !== 2 && !this.paused) {
+        this.cameraMode = 2;
+      }
+      this.syncSettingsUI();
+      this.syncPlayerAndCamera(0.016, true);
+      this.updateHUD();
+    }
+
+    resetSeatSetting() {
+      this.economy.resetSeatConfig();
+      this.syncSettingsUI();
+      this.syncPlayerAndCamera(0.016, true);
+      this.updateHUD();
+      this.showToast('Interior Seat Reset', 1.2);
     }
 
     getBeamState(preset) {
@@ -826,9 +869,15 @@
     renderGarageVehicles(bank) {
       if (!this.dom.garageCarsGrid) return;
       const allCars = window.HighwayEconomy.PLAYER_CARS;
+      const visibleCars = allCars.filter((c) => !c.secretUnlock || this.economy.isOwned(c.id));
       const activeId = this.economy.state.activeCarId;
-      const streak = this.economy.getCrashStreak();
-      const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
+
+      if (this.dom.shopTabVehicles) {
+        this.dom.shopTabVehicles.textContent = `Vehicles (${visibleCars.length})`;
+      }
+      if (this.dom.filterCarsAll) {
+        this.dom.filterCarsAll.textContent = `All (${visibleCars.length})`;
+      }
 
       if (this.dom.garageCarFilters) {
         this.dom.garageCarFilters.querySelectorAll('[data-car-filter]').forEach((btn) => {
@@ -838,8 +887,8 @@
 
       const cars =
         this.garageFilter === 'all'
-          ? allCars
-          : allCars.filter((c) => c.group === this.garageFilter);
+          ? visibleCars
+          : visibleCars.filter((c) => c.group === this.garageFilter);
 
       this.dom.garageCarsGrid.innerHTML = cars
         .map((c) => {
@@ -853,14 +902,10 @@
           const gripPct = clamp(((merged.weatherGripMult - 0.9) / 0.7) * 100, 18, 100);
 
           let btnHtml = '';
-          let secretBadgeHtml = '';
           if (isActive) {
             btnHtml = `<button class="hw-btn hw-btn-primary" disabled>Active Vehicle</button>`;
           } else if (owned) {
             btnHtml = `<button class="hw-btn ${isSecret ? 'hw-btn-gold' : ''}" data-select-car="${c.id}">Select Vehicle</button>`;
-          } else if (isSecret) {
-            secretBadgeHtml = `<div class="secret-unlock-chip">🔒 Crash 3 times in a row (${streak}/${target})</div>`;
-            btnHtml = `<button class="hw-btn" disabled>Locked · Crash 3x in a Row</button>`;
           } else {
             const canBuy = bank >= c.price;
             btnHtml = `<button class="hw-btn ${canBuy ? 'hw-btn-primary' : ''}" data-buy-car="${c.id}" ${
@@ -871,12 +916,11 @@
           const cardClass = [
             'car-shop-card',
             isActive ? 'active-car' : '',
-            isSecret ? 'secret-card' : '',
-            isSecret && !owned ? 'secret-locked' : ''
+            isSecret ? 'secret-card' : ''
           ]
             .filter(Boolean)
             .join(' ');
-          const priceBadge = owned ? (isSecret ? 'UNLOCKED' : 'OWNED') : isSecret ? 'SECRET' : this.formatMoney(c.price);
+          const priceBadge = owned ? (isSecret ? 'UNLOCKED' : 'OWNED') : this.formatMoney(c.price);
 
           return `
             <div class="${cardClass}">
@@ -888,7 +932,6 @@
                 <span class="car-shop-price">${priceBadge}</span>
               </div>
               <p class="car-shop-desc">${c.desc}</p>
-              ${secretBadgeHtml}
               <div class="car-bars">
                 <div class="car-bar-row"><span>Top Speed</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${speedPct.toFixed(0)}%"></div></div></div>
                 <div class="car-bar-row"><span>Accel</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${accelPct.toFixed(0)}%"></div></div></div>
@@ -1048,9 +1091,9 @@
         if (window.HighwayAudio) window.HighwayAudio.suspend();
         const distKm = (this.player.distanceMeters / 1000).toFixed(2);
         const bankStr = this.formatMoney(this.economy.getBank());
-        const truckOwned = this.economy.isOwned(window.HighwayEconomy.SECRET_TRUCK_ID);
-        const streak = this.economy.getCrashStreak();
-        const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
+        const topDisp = this.useKmh
+          ? `${Math.round(this.player.topSpeedKmh)} km/h`
+          : `${Math.round(this.player.topSpeedKmh * 0.621371)} mph`;
 
         if (this.dom.pauseStats) {
           this.dom.pauseStats.textContent = `${distKm} km • ${bankStr}`;
@@ -1060,8 +1103,8 @@
         if (this.dom.pauseStatPasses) {
           this.dom.pauseStatPasses.textContent = String(this.economy.cleanPasses || 0);
         }
-        if (this.dom.pauseStatStreak) {
-          this.dom.pauseStatStreak.textContent = truckOwned ? 'Unlocked' : `${streak} / ${target}`;
+        if (this.dom.pauseStatTopSpeed) {
+          this.dom.pauseStatTopSpeed.textContent = topDisp;
         }
         this.syncSettingsUI();
         if (this.dom.pauseModal) this.dom.pauseModal.classList.add('open');
@@ -1106,8 +1149,6 @@
       this.lastFineBannerTimer = 0;
       this.speedAssistMode = 'off';
       this.speedAssistAutoZone = false;
-      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
-      this.blindSpotChirpCooldown = 0;
       if (this.dom.fxRadarFlash) this.dom.fxRadarFlash.classList.remove('active');
       this.setHornActive(false);
       this.economy.resetSession();
@@ -1310,15 +1351,6 @@
       this.showToast(`${label}: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.1);
     }
 
-    cycleWiperMode() {
-      const modes = ['AUTO', 'LOW', 'HIGH', 'OFF'];
-      const next = modes[(modes.indexOf(this.wiperMode) + 1) % modes.length];
-      this.wiperMode = next;
-      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(next !== 'OFF');
-      this.syncPlayerAndCamera(0.016, false);
-      this.showToast(`Wipers: ${next}`, 1.1);
-    }
-
     toggleSpeedUnits() {
       this.useKmh = !this.useKmh;
       if (this.dom.unit) {
@@ -1351,9 +1383,6 @@
         this.dom.crashEarned.textContent = this.formatMoney(this.economy.sessionEarned);
       }
 
-      const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
-      const truckId = window.HighwayEconomy.SECRET_TRUCK_ID;
-      const streak = crashRes ? crashRes.crashStreak : this.economy.getCrashStreak();
       const unlocked = !!(crashRes && crashRes.unlockedCar);
 
       if (this.dom.crashStreakBanner) {
@@ -1362,16 +1391,15 @@
             '🏆 SECRET UNLOCKED: COLOSSUS 18-WHEELER! Ready to drive now or from Garage.';
           this.dom.crashStreakBanner.classList.remove('hidden');
           this.dom.crashStreakBanner.classList.add('unlocked');
-        } else if (!this.economy.isOwned(truckId)) {
-          this.dom.crashStreakBanner.textContent = `Wreck Streak: ${streak}/${target} — Crash ${target} times in a row to unlock the Colossus 18-Wheeler`;
-          this.dom.crashStreakBanner.classList.remove('hidden', 'unlocked');
         } else {
+          this.dom.crashStreakBanner.textContent = '';
           this.dom.crashStreakBanner.classList.add('hidden');
           this.dom.crashStreakBanner.classList.remove('unlocked');
         }
       }
 
       if (this.dom.btnCrashDriveTruck) {
+        this.dom.btnCrashDriveTruck.textContent = unlocked ? 'Drive Colossus 18-Wheeler Now' : '';
         this.dom.btnCrashDriveTruck.classList.toggle('hidden', !unlocked);
       }
 
@@ -1573,10 +1601,14 @@
         } else if (code === 'Minus' || code === 'NumpadSubtract' || code === 'BracketLeft') {
           e.preventDefault();
           this.adjustSpeedAssist(-5);
-        } else if (code === 'KeyF') {
-          if (!e.repeat) this.cycleWiperMode();
+        } else if ((code === 'Digit0' || code === 'Numpad0') && this.cameraMode === 2) {
+          if (!e.repeat) this.resetSeatSetting();
         } else if (code === 'KeyJ') {
           if (!e.repeat && this.radio) this.radio.togglePanel();
+        } else if (code === 'Comma') {
+          if (!e.repeat && this.radio && this.radio.currentSource) this.radio.prevTrack();
+        } else if (code === 'Period') {
+          if (!e.repeat && this.radio && this.radio.currentSource) this.radio.nextTrack();
         } else if (code === 'Tab') {
           e.preventDefault();
           if (!e.repeat) this.toggleSetupDrawer();
@@ -1666,6 +1698,24 @@
         btn.addEventListener('click', () => {
           btn.blur();
           this.adjustSpeedAssist(parseInt(btn.getAttribute('data-assist-step'), 10) || 0);
+        });
+      });
+
+      document.querySelectorAll('[data-seat-field]').forEach((el) => {
+        el.addEventListener('input', () => {
+          const field = el.getAttribute('data-seat-field');
+          const raw = parseFloat(el.value);
+          if (!isFinite(raw) || !field) return;
+          const val = field === 'y' || field === 'z' ? raw / 100 : raw;
+          this.updateSeatSetting({ [field]: val }, !this.paused);
+        });
+        el.addEventListener('change', () => el.blur());
+        el.addEventListener('pointerup', () => el.blur());
+      });
+      document.querySelectorAll('[data-seat-reset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.resetSeatSetting();
         });
       });
 
@@ -1803,7 +1853,6 @@
         if (isInterior) {
           const radarInfo = this.env.getRadarInfo(this.player.s);
           const radarSpeeding = radarInfo.nearby && this.player.speedKmh > radarInfo.limitKmh + 5;
-          const radioState = this.radio ? this.radio.getState() : null;
           this.interiorRig.updateInterior(
             {
               steer: this.player.steer,
@@ -1829,11 +1878,6 @@
               radarDistM: Math.max(0, Math.round(radarInfo.distToRadar)),
               radarSpeeding,
               radarFineText: this.lastFineText,
-              blindSpotLeft: !!(this.blindSpot && this.blindSpot.left),
-              blindSpotRight: !!(this.blindSpot && this.blindSpot.right),
-              wiperMode: this.wiperMode,
-              radioTitle: radioState ? radioState.title : '',
-              radioPlaying: !!(radioState && radioState.playing),
               speedAssistMode: this.speedAssistMode,
               speedAssistTargetKmh: this.speedAssistTargetKmh,
               hornActive: this.hornActive,
@@ -1853,8 +1897,9 @@
       }
       this.playerMesh.group.visible = true;
 
+      const seat = this.economy.getSeatConfig();
       const speedFrac = clamp(this.player.speed / Math.max(40, this.player.maxSpeedMs), 0, 1);
-      const targetFov = isInterior ? 70 + speedFrac * 6 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
+      const targetFov = isInterior ? seat.fov + speedFrac * 6 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
       if (Math.abs(targetFov - this.lastFov) > 0.05) {
         this.lastFov += (targetFov - this.lastFov) * (snap ? 1 : Math.min(1, 6 * dt));
         this.camera.fov = this.lastFov;
@@ -1864,14 +1909,18 @@
       if (isInterior && this.interiorRig) {
         this.playerMesh.group.updateMatrixWorld(true);
         const eye = this.interiorRig.getDriverEyeLocal();
+        const eyeYWithSeat = eye.y + seat.y;
+        const eyeZWithSeat = eye.z + seat.z;
+        const lookDist = Math.abs(eyeZWithSeat - eye.lookZ);
+        const pitchOffsetY = Math.tan((seat.pitchDeg * Math.PI) / 180) * lookDist;
         this.eyeWorldVec.set(
           eye.x - this.player.roll * 0.25,
-          eye.y - this.player.pitch * 0.14,
-          eye.z + this.player.camSurgeZ * 0.22
+          eyeYWithSeat - this.player.pitch * 0.14,
+          eyeZWithSeat + this.player.camSurgeZ * 0.22
         );
         this.lookWorldVec.set(
           eye.x,
-          eye.lookY + this.player.pitch * 0.35,
+          eye.lookY + seat.y + pitchOffsetY + this.player.pitch * 0.35,
           eye.lookZ
         );
         this.playerMesh.group.localToWorld(this.eyeWorldVec);
@@ -2424,21 +2473,8 @@
           this.economy.awardDistance(deltaMeters, this.player.speedKmh, preset.weatherMult);
         }
 
-        if (this.blindSpotChirpCooldown > 0) {
-          this.blindSpotChirpCooldown = Math.max(0, this.blindSpotChirpCooldown - dt);
-        }
         if (!this.player.crashed) {
           this.updateRadarEnforcement(dt, prevS);
-          this.blindSpot = this.traffic.getBlindSpotState(this.player);
-          const conflictSide =
-            (this.signalMode === -1 && this.blindSpot.left) ||
-            (this.signalMode === 1 && this.blindSpot.right);
-          if (conflictSide && this.blindSpotChirpCooldown <= 0) {
-            if (window.HighwayAudio) window.HighwayAudio.playBlindSpotChirp();
-            this.blindSpotChirpCooldown = 0.95;
-          }
-        } else {
-          this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
         }
 
         this.saveTimer += dt;

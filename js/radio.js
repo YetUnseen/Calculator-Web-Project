@@ -310,6 +310,14 @@
       } else if (code === ENDED) {
         this.playing = false;
         this.statusText = 'Ended';
+        if (this.presets.length > 1) {
+          const idx = this.currentSource
+            ? this.presets.findIndex((p) => p.raw === this.currentSource.raw)
+            : -1;
+          const nextIdx = (idx + 1) % this.presets.length;
+          this.loadPreset(nextIdx);
+          return;
+        }
       }
       this._syncDOM();
     }

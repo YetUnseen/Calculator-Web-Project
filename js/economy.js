@@ -447,9 +447,22 @@
   };
 
   const MAX_UPGRADE_LEVEL = 4;
+  const DEFAULT_SEAT_CONFIG = { y: 0, z: 0, pitchDeg: 0, fov: 68 };
 
   function clamp(v, lo, hi) {
     return v < lo ? lo : v > hi ? hi : v;
+  }
+
+  function sanitizeSeatConfig(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const y = typeof src.y === 'number' && isFinite(src.y) ? Math.round(clamp(src.y, -0.12, 0.18) * 1000) / 1000 : DEFAULT_SEAT_CONFIG.y;
+    const z = typeof src.z === 'number' && isFinite(src.z) ? Math.round(clamp(src.z, -0.20, 0.22) * 1000) / 1000 : DEFAULT_SEAT_CONFIG.z;
+    const pitchDeg =
+      typeof src.pitchDeg === 'number' && isFinite(src.pitchDeg)
+        ? Math.round(clamp(src.pitchDeg, -8, 10) * 2) / 2
+        : DEFAULT_SEAT_CONFIG.pitchDeg;
+    const fov = typeof src.fov === 'number' && isFinite(src.fov) ? Math.round(clamp(src.fov, 55, 85)) : DEFAULT_SEAT_CONFIG.fov;
+    return { y, z, pitchDeg, fov };
   }
 
   function makeDefaultUpgrades() {
@@ -516,6 +529,7 @@
         },
         transmissionMode: 'AUTO',
         gaugeStyle: 'digital',
+        seatConfig: Object.assign({}, DEFAULT_SEAT_CONFIG),
         totalDistanceKm: 0,
         crashStreak: 0
       };
@@ -594,6 +608,10 @@
 
         if (typeof parsed.crashStreak === 'number' && isFinite(parsed.crashStreak)) {
           this.state.crashStreak = Math.max(0, Math.floor(parsed.crashStreak));
+        }
+
+        if (parsed.seatConfig && typeof parsed.seatConfig === 'object') {
+          this.state.seatConfig = sanitizeSeatConfig(parsed.seatConfig);
         }
       } catch (e) {
         // Ignore malformed localStorage
@@ -729,6 +747,24 @@
       const next = this.getGaugeStyle() === 'digital' ? 'analog' : 'digital';
       this.setGaugeStyle(next);
       return next;
+    }
+
+    getSeatConfig() {
+      this.state.seatConfig = sanitizeSeatConfig(this.state.seatConfig);
+      return Object.assign({}, this.state.seatConfig);
+    }
+
+    setSeatConfig(partial) {
+      const merged = Object.assign({}, this.getSeatConfig(), partial && typeof partial === 'object' ? partial : {});
+      this.state.seatConfig = sanitizeSeatConfig(merged);
+      this.save();
+      return Object.assign({}, this.state.seatConfig);
+    }
+
+    resetSeatConfig() {
+      this.state.seatConfig = Object.assign({}, DEFAULT_SEAT_CONFIG);
+      this.save();
+      return Object.assign({}, this.state.seatConfig);
     }
 
     /**
@@ -966,6 +1002,7 @@
     TRANSMISSION_MODES,
     GAUGE_STYLES,
     MAX_UPGRADE_LEVEL,
+    DEFAULT_SEAT_CONFIG,
     CRASH_UNLOCK_TARGET,
     SECRET_TRUCK_ID
   };

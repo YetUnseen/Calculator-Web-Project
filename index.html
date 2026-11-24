@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw19" />
+  <link rel="stylesheet" href="css/style.css?v=hw20" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -213,6 +213,31 @@
           <button class="drawer-opt-btn span-2" id="btn-setup-quality">Graphics: Auto</button>
         </div>
       </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">
+          <span>Interior Seat</span>
+          <button type="button" class="seat-reset-btn" data-seat-reset title="Reset Seat Position [0]">Reset [0]</button>
+        </div>
+        <div class="seat-controls-box">
+          <div class="seat-row">
+            <div class="seat-row-head"><span>Height</span><span class="seat-val" data-seat-val="y">0 cm</span></div>
+            <input type="range" class="seat-range" data-seat-field="y" min="-12" max="18" step="1" value="0" />
+          </div>
+          <div class="seat-row">
+            <div class="seat-row-head"><span>Forward / Back</span><span class="seat-val" data-seat-val="z">0 cm</span></div>
+            <input type="range" class="seat-range" data-seat-field="z" min="-20" max="22" step="1" value="0" />
+          </div>
+          <div class="seat-row">
+            <div class="seat-row-head"><span>Look Pitch</span><span class="seat-val" data-seat-val="pitchDeg">0.0°</span></div>
+            <input type="range" class="seat-range" data-seat-field="pitchDeg" min="-8" max="10" step="0.5" value="0" />
+          </div>
+          <div class="seat-row">
+            <div class="seat-row-head"><span>Cockpit FOV</span><span class="seat-val" data-seat-val="fov">68°</span></div>
+            <input type="range" class="seat-range" data-seat-field="fov" min="55" max="85" step="1" value="68" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Live Top-Center HUD Rearview Mirror [N] -->
@@ -361,7 +386,7 @@
       </div>
 
       <div class="shop-tabs">
-        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (16)</button>
+        <button class="shop-tab-btn active" id="shop-tab-vehicles" data-shop-tab="tab-vehicles">Vehicles (15)</button>
         <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades (10)</button>
         <button class="shop-tab-btn" data-shop-tab="tab-custom">Visual Styling</button>
       </div>
@@ -369,7 +394,7 @@
       <div class="shop-body">
         <div class="shop-pane active" id="tab-vehicles">
           <div class="filter-pill-row" id="garage-car-filters">
-            <button class="filter-pill-btn active" data-car-filter="all">All (16)</button>
+            <button class="filter-pill-btn active" id="filter-cars-all" data-car-filter="all">All (15)</button>
             <button class="filter-pill-btn" data-car-filter="street">Street</button>
             <button class="filter-pill-btn" data-car-filter="sport">Sport &amp; Muscle</button>
             <button class="filter-pill-btn" data-car-filter="super">Super &amp; Hyper</button>
@@ -448,8 +473,8 @@
             <strong id="pause-stat-passes">0</strong>
           </div>
           <div class="crash-stat">
-            <span>Wreck Streak</span>
-            <strong id="pause-stat-streak">0 / 3</strong>
+            <span>Top Speed</span>
+            <strong id="pause-stat-top-speed">0 km/h</strong>
           </div>
         </div>
 
@@ -517,6 +542,31 @@
             <button class="drawer-opt-btn span-2" id="btn-pause-quality">Graphics: Auto</button>
           </div>
         </div>
+
+        <div class="drawer-section">
+          <div class="drawer-label">
+            <span>Interior Seat</span>
+            <button type="button" class="seat-reset-btn" data-seat-reset title="Reset Seat Position [0]">Reset [0]</button>
+          </div>
+          <div class="seat-controls-box">
+            <div class="seat-row">
+              <div class="seat-row-head"><span>Height</span><span class="seat-val" data-seat-val="y">0 cm</span></div>
+              <input type="range" class="seat-range" data-seat-field="y" min="-12" max="18" step="1" value="0" />
+            </div>
+            <div class="seat-row">
+              <div class="seat-row-head"><span>Forward / Back</span><span class="seat-val" data-seat-val="z">0 cm</span></div>
+              <input type="range" class="seat-range" data-seat-field="z" min="-20" max="22" step="1" value="0" />
+            </div>
+            <div class="seat-row">
+              <div class="seat-row-head"><span>Look Pitch</span><span class="seat-val" data-seat-val="pitchDeg">0.0°</span></div>
+              <input type="range" class="seat-range" data-seat-field="pitchDeg" min="-8" max="10" step="0.5" value="0" />
+            </div>
+            <div class="seat-row">
+              <div class="seat-row-head"><span>Cockpit FOV</span><span class="seat-val" data-seat-val="fov">68°</span></div>
+              <input type="range" class="seat-range" data-seat-field="fov" min="55" max="85" step="1" value="68" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="pause-pane" id="pause-tab-controls">
@@ -538,7 +588,6 @@
           <div class="hw-controls-ref">
             <div><span>Left / Hazard / Right Signal</span><span class="key-group"><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></span></div>
             <div><span>Headlights: Flash (Day) / Short↔Long (Night)</span><span class="key-group"><kbd>L</kbd></span></div>
-            <div><span>Windshield Wipers (Auto / Low / High / Off)</span><span class="key-group"><kbd>F</kbd></span></div>
             <div><span>Horn / Air Horn / Siren</span><span class="key-group"><kbd>H</kbd> or <kbd>Space</kbd></span></div>
           </div>
         </div>
@@ -547,8 +596,9 @@
           <div class="controls-cat-title">Cameras &amp; Menus</div>
           <div class="hw-controls-ref">
             <div><span>Cycle Camera / Gauge Style</span><span class="key-group"><kbd>V</kbd> <kbd>B</kbd></span></div>
+            <div><span>Reset Interior Seat</span><span class="key-group"><kbd>0</kbd></span></div>
             <div><span>Rearview Mirror / Weather / Audio</span><span class="key-group"><kbd>N</kbd> <kbd>T</kbd> <kbd>K</kbd></span></div>
-            <div><span>Car Radio (YouTube Embed)</span><span class="key-group"><kbd>J</kbd></span></div>
+            <div><span>Car Radio / Prev · Next Track</span><span class="key-group"><kbd>J</kbd> · <kbd>,</kbd> <kbd>.</kbd></span></div>
             <div><span>Drive Setup / Garage / Restart</span><span class="key-group"><kbd>Tab</kbd> <kbd>G</kbd> <kbd>R</kbd></span></div>
             <div><span>Pause Menu / Calculator Disguise</span><span class="key-group"><kbd>ESC</kbd> <kbd>`</kbd></span></div>
           </div>
@@ -583,7 +633,7 @@
       </div>
 
       <div class="hw-modal-actions">
-        <button class="hw-btn hw-btn-gold hidden" id="btn-crash-drive-truck">Drive Colossus 18-Wheeler Now</button>
+        <button class="hw-btn hw-btn-gold hidden" id="btn-crash-drive-truck"></button>
         <button class="hw-btn hw-btn-primary" id="btn-crash-restart">Restart Drive [R]</button>
         <button class="hw-btn" id="btn-crash-garage">Garage &amp; Upgrades [G]</button>
         <button class="hw-btn hw-btn-subtle" id="btn-crash-calc">Calculator [`]</button>
@@ -592,15 +642,15 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw19"></script>
-  <script src="js/hardware.js?v=hw19"></script>
-  <script src="js/economy.js?v=hw19"></script>
-  <script src="js/audio.js?v=hw19"></script>
-  <script src="js/radio.js?v=hw19"></script>
-  <script src="js/vehicles.js?v=hw19"></script>
-  <script src="js/highway.js?v=hw19"></script>
-  <script src="js/traffic.js?v=hw19"></script>
-  <script src="js/physics.js?v=hw19"></script>
-  <script src="js/main.js?v=hw19"></script>
+  <script src="vendor/three.min.js?v=hw20"></script>
+  <script src="js/hardware.js?v=hw20"></script>
+  <script src="js/economy.js?v=hw20"></script>
+  <script src="js/audio.js?v=hw20"></script>
+  <script src="js/radio.js?v=hw20"></script>
+  <script src="js/vehicles.js?v=hw20"></script>
+  <script src="js/highway.js?v=hw20"></script>
+  <script src="js/traffic.js?v=hw20"></script>
+  <script src="js/physics.js?v=hw20"></script>
+  <script src="js/main.js?v=hw20"></script>
 </body>
 </html>

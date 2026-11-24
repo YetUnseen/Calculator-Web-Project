@@ -1530,8 +1530,8 @@
     const cowlZ = isBigRig ? -L * 0.5 + 1.95 : -L * 0.5 + hoodLen;
 
     const driverX = isBigRig ? -W * 0.24 : -W * 0.20;
-    const eyeY = hoodTopY + 0.278;
-    const eyeZ = cowlZ + 0.90;
+    const eyeY = hoodTopY + 0.265;
+    const eyeZ = cowlZ + 0.86;
 
     const interiorGroup = new THREE.Group();
     interiorGroup.visible = false;
@@ -1559,10 +1559,10 @@
     addPart(interiorGroup, shared.boxGeo, dashMat, 0, dashY - 0.06, dashZ, dashW, 0.16, 0.36);
     addPart(interiorGroup, shared.boxGeo, trimMat, 0, dashY + 0.015, dashZ + 0.18, dashW * 0.96, 0.020, 0.025);
 
-    // Instrument binnacle hood framing the 3D gauge cluster without clipping its top edge
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.222, cowlZ + 0.23, 0.44, 0.024, 0.14, 0.04);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.215, hoodTopY + 0.132, cowlZ + 0.23, 0.026, 0.17, 0.14);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.215, hoodTopY + 0.132, cowlZ + 0.23, 0.026, 0.17, 0.14);
+    // Instrument binnacle hood framing the 3D gauge cluster cleanly
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.214, cowlZ + 0.24, 0.44, 0.025, 0.19, 0.06);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
 
     // Center console divider & armrest
     addPart(interiorGroup, shared.boxGeo, dashMat, 0, hoodTopY - 0.18, cowlZ + 0.56, 0.26, 0.36, 0.86);
@@ -1621,82 +1621,13 @@
     addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.24, cowlZ + 0.39, 0.02, 0.08, 0.025);
     addPart(interiorGroup, makeMirroredPlane(0.24, 0.054), rearMirrorMat, 0, eyeY + 0.19, cowlZ + 0.378);
 
-    // Blind-spot amber/red warning triangles in outer upper corners of 3D wing mirrors
-    const bsmCanvas = document.createElement('canvas');
-    bsmCanvas.width = 64;
-    bsmCanvas.height = 64;
-    const bsmCtx = bsmCanvas.getContext('2d');
-    const bsmGrad = bsmCtx.createRadialGradient(32, 34, 2, 32, 34, 26);
-    bsmGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
-    bsmGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.35)');
-    bsmGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
-    bsmCtx.fillStyle = bsmGrad;
-    bsmCtx.fillRect(0, 0, 64, 64);
-    bsmCtx.fillStyle = '#ffffff';
-    bsmCtx.beginPath();
-    bsmCtx.moveTo(32, 12);
-    bsmCtx.lineTo(52, 48);
-    bsmCtx.lineTo(12, 48);
-    bsmCtx.closePath();
-    bsmCtx.fill();
-    const bsmTex = new THREE.CanvasTexture(bsmCanvas);
-    if (THREE.sRGBEncoding !== undefined) bsmTex.encoding = THREE.sRGBEncoding;
+    // Driver Left Side Mirror outside left A-pillar
+    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.49, dashY + 0.085, cowlZ + 0.245);
 
-    const leftBsmMat = new THREE.MeshBasicMaterial({
-      map: bsmTex,
-      color: 0xf59e0b,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false
-    });
-    const rightBsmMat = leftBsmMat.clone();
-    const bsmGeo = new THREE.PlaneGeometry(0.026, 0.024);
-
-    // Driver Left Side Mirror angled inward toward driver + visible A-pillar BSM indicator
-    const leftMirrorGroup = new THREE.Group();
-    leftMirrorGroup.position.set(-W * 0.49, dashY + 0.085, cowlZ + 0.19);
-    leftMirrorGroup.rotation.y = 0.14;
-    interiorGroup.add(leftMirrorGroup);
-    addPart(leftMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.16, 0.092, 0.10);
-    addPart(leftMirrorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, 0, 0, 0.055);
-    addPart(leftMirrorGroup, bsmGeo, leftBsmMat, -0.044, 0.019, 0.057);
-    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, 0.18, 0);
-
-    // Passenger Right Side Mirror angled inward toward driver + visible A-pillar BSM indicator
-    const rightMirrorGroup = new THREE.Group();
-    rightMirrorGroup.position.set(W * 0.49, dashY + 0.085, cowlZ + 0.19);
-    rightMirrorGroup.rotation.y = -0.14;
-    interiorGroup.add(rightMirrorGroup);
-    addPart(rightMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.16, 0.092, 0.10);
-    addPart(rightMirrorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, 0, 0, 0.055);
-    addPart(rightMirrorGroup, bsmGeo, rightBsmMat, 0.044, 0.019, 0.057);
-    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, -0.35, 0);
-
-    // Subtle interior windshield weather layer (raindrops & snow flecks cleared by wipers)
-    const glassCanvas = document.createElement('canvas');
-    glassCanvas.width = 384;
-    glassCanvas.height = 192;
-    const glassCtx = glassCanvas.getContext('2d');
-    const glassTex = new THREE.CanvasTexture(glassCanvas);
-    const glassMat = new THREE.MeshBasicMaterial({
-      map: glassTex,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false
-    });
-    const glassMesh = addPart(
-      interiorGroup,
-      new THREE.PlaneGeometry(W * 0.78, pillarLen * 0.92),
-      glassMat,
-      0,
-      pillarMidY,
-      pillarMidZ - 0.015,
-      1,
-      1,
-      1,
-      pillarPitch
-    );
-    glassMesh.visible = false;
+    // Passenger Right Side Mirror outside right A-pillar
+    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.49, dashY + 0.085, cowlZ + 0.245);
 
     // 3. Center Infotainment Screen (shifted right of steering rim for clear view)
     const infoCanvas = document.createElement('canvas');
@@ -1710,7 +1641,7 @@
     addPart(interiorGroup, shared.boxGeo, leatherMat, infoX, dashY + 0.105, dashZ + 0.17, 0.23, 0.12, 0.025, 0, 0.20, 0);
     addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, infoX + 0.002, dashY + 0.105, dashZ + 0.185, 1, 1, 1, 0, 0.20, 0);
 
-    function drawInfotainment(weatherName, wiperMode, radioTitle, radioPlaying) {
+    function drawInfotainment(weatherName) {
       infoCtx.fillStyle = '#0c1220';
       infoCtx.fillRect(0, 0, 256, 128);
       infoCtx.strokeStyle = '#1e293b';
@@ -1736,22 +1667,9 @@
       infoCtx.fillStyle = '#38bdf8';
       infoCtx.font = 'bold 13px sans-serif';
       infoCtx.fillText(weatherName || 'Afternoon', 14, 48);
-      if (radioTitle) {
-        const prefix = radioPlaying ? '♪ ' : '❚❚ ';
-        const clipped =
-          radioTitle.length > 22 ? `${radioTitle.slice(0, 21)}…` : radioTitle;
-        infoCtx.fillStyle = radioPlaying ? '#5eead4' : '#94a3b8';
-        infoCtx.font = 'bold 11px sans-serif';
-        infoCtx.fillText(`${prefix}${clipped}`, 14, 92);
-      }
-      if (wiperMode && wiperMode !== 'AUTO') {
-        infoCtx.fillStyle = '#94a3b8';
-        infoCtx.font = 'bold 11px sans-serif';
-        infoCtx.fillText(`WIPER: ${wiperMode}`, 14, 114);
-      }
       infoTex.needsUpdate = true;
     }
-    drawInfotainment('Afternoon', 'AUTO', '', false);
+    drawInfotainment('Afternoon');
 
     // 4. High-Res Live 3D In-Dash Instrument Cluster (Digital OR Analog, crisp through wheel!)
     const clusterCanvas = document.createElement('canvas');
@@ -1761,12 +1679,12 @@
     const clusterTex = new THREE.CanvasTexture(clusterCanvas);
     if (THREE.sRGBEncoding !== undefined) clusterTex.encoding = THREE.sRGBEncoding;
     const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex });
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.120, cowlZ + 0.26, 1, 1, 1, -0.14);
+    addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.125, cowlZ + 0.26, 1, 1, 1, -0.08);
 
-    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges & top indicator strip are completely clear)
+    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges are unobstructed)
     const wheelMount = new THREE.Group();
-    wheelMount.position.set(driverX, hoodTopY + 0.042, cowlZ + 0.54);
-    wheelMount.rotation.x = -0.22;
+    wheelMount.position.set(driverX, hoodTopY + 0.062, cowlZ + 0.54);
+    wheelMount.rotation.x = -0.16;
     interiorGroup.add(wheelMount);
 
     addPart(wheelMount, new THREE.CylinderGeometry(0.024, 0.028, 0.22, 10), leatherMat, 0, -0.022, -0.11, 1, 1, 1, Math.PI / 2);
@@ -1774,16 +1692,16 @@
     const wheelSpinGroup = new THREE.Group();
     wheelMount.add(wheelSpinGroup);
 
-    const rimGeo = new THREE.TorusGeometry(0.212, 0.013, 10, 32);
+    const rimGeo = new THREE.TorusGeometry(0.198, 0.013, 10, 32);
     const rimMesh = new THREE.Mesh(rimGeo, leatherMat);
     wheelSpinGroup.add(rimMesh);
 
     // 12 o'clock centering stripe
-    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.212, 0, 0.020, 0.024, 0.028);
+    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.198, 0, 0.020, 0.028, 0.030);
     // Angled 3 Spokes + Hub (keeps upper window wide open for gauges)
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.118, -0.024, 0, 0.146, 0.022, 0.014, 0, 0, 0.22);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.118, -0.024, 0, 0.146, 0.022, 0.014, 0, 0, -0.22);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.118, 0, 0.024, 0.146, 0.014);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, 0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, -0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.112, 0, 0.024, 0.135, 0.014);
     addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.040, 0.040, 0.026, 16), leatherMat, 0, 0, 0.005, 1, 1, 1, Math.PI / 2);
     addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.013, 0.013, 0.030, 12), trimMat, 0, 0, 0.007, 1, 1, 1, Math.PI / 2);
 
@@ -1819,14 +1737,8 @@
     wiperTiltGroup.add(wiperRightPivot);
 
     let wiperPhase = 0;
-    let wiperPrevAng = 0.06;
-    let glassAccum = 0;
-    let glassWasVisible = false;
-    const glassDrops = [];
     let redrawAccum = 0;
     let lastWeatherDrawn = '';
-    let lastWiperDrawn = 'AUTO';
-    let lastRadioDrawn = '';
 
     function drawAnalogDial(ctx, cx, cy, r, frac, needleColor, title, valueText, redZoneStart) {
       ctx.save();
@@ -2258,114 +2170,10 @@
 
       clusterTex.needsUpdate = true;
 
-      const curWiper = state.wiperMode || 'AUTO';
-      const curRadioTitle = state.radioTitle || '';
-      const curRadioPlaying = !!state.radioPlaying;
-      const curRadioKey = `${curRadioPlaying ? '1' : '0'}:${curRadioTitle}`;
-      if (
-        state.weatherName !== lastWeatherDrawn ||
-        curWiper !== lastWiperDrawn ||
-        curRadioKey !== lastRadioDrawn
-      ) {
+      if (state.weatherName !== lastWeatherDrawn) {
         lastWeatherDrawn = state.weatherName || 'Afternoon';
-        lastWiperDrawn = curWiper;
-        lastRadioDrawn = curRadioKey;
-        drawInfotainment(lastWeatherDrawn, curWiper, curRadioTitle, curRadioPlaying);
+        drawInfotainment(lastWeatherDrawn);
       }
-    }
-
-    function updateWindshieldGlass(dt, precip, speedKmh, curAng, prevAng, sweepingNow) {
-      const aMin = Math.min(prevAng, curAng) - 0.10;
-      const aMax = Math.max(prevAng, curAng) + 0.10;
-      const activelyWiping = sweepingNow && Math.abs(curAng - prevAng) > 0.008;
-
-      if (precip === 'rain' || precip === 'snow') {
-        const spawnCount = precip === 'rain' ? 2 : 1;
-        for (let i = 0; i < spawnCount; i++) {
-          if (glassDrops.length < 44 && Math.random() < (precip === 'rain' ? 0.65 : 0.45)) {
-            glassDrops.push({
-              kind: precip,
-              x: 18 + Math.random() * 348,
-              y: 12 + Math.random() * 156,
-              r: precip === 'rain' ? 1.5 + Math.random() * 1.4 : 1.7 + Math.random() * 1.5,
-              len: precip === 'rain' ? 2.5 + Math.random() * 4.5 : 0,
-              alpha: (precip === 'rain' ? 0.18 : 0.22) + Math.random() * 0.14,
-              vx: (Math.random() - 0.5) * 8,
-              vy: precip === 'rain' ? -(3 + (speedKmh || 0) * 0.16) : 14 + Math.random() * 12,
-              age: 0,
-              maxAge: precip === 'rain' ? 2.4 + Math.random() * 1.6 : 1.9 + Math.random() * 1.3
-            });
-          }
-        }
-      }
-
-      for (let i = glassDrops.length - 1; i >= 0; i--) {
-        const d = glassDrops[i];
-        d.age += dt;
-        d.x += d.vx * dt;
-        d.y += d.vy * dt;
-        if (d.age >= d.maxAge || d.y < 2 || d.y > 190 || d.x < 4 || d.x > 380) {
-          glassDrops.splice(i, 1);
-          continue;
-        }
-        if (activelyWiping) {
-          const dx1 = d.x - 92;
-          const dy1 = 188 - d.y;
-          const dist1 = Math.hypot(dx1, dy1);
-          const ang1 = Math.atan2(dy1, dx1);
-          const hit1 = dist1 >= 16 && dist1 <= 158 && ang1 >= aMin && ang1 <= aMax;
-
-          const dx2 = d.x - 238;
-          const dy2 = 188 - d.y;
-          const dist2 = Math.hypot(dx2, dy2);
-          const ang2 = Math.atan2(dy2, dx2);
-          const hit2 = dist2 >= 16 && dist2 <= 158 && ang2 >= aMin && ang2 <= aMax;
-
-          if (hit1 || hit2) {
-            glassDrops.splice(i, 1);
-          }
-        }
-      }
-
-      const shouldShow = precip === 'rain' || precip === 'snow' || glassDrops.length > 0;
-      glassMesh.visible = shouldShow;
-      if (!shouldShow && !glassWasVisible) return;
-      glassWasVisible = shouldShow;
-
-      glassCtx.clearRect(0, 0, 384, 192);
-      if (activelyWiping) {
-        glassCtx.strokeStyle = 'rgba(220, 238, 255, 0.05)';
-        glassCtx.lineWidth = 3;
-        glassCtx.beginPath();
-        glassCtx.moveTo(92, 188);
-        glassCtx.lineTo(92 + Math.cos(curAng) * 150, 188 - Math.sin(curAng) * 150);
-        glassCtx.moveTo(238, 188);
-        glassCtx.lineTo(238 + Math.cos(curAng) * 150, 188 - Math.sin(curAng) * 150);
-        glassCtx.stroke();
-      }
-      for (let i = 0; i < glassDrops.length; i++) {
-        const d = glassDrops[i];
-        const fade = Math.max(0, 1 - d.age / d.maxAge);
-        const a = d.alpha * (0.4 + 0.6 * fade);
-        if (d.kind === 'rain') {
-          glassCtx.strokeStyle = `rgba(210, 232, 255, ${a.toFixed(3)})`;
-          glassCtx.fillStyle = `rgba(225, 242, 255, ${a.toFixed(3)})`;
-          glassCtx.lineWidth = Math.max(1.1, d.r * 0.65);
-          glassCtx.beginPath();
-          glassCtx.moveTo(d.x, d.y);
-          glassCtx.lineTo(d.x + d.vx * 0.03, d.y + d.len);
-          glassCtx.stroke();
-          glassCtx.beginPath();
-          glassCtx.arc(d.x, d.y, d.r * 0.72, 0, Math.PI * 2);
-          glassCtx.fill();
-        } else {
-          glassCtx.fillStyle = `rgba(242, 248, 255, ${a.toFixed(3)})`;
-          glassCtx.beginPath();
-          glassCtx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-          glassCtx.fill();
-        }
-      }
-      glassTex.needsUpdate = true;
     }
 
     function updateInterior(state, dt) {
@@ -2379,73 +2187,18 @@
       leftPaddlePivot.rotation.y = pTimer > 0 && pDir < 0 ? 0.28 : 0;
       rightPaddlePivot.rotation.y = pTimer > 0 && pDir > 0 ? -0.28 : 0;
 
-      // Blind-spot mirror triangles (subtle amber when occupied, red flash if signaling toward car)
-      const sig = state.signalMode || 0;
-      const elapsed = state.elapsed || 0;
-      const updateBsmMat = (mat, active, signalingInto) => {
-        if (active) {
-          mat.color.setHex(signalingInto ? 0xef4444 : 0xf59e0b);
-          const targetOp = signalingInto
-            ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(elapsed * 28))
-            : 0.82;
-          mat.opacity += (targetOp - mat.opacity) * Math.min(1, 18 * dt);
-        } else if (mat.opacity > 0.005) {
-          mat.opacity = Math.max(0, mat.opacity - 7 * dt);
-        } else {
-          mat.opacity = 0;
-        }
-      };
-      updateBsmMat(leftBsmMat, !!state.blindSpotLeft, sig === -1);
-      updateBsmMat(rightBsmMat, !!state.blindSpotRight, sig === 1);
-
-      // Windshield wipers with AUTO / LOW / HIGH / OFF speed stages
-      const wiperMode = state.wiperMode || 'AUTO';
-      const precip = state.precip || 'none';
-      let wipersActive = false;
-      let wiperRate = 4.3;
-      let wiperPause = 0.32;
-      if (wiperMode === 'LOW') {
-        wipersActive = true;
-        wiperRate = 2.7;
-        wiperPause = 1.35;
-      } else if (wiperMode === 'HIGH') {
-        wipersActive = true;
-        wiperRate = 5.4;
-        wiperPause = 0.14;
-      } else if (wiperMode === 'AUTO') {
-        if (precip === 'rain') {
-          wipersActive = true;
-          wiperRate = 4.3;
-          wiperPause = 0.32;
-        } else if (precip === 'snow') {
-          wipersActive = true;
-          wiperRate = 2.7;
-          wiperPause = 0.90;
-        }
-      }
-
-      let curAng = wiperLeftPivot.rotation.z;
-      let sweepingNow = false;
+      // Windshield wipers active in Rain, Night Rain & Snow
+      const wipersActive = state.precip === 'rain' || state.precip === 'snow';
       if (wipersActive) {
-        const cycleLen = Math.PI * 2 + wiperPause * wiperRate;
-        wiperPhase = (wiperPhase + dt * wiperRate) % cycleLen;
-        sweepingNow = wiperPhase < Math.PI * 2;
-        const sweep = sweepingNow ? 0.5 * (1 - Math.cos(wiperPhase)) : 0;
-        curAng = 0.08 + sweep * 1.18;
-        wiperLeftPivot.rotation.z = curAng;
-        wiperRightPivot.rotation.z = curAng;
+        const rate = state.precip === 'rain' ? 4.4 : 2.9;
+        wiperPhase = (wiperPhase + dt * rate) % (Math.PI * 2.35);
+        const sweep = wiperPhase < Math.PI * 2 ? 0.5 * (1 - Math.cos(wiperPhase)) : 0;
+        const ang = 0.08 + sweep * 1.18;
+        wiperLeftPivot.rotation.z = ang;
+        wiperRightPivot.rotation.z = ang;
       } else {
-        curAng += (0.06 - curAng) * Math.min(1, 8 * dt);
-        wiperLeftPivot.rotation.z = curAng;
-        wiperRightPivot.rotation.z = curAng;
-      }
-
-      glassAccum += dt;
-      if (glassAccum >= 0.045) {
-        const stepGlassDt = glassAccum;
-        glassAccum = 0;
-        updateWindshieldGlass(stepGlassDt, precip, state.speedKmh || 0, curAng, wiperPrevAng, sweepingNow);
-        wiperPrevAng = curAng;
+        wiperLeftPivot.rotation.z += (0.06 - wiperLeftPivot.rotation.z) * Math.min(1, 8 * dt);
+        wiperRightPivot.rotation.z += (0.06 - wiperRightPivot.rotation.z) * Math.min(1, 8 * dt);
       }
 
       redrawAccum += dt;
@@ -2460,7 +2213,7 @@
         x: driverX,
         y: eyeY,
         z: eyeZ,
-        lookY: eyeY - 2.38,
+        lookY: eyeY - 2.35,
         lookZ: -38
       };
     }
