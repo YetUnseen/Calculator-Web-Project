@@ -137,10 +137,13 @@
       this.lastFineText = '';
       this.lastFineBannerTimer = 0;
 
-      // Driving aids: Cruise Control [U] & Electronic Speed Limiter [Y]
+      // Driving aids: Cruise Control [U], Electronic Speed Limiter [Y], Wipers [F] & Blind-Spot
       this.speedAssistMode = 'off'; // 'off' | 'cruise' | 'limit'
       this.speedAssistTargetKmh = 110;
       this.speedAssistAutoZone = false;
+      this.wiperMode = 'AUTO'; // 'AUTO' | 'LOW' | 'HIGH' | 'OFF'
+      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
+      this.blindSpotChirpCooldown = 0;
 
       this.rightShiftHeld = false;
       this.input = {
@@ -1149,6 +1152,8 @@
       this.lastFineBannerTimer = 0;
       this.speedAssistMode = 'off';
       this.speedAssistAutoZone = false;
+      this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
+      this.blindSpotChirpCooldown = 0;
       if (this.dom.fxRadarFlash) this.dom.fxRadarFlash.classList.remove('active');
       this.setHornActive(false);
       this.economy.resetSession();
@@ -1349,6 +1354,15 @@
       this.updateHUD();
       const label = this.speedAssistMode === 'cruise' ? 'Cruise' : 'Speed Limiter';
       this.showToast(`${label}: ${this.formatSpeedToastVal(this.speedAssistTargetKmh)}`, 1.1);
+    }
+
+    cycleWiperMode() {
+      const modes = ['AUTO', 'LOW', 'HIGH', 'OFF'];
+      const next = modes[(modes.indexOf(this.wiperMode) + 1) % modes.length];
+      this.wiperMode = next;
+      if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(next !== 'OFF');
+      this.syncPlayerAndCamera(0.016, false);
+      this.showToast(`Wipers: ${next}`, 1.1);
     }
 
     toggleSpeedUnits() {
@@ -1590,17 +1604,26 @@
         } else if (code === 'KeyY') {
           if (!e.repeat) this.toggleSpeedLimiter();
         } else if (
+          e.key === '-' ||
+          e.key === '_' ||
+          code === 'NumpadSubtract' ||
+          e.key === '['
+        ) {
+          e.preventDefault();
+          this.adjustSpeedAssist(-5);
+        } else if (
+          e.key === '5' ||
           code === 'Digit5' ||
           code === 'Numpad5' ||
-          code === 'Equal' ||
+          e.key === '+' ||
+          e.key === '=' ||
           code === 'NumpadAdd' ||
-          code === 'BracketRight'
+          e.key === ']'
         ) {
           e.preventDefault();
           this.adjustSpeedAssist(5);
-        } else if (code === 'Minus' || code === 'NumpadSubtract' || code === 'BracketLeft') {
-          e.preventDefault();
-          this.adjustSpeedAssist(-5);
+        } else if (code === 'KeyF') {
+          if (!e.repeat) this.cycleWiperMode();
         } else if ((code === 'Digit0' || code === 'Numpad0') && this.cameraMode === 2) {
           if (!e.repeat) this.resetSeatSetting();
         } else if (code === 'KeyJ') {
@@ -1853,6 +1876,7 @@
         if (isInterior) {
           const radarInfo = this.env.getRadarInfo(this.player.s);
           const radarSpeeding = radarInfo.nearby && this.player.speedKmh > radarInfo.limitKmh + 5;
+          const radioState = this.radio ? this.radio.getState() : null;
           this.interiorRig.updateInterior(
             {
               steer: this.player.steer,
@@ -1878,6 +1902,11 @@
               radarDistM: Math.max(0, Math.round(radarInfo.distToRadar)),
               radarSpeeding,
               radarFineText: this.lastFineText,
+              blindSpotLeft: !!(this.blindSpot && this.blindSpot.left),
+              blindSpotRight: !!(this.blindSpot && this.blindSpot.right),
+              wiperMode: this.wiperMode,
+              radioTitle: radioState ? radioState.title : '',
+              radioPlaying: !!(radioState && radioState.playing),
               speedAssistMode: this.speedAssistMode,
               speedAssistTargetKmh: this.speedAssistTargetKmh,
               hornActive: this.hornActive,
@@ -2473,8 +2502,21 @@
           this.economy.awardDistance(deltaMeters, this.player.speedKmh, preset.weatherMult);
         }
 
+        if (this.blindSpotChirpCooldown > 0) {
+          this.blindSpotChirpCooldown = Math.max(0, this.blindSpotChirpCooldown - dt);
+        }
         if (!this.player.crashed) {
           this.updateRadarEnforcement(dt, prevS);
+          this.blindSpot = this.traffic.getBlindSpotState(this.player);
+          const conflictSide =
+            (this.signalMode === -1 && this.blindSpot.left) ||
+            (this.signalMode === 1 && this.blindSpot.right);
+          if (conflictSide && this.blindSpotChirpCooldown <= 0) {
+            if (window.HighwayAudio) window.HighwayAudio.playBlindSpotChirp();
+            this.blindSpotChirpCooldown = 0.95;
+          }
+        } else {
+          this.blindSpot = { left: false, right: false, leftClose: false, rightClose: false };
         }
 
         this.saveTimer += dt;
