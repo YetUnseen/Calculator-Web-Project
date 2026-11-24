@@ -1,7 +1,8 @@
 /* ==========================================================================
    HIGHWAY ECONOMY — CURRENCY, GARAGE CATALOG, UPGRADES & PERSISTENCE
    - Earn $ from distance driven, speed, clean passes, weather & clean streak
-   - 6 Purchasable Player Cars + 5 Upgrade Categories (Levels 0-4) + Paints
+   - 15 Purchasable Vehicles + 1 Secret 3-Crash-Streak 18-Wheeler
+   - 10 Upgrade Categories (Levels 0-4) + Visual Customization + Paints
    - Persisted cleanly via localStorage (safe no-op in headless Node tests)
    ========================================================================== */
 
@@ -11,12 +12,15 @@
   const STORAGE_KEY = 'highway_drive_save_v1';
   const TRANSMISSION_MODES = ['AUTO', 'SEMI', 'MANUAL'];
   const GAUGE_STYLES = ['digital', 'analog'];
+  const CRASH_UNLOCK_TARGET = 3;
+  const SECRET_TRUCK_ID = 'colossus_truck';
 
   const PLAYER_CARS = [
     {
       id: 'starter_hatch',
       name: 'Civic Touring',
       category: 'Compact',
+      group: 'street',
       price: 0,
       archetype: 'hatchback',
       baseTopSpeedKmh: 192,
@@ -34,6 +38,7 @@
       id: 'sport_sedan',
       name: 'Apex GT Sedan',
       category: 'Sport Sedan',
+      group: 'street',
       price: 3500,
       archetype: 'player_gt',
       baseTopSpeedKmh: 215,
@@ -48,9 +53,28 @@
       desc: 'Balanced twin-scroll inline-6 grand tourer with crisp highway poise.'
     },
     {
+      id: 'rally_hatch',
+      name: 'Stratos WRC Hatch',
+      category: 'Rally Spec',
+      group: 'street',
+      price: 5200,
+      archetype: 'rally_hatch',
+      baseTopSpeedKmh: 222,
+      baseAccel: 7.1,
+      baseBrake: 16.4,
+      baseGrip: 1.16,
+      weatherGrip: 1.30,
+      durability: 1.15,
+      engineTone: 't5',
+      turboLevel: 0.96,
+      defaultColor: 0x1d4ed8,
+      desc: 'Widebody rally-homologation hatch with quad fog lamps and unstoppable wet/snow AWD grip.'
+    },
+    {
       id: 'awd_wagon',
       name: 'Nordic Touring RS',
       category: 'All-Weather AWD',
+      group: 'street',
       price: 7500,
       archetype: 'wagon',
       baseTopSpeedKmh: 230,
@@ -65,60 +89,10 @@
       desc: 'Turbo 5-cylinder AWD estate built to stay planted in heavy rain and snow.'
     },
     {
-      id: 'm_coupe',
-      name: 'Bavaria Sport Coupe',
-      category: 'Performance Coupe',
-      price: 14000,
-      archetype: 'coupe',
-      baseTopSpeedKmh: 258,
-      baseAccel: 8.6,
-      baseBrake: 17.8,
-      baseGrip: 1.15,
-      weatherGrip: 1.04,
-      durability: 1.05,
-      engineTone: 'i6_high',
-      turboLevel: 0.80,
-      defaultColor: 0xb91c1c,
-      desc: 'High-revving straight-six coupe with razor-sharp lane-change authority.'
-    },
-    {
-      id: 'gt_v8',
-      name: 'Valkyrie GT V8',
-      category: 'Grand Tourer',
-      price: 26000,
-      archetype: 'gt_v8',
-      baseTopSpeedKmh: 282,
-      baseAccel: 9.8,
-      baseBrake: 19.0,
-      baseGrip: 1.18,
-      weatherGrip: 1.06,
-      durability: 1.12,
-      engineTone: 'v8',
-      turboLevel: 0.95,
-      defaultColor: 0x334155,
-      desc: 'Muscular twin-turbo V8 long-distance cruiser with effortless overtaking punch.'
-    },
-    {
-      id: 'hyper_gt',
-      name: 'Hyperion Stradale',
-      category: 'Supercar',
-      price: 48000,
-      archetype: 'supercar',
-      baseTopSpeedKmh: 315,
-      baseAccel: 11.2,
-      baseBrake: 20.6,
-      baseGrip: 1.24,
-      weatherGrip: 1.08,
-      durability: 1.10,
-      engineTone: 'v10',
-      turboLevel: 0.88,
-      defaultColor: 0xf59e0b,
-      desc: 'Mid-engine V10 flagship with carbon aero stability and relentless top-end pull.'
-    },
-    {
       id: 'jdm_coupe',
       name: 'Skyline R-Spec',
       category: 'Turbo Tuner',
+      group: 'sport',
       price: 10500,
       archetype: 'jdm_coupe',
       baseTopSpeedKmh: 245,
@@ -133,9 +107,64 @@
       desc: 'Twin-turbo inline-6 AWD icon with fierce boost response and sharp lane precision.'
     },
     {
+      id: 'street_pickup',
+      name: 'Raptor SVT Street',
+      category: 'Sport Truck',
+      group: 'special',
+      price: 12000,
+      archetype: 'sport_pickup',
+      baseTopSpeedKmh: 242,
+      baseAccel: 8.2,
+      baseBrake: 17.0,
+      baseGrip: 1.10,
+      weatherGrip: 1.22,
+      durability: 1.38,
+      engineTone: 'v8',
+      turboLevel: 0.85,
+      defaultColor: 0xb91c1c,
+      desc: 'Supercharged V8 performance pickup with heavy-duty frame and towering highway sightlines.'
+    },
+    {
+      id: 'm_coupe',
+      name: 'Bavaria Sport Coupe',
+      category: 'Performance Coupe',
+      group: 'sport',
+      price: 14000,
+      archetype: 'coupe',
+      baseTopSpeedKmh: 258,
+      baseAccel: 8.6,
+      baseBrake: 17.8,
+      baseGrip: 1.15,
+      weatherGrip: 1.04,
+      durability: 1.05,
+      engineTone: 'i6_high',
+      turboLevel: 0.80,
+      defaultColor: 0xb91c1c,
+      desc: 'High-revving straight-six coupe with razor-sharp lane-change authority.'
+    },
+    {
+      id: 'sport_suv',
+      name: 'Kodiak Trackhawk SUV',
+      category: 'Performance SUV',
+      group: 'special',
+      price: 16500,
+      archetype: 'sport_suv',
+      baseTopSpeedKmh: 262,
+      baseAccel: 8.9,
+      baseBrake: 18.0,
+      baseGrip: 1.14,
+      weatherGrip: 1.26,
+      durability: 1.32,
+      engineTone: 'v8',
+      turboLevel: 0.90,
+      defaultColor: 0x181c24,
+      desc: 'Twin-turbo V8 AWD sport utility rocket with commanding grip in any storm.'
+    },
+    {
       id: 'muscle_v8',
       name: 'Titan V8 Muscle',
       category: 'Muscle V8',
+      group: 'sport',
       price: 19500,
       archetype: 'muscle',
       baseTopSpeedKmh: 268,
@@ -150,9 +179,28 @@
       desc: 'Supercharged V8 fastback with brutal low-end torque and heavy highway presence.'
     },
     {
+      id: 'gt_v8',
+      name: 'Valkyrie GT V8',
+      category: 'Grand Tourer',
+      group: 'sport',
+      price: 26000,
+      archetype: 'gt_v8',
+      baseTopSpeedKmh: 282,
+      baseAccel: 9.8,
+      baseBrake: 19.0,
+      baseGrip: 1.18,
+      weatherGrip: 1.06,
+      durability: 1.12,
+      engineTone: 'v8',
+      turboLevel: 0.95,
+      defaultColor: 0x334155,
+      desc: 'Muscular twin-turbo V8 long-distance cruiser with effortless overtaking punch.'
+    },
+    {
       id: 'patrol_v8',
       name: 'Interceptor Patrol',
       category: 'Pursuit Unit',
+      group: 'special',
       price: 32000,
       archetype: 'police',
       baseTopSpeedKmh: 290,
@@ -167,9 +215,47 @@
       desc: 'Pursuit-spec highway interceptor with reinforced chassis and live emergency lightbar.'
     },
     {
+      id: 'hyper_gt',
+      name: 'Hyperion Stradale',
+      category: 'Supercar',
+      group: 'super',
+      price: 48000,
+      archetype: 'supercar',
+      baseTopSpeedKmh: 315,
+      baseAccel: 11.2,
+      baseBrake: 20.6,
+      baseGrip: 1.24,
+      weatherGrip: 1.08,
+      durability: 1.10,
+      engineTone: 'v10',
+      turboLevel: 0.88,
+      defaultColor: 0xf59e0b,
+      desc: 'Mid-engine V10 flagship with carbon aero stability and relentless top-end pull.'
+    },
+    {
+      id: 'track_gt3',
+      name: 'Corsa GT3 RS',
+      category: 'Track Special',
+      group: 'super',
+      price: 64000,
+      archetype: 'gt3',
+      baseTopSpeedKmh: 326,
+      baseAccel: 11.7,
+      baseBrake: 21.8,
+      baseGrip: 1.32,
+      weatherGrip: 1.12,
+      durability: 1.08,
+      engineTone: 'v10',
+      turboLevel: 0.86,
+      defaultColor: 0x15803d,
+      maxCapKmh: 440,
+      desc: 'Homologated swan-neck wing track special built for surgical high-speed lane darts.'
+    },
+    {
       id: 'aether_hyper',
       name: 'Aether RS Hyper',
       category: 'Hypercar',
+      group: 'super',
       price: 85000,
       archetype: 'hypercar',
       baseTopSpeedKmh: 341,
@@ -182,6 +268,47 @@
       turboLevel: 1.10,
       defaultColor: 0xf8fafc,
       desc: 'Extreme twin-turbo V10 hypercar capable of 430 km/h with full factory upgrades.'
+    },
+    {
+      id: 'apex_prototype',
+      name: 'Valkyrie AMR-Pro',
+      category: 'Hyper Prototype',
+      group: 'super',
+      price: 125000,
+      archetype: 'prototype',
+      baseTopSpeedKmh: 360,
+      baseAccel: 13.0,
+      baseBrake: 23.0,
+      baseGrip: 1.36,
+      weatherGrip: 1.14,
+      durability: 1.15,
+      engineTone: 'v12',
+      turboLevel: 1.12,
+      defaultColor: 0x06b6d4,
+      maxCapKmh: 455,
+      desc: 'Screaming V12 Le Mans hyper-prototype with dorsal aero fin and unmatched downforce.'
+    },
+    {
+      id: 'colossus_truck',
+      name: 'Colossus 18-Wheeler',
+      category: 'Secret Heavy Rig',
+      group: 'special',
+      price: 0,
+      secretUnlock: 'crash_streak_3',
+      unlockHint: 'Crash 3 times in a row to unlock',
+      archetype: 'big_rig',
+      baseTopSpeedKmh: 215,
+      baseAccel: 6.4,
+      baseBrake: 13.8,
+      baseGrip: 1.05,
+      weatherGrip: 1.32,
+      durability: 3.20,
+      engineTone: 'diesel_v8',
+      hornType: 'airhorn',
+      turboLevel: 1.05,
+      defaultColor: 0xb91c1c,
+      maxCapKmh: 310,
+      desc: '13.8-meter armored freight juggernaut with twin smoke stacks and thunderous air horn. Earned only by surviving 3 straight crashes.'
     }
   ];
 
@@ -189,44 +316,72 @@
     engine: {
       key: 'engine',
       label: 'Engine Tune',
+      category: 'Powertrain',
       costs: [0, 650, 1600, 3400, 6800],
       effectText: '+6% Accel & +4.5% Top Speed per level'
     },
     turbo: {
       key: 'turbo',
       label: 'Twin-Turbo Kit',
+      category: 'Powertrain',
       costs: [0, 750, 1800, 3800, 7500],
       effectText: '+4% Accel, +2% Top Speed & faster spool'
+    },
+    exhaust: {
+      key: 'exhaust',
+      label: 'Titanium Exhaust',
+      category: 'Powertrain',
+      costs: [0, 550, 1350, 2800, 5600],
+      effectText: '+3% Top Speed, +3% High-RPM pull & richer note'
+    },
+    transmission: {
+      key: 'transmission',
+      label: 'Drivetrain & Gearbox',
+      category: 'Powertrain',
+      costs: [0, 600, 1500, 3100, 6200],
+      effectText: 'Faster shifts & 7/8-speed close ratios'
     },
     brakes: {
       key: 'brakes',
       label: 'Carbon Brakes',
+      category: 'Handling',
       costs: [0, 500, 1250, 2600, 5200],
       effectText: '+8% Braking & wet/snow stop control'
     },
     tires: {
       key: 'tires',
       label: 'All-Season Tires',
+      category: 'Handling',
       costs: [0, 550, 1400, 2900, 5800],
       effectText: '+6% Grip & +9% Rain/Snow traction'
     },
     aero: {
       key: 'aero',
       label: 'Aero & Suspension',
+      category: 'Handling',
       costs: [0, 550, 1450, 3100, 6200],
       effectText: '+5% High-speed grip & reduced body roll'
     },
-    transmission: {
-      key: 'transmission',
-      label: 'Drivetrain & Gearbox',
-      costs: [0, 600, 1500, 3100, 6200],
-      effectText: 'Faster shifts & 7/8-speed close ratios'
+    weight: {
+      key: 'weight',
+      label: 'Weight Reduction',
+      category: 'Handling',
+      costs: [0, 600, 1500, 3200, 6500],
+      effectText: '+4.5% Accel, +4% Brakes & +5% Steering response'
     },
     chassis: {
       key: 'chassis',
       label: 'Reinforced Chassis',
+      category: 'Chassis & Tech',
       costs: [0, 450, 1150, 2400, 4800],
       effectText: '-11% Impact damage & scrape speed loss'
+    },
+    ecu: {
+      key: 'ecu',
+      label: 'Pro ECU & Telemetry',
+      category: 'Chassis & Tech',
+      costs: [0, 700, 1750, 3600, 7200],
+      effectText: '+12% Cash earnings, +15% Faster streak & +2.5% Accel'
     }
   };
 
@@ -298,7 +453,18 @@
   }
 
   function makeDefaultUpgrades() {
-    return { engine: 0, turbo: 0, brakes: 0, tires: 0, aero: 0, transmission: 0, chassis: 0 };
+    return {
+      engine: 0,
+      turbo: 0,
+      exhaust: 0,
+      transmission: 0,
+      brakes: 0,
+      tires: 0,
+      aero: 0,
+      weight: 0,
+      chassis: 0,
+      ecu: 0
+    };
   }
 
   function makeDefaultCustom() {
@@ -348,7 +514,8 @@
         },
         transmissionMode: 'AUTO',
         gaugeStyle: 'digital',
-        totalDistanceKm: 0
+        totalDistanceKm: 0,
+        crashStreak: 0
       };
     }
 
@@ -382,11 +549,14 @@
             this.state.carUpgrades[carId] = {
               engine: clamp(Math.floor(u.engine || 0), 0, MAX_UPGRADE_LEVEL),
               turbo: clamp(Math.floor(u.turbo || 0), 0, MAX_UPGRADE_LEVEL),
+              exhaust: clamp(Math.floor(u.exhaust || 0), 0, MAX_UPGRADE_LEVEL),
+              transmission: clamp(Math.floor(u.transmission || 0), 0, MAX_UPGRADE_LEVEL),
               brakes: clamp(Math.floor(u.brakes || 0), 0, MAX_UPGRADE_LEVEL),
               tires: clamp(Math.floor(u.tires || 0), 0, MAX_UPGRADE_LEVEL),
               aero: clamp(Math.floor(u.aero || 0), 0, MAX_UPGRADE_LEVEL),
-              transmission: clamp(Math.floor(u.transmission || 0), 0, MAX_UPGRADE_LEVEL),
-              chassis: clamp(Math.floor(u.chassis || 0), 0, MAX_UPGRADE_LEVEL)
+              weight: clamp(Math.floor(u.weight || 0), 0, MAX_UPGRADE_LEVEL),
+              chassis: clamp(Math.floor(u.chassis || 0), 0, MAX_UPGRADE_LEVEL),
+              ecu: clamp(Math.floor(u.ecu || 0), 0, MAX_UPGRADE_LEVEL)
             };
           }
         }
@@ -419,6 +589,10 @@
         if (typeof parsed.totalDistanceKm === 'number' && isFinite(parsed.totalDistanceKm)) {
           this.state.totalDistanceKm = Math.max(0, parsed.totalDistanceKm);
         }
+
+        if (typeof parsed.crashStreak === 'number' && isFinite(parsed.crashStreak)) {
+          this.state.crashStreak = Math.max(0, Math.floor(parsed.crashStreak));
+        }
       } catch (e) {
         // Ignore malformed localStorage
       }
@@ -442,6 +616,35 @@
 
     getBank() {
       return Math.floor(this.state.bank);
+    }
+
+    getCrashStreak() {
+      return Math.max(0, Math.floor(this.state.crashStreak || 0));
+    }
+
+    resetCrashStreak() {
+      if ((this.state.crashStreak || 0) !== 0) {
+        this.state.crashStreak = 0;
+        this.save();
+      }
+    }
+
+    recordCrash() {
+      this.onCollision();
+      this.state.crashStreak = Math.max(0, Math.floor(this.state.crashStreak || 0)) + 1;
+      let unlockedCar = null;
+      if (this.state.crashStreak >= CRASH_UNLOCK_TARGET && !this.isOwned(SECRET_TRUCK_ID)) {
+        const def = this.getCarDef(SECRET_TRUCK_ID);
+        if (def && def.id === SECRET_TRUCK_ID) {
+          this.state.ownedCars.push(SECRET_TRUCK_ID);
+          this.state.carUpgrades[SECRET_TRUCK_ID] = makeDefaultUpgrades();
+          this.state.carPaints[SECRET_TRUCK_ID] = def.defaultColor;
+          this.state.carCustom[SECRET_TRUCK_ID] = makeDefaultCustom();
+          unlockedCar = def;
+        }
+      }
+      this.save();
+      return { crashStreak: this.state.crashStreak, unlockedCar };
     }
 
     getCarDef(carId) {
@@ -530,23 +733,43 @@
     getCarSpecs(carId) {
       const carDef = this.getCarDef(carId || this.state.activeCarId);
       const upg = this.getUpgrades(carDef.id);
+      const speedCap = carDef.maxCapKmh || 430;
 
       const topSpeedKmh = Math.min(
-        430,
-        Math.round(carDef.baseTopSpeedKmh * (1 + upg.engine * 0.045 + (upg.turbo || 0) * 0.02))
+        speedCap,
+        Math.round(
+          carDef.baseTopSpeedKmh *
+            (1 + (upg.engine || 0) * 0.045 + (upg.turbo || 0) * 0.02 + (upg.exhaust || 0) * 0.03)
+        )
       );
       const accelPower =
-        carDef.baseAccel * (1 + upg.engine * 0.06 + (upg.turbo || 0) * 0.04 + upg.transmission * 0.03);
-      const brakePower = carDef.baseBrake * (1 + upg.brakes * 0.08);
-      const brakeWeatherBonus = 1 + upg.brakes * 0.05;
-      const gripMult = carDef.baseGrip * (1 + upg.tires * 0.06 + (upg.aero || 0) * 0.05);
-      const weatherGripMult = carDef.weatherGrip * (1 + upg.tires * 0.09);
-      const gearCount = upg.transmission >= 4 ? 8 : upg.transmission >= 2 ? 7 : 6;
-      const shiftTimeMult = Math.max(0.35, 1 - upg.transmission * 0.15);
-      const damageResist = Math.max(0.45, (1 / carDef.durability) * (1 - upg.chassis * 0.11));
-      const turboLevel = clamp((carDef.turboLevel || 0.7) + upg.engine * 0.06 + (upg.turbo || 0) * 0.09, 0.4, 1.15);
+        carDef.baseAccel *
+        (1 +
+          (upg.engine || 0) * 0.06 +
+          (upg.turbo || 0) * 0.04 +
+          (upg.transmission || 0) * 0.03 +
+          (upg.weight || 0) * 0.045 +
+          (upg.ecu || 0) * 0.025);
+      const brakePower = carDef.baseBrake * (1 + (upg.brakes || 0) * 0.08 + (upg.weight || 0) * 0.04);
+      const brakeWeatherBonus = 1 + (upg.brakes || 0) * 0.05;
+      const gripMult = carDef.baseGrip * (1 + (upg.tires || 0) * 0.06 + (upg.aero || 0) * 0.05);
+      const weatherGripMult = carDef.weatherGrip * (1 + (upg.tires || 0) * 0.09);
+      const gearCount = (upg.transmission || 0) >= 4 ? 8 : (upg.transmission || 0) >= 2 ? 7 : 6;
+      const shiftTimeMult = Math.max(0.35, 1 - (upg.transmission || 0) * 0.15);
+      const damageResist = Math.max(0.22, (1 / carDef.durability) * (1 - (upg.chassis || 0) * 0.11));
+      const turboLevel = clamp(
+        (carDef.turboLevel || 0.7) + (upg.engine || 0) * 0.06 + (upg.turbo || 0) * 0.09,
+        0.4,
+        1.15
+      );
       const turboSpoolMult = 1 + (upg.turbo || 0) * 0.16;
       const rollStiffness = 1 + (upg.aero || 0) * 0.14;
+      const steerResponseMult = 1 + (upg.weight || 0) * 0.05;
+      const highRpmBoost = 1 + (upg.exhaust || 0) * 0.03;
+      const exhaustLevel = upg.exhaust || 0;
+      const earningsMult = 1 + (upg.ecu || 0) * 0.12;
+      const streakRateMult = 1 + (upg.ecu || 0) * 0.15;
+      const hornType = carDef.hornType || (carDef.archetype === 'police' ? 'police' : 'standard');
 
       return {
         carId: carDef.id,
@@ -558,6 +781,12 @@
         turboLevel,
         turboSpoolMult,
         rollStiffness,
+        steerResponseMult,
+        highRpmBoost,
+        exhaustLevel,
+        earningsMult,
+        streakRateMult,
+        hornType,
         topSpeedKmh,
         maxSpeedMs: topSpeedKmh / 3.6,
         accelPower,
@@ -582,6 +811,11 @@
      */
     awardDistance(deltaMeters, speedKmh, weatherMult) {
       if (!deltaMeters || deltaMeters <= 0 || speedKmh < 10) return 0;
+      const upg = this.getUpgrades();
+      const ecuLvl = upg.ecu || 0;
+      const earningsMult = 1 + ecuLvl * 0.12;
+      const streakRateMult = 1 + ecuLvl * 0.15;
+
       const km = deltaMeters / 1000;
       this.state.totalDistanceKm += km;
       this.cleanMeters += deltaMeters;
@@ -590,12 +824,16 @@
       if (this.cleanMeters >= 500) {
         const steps = Math.floor(this.cleanMeters / 500);
         this.cleanMeters -= steps * 500;
-        this.streakMult = clamp(Math.round((this.streakMult + steps * 0.1) * 10) / 10, 1.0, 2.0);
+        this.streakMult = clamp(
+          Math.round((this.streakMult + steps * 0.1 * streakRateMult) * 100) / 100,
+          1.0,
+          2.0
+        );
       }
 
       const speedBonus = clamp(0.95 + Math.max(0, speedKmh - 50) / 150, 1.0, 2.25);
       const wMult = weatherMult || 1.0;
-      const earned = km * 120 * speedBonus * wMult * this.streakMult;
+      const earned = km * 120 * speedBonus * wMult * this.streakMult * earningsMult;
 
       this.state.bank += earned;
       this.sessionEarned += earned;
@@ -606,13 +844,22 @@
      * Award discrete clean overtake bonus.
      */
     awardCleanPass(relSpeedKmh, isClose, weatherMult) {
+      const upg = this.getUpgrades();
+      const ecuLvl = upg.ecu || 0;
+      const earningsMult = 1 + ecuLvl * 0.12;
+      const streakRateMult = 1 + ecuLvl * 0.15;
+
       this.cleanPasses += 1;
       const base = isClose ? 70 : 45;
       const speedExtra = clamp((relSpeedKmh - 15) * 0.4, 0, 35);
       const wMult = weatherMult || 1.0;
-      const earned = Math.round((base + speedExtra) * wMult * this.streakMult);
+      const earned = Math.round((base + speedExtra) * wMult * this.streakMult * earningsMult);
 
-      this.streakMult = clamp(Math.round((this.streakMult + 0.08) * 100) / 100, 1.0, 2.0);
+      this.streakMult = clamp(
+        Math.round((this.streakMult + 0.08 * streakRateMult) * 100) / 100,
+        1.0,
+        2.0
+      );
       this.state.bank += earned;
       this.sessionEarned += earned;
       this.save();
@@ -630,6 +877,9 @@
       if (this.isOwned(carId)) {
         this.selectCar(carId);
         return { ok: true, owned: true };
+      }
+      if (def.secretUnlock) {
+        return { ok: false, reason: def.unlockHint || 'Secret unlock only' };
       }
       if (this.getBank() < def.price) {
         return { ok: false, reason: 'Insufficient funds' };
@@ -700,7 +950,9 @@
     UNDERGLOW_STYLES,
     TRANSMISSION_MODES,
     GAUGE_STYLES,
-    MAX_UPGRADE_LEVEL
+    MAX_UPGRADE_LEVEL,
+    CRASH_UNLOCK_TARGET,
+    SECRET_TRUCK_ID
   };
 
   if (typeof window !== 'undefined') {

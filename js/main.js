@@ -109,18 +109,24 @@
       this.calcLocked = true;
       this.paused = false;
       this.garageOpen = false;
+      this.setupDrawerOpen = false;
+      this.garageFilter = 'all';
+      this.cleanStreakResetDone = false;
       this.hasUnlockedOnce = false;
       this.toastTimer = 0;
       this.bonusTimer = 0;
       this.saveTimer = 0;
 
-      // Turn signals, hazards & horn state
+      // Turn signals, hazards, high beams & horn state
       this.signalMode = 0; // -1 = Left, 0 = Off, +1 = Right, 2 = Hazards
       this.signalTimer = 0;
       this.signalStartD = 0;
       this.signalMovedEnough = false;
       this.lastBlinkOn = false;
       this.hornActive = false;
+      this.headlightFlashHeld = false;
+      this.headlightFlashPulse = 0;
+      this.highBeamsActive = false;
 
       this.rightShiftHeld = false;
       this.input = {
@@ -131,14 +137,25 @@
         clutch: false
       };
 
-        // Cached DOM handles
+      // Cached DOM handles
       this.dom = {
         bank: document.getElementById('hud-bank'),
+        statusSummary: document.getElementById('hud-status-summary'),
+        btnDriveSetup: document.getElementById('btn-drive-setup'),
+        setupDrawer: document.getElementById('drive-setup-drawer'),
+        btnSetupGauge: document.getElementById('btn-setup-gauge'),
+        btnSetupUnit: document.getElementById('btn-setup-unit'),
+        btnSetupMirror: document.getElementById('btn-setup-mirror'),
+        btnSetupAudio: document.getElementById('btn-setup-audio'),
+        btnSetupQuality: document.getElementById('btn-setup-quality'),
+
+        bottomRight: document.getElementById('hud-bottom-right'),
         clutchPill: document.getElementById('hud-clutch-pill'),
         rearMirrorBox: document.getElementById('hud-rear-mirror'),
         sigLeft: document.getElementById('sig-left'),
         sigHazard: document.getElementById('sig-hazard'),
         sigRight: document.getElementById('sig-right'),
+        sigHighBeam: document.getElementById('sig-highbeam'),
         sigHorn: document.getElementById('sig-horn'),
         digitalCluster: document.getElementById('hud-digital-cluster'),
         analogCluster: document.getElementById('hud-analog-cluster'),
@@ -165,17 +182,13 @@
         damageCard: document.getElementById('hud-damage-card'),
         conditionPct: document.getElementById('hud-condition-pct'),
         conditionFill: document.getElementById('hud-condition-fill'),
-        transLabel: document.getElementById('hud-trans-label'),
-        gaugeLabel: document.getElementById('hud-gauge-label'),
-        camLabel: document.getElementById('hud-camera-label'),
-        lightLabel: document.getElementById('hud-lighting-label'),
-        audioLabel: document.getElementById('hud-audio-label'),
         toast: document.getElementById('hud-toast'),
         hint: document.getElementById('controls-hint'),
 
         garageModal: document.getElementById('modal-garage'),
         garageBank: document.getElementById('garage-bank'),
         garageActiveCar: document.getElementById('garage-active-car'),
+        garageCarFilters: document.getElementById('garage-car-filters'),
         garageCarsGrid: document.getElementById('garage-cars-grid'),
         garageUpgradesGrid: document.getElementById('garage-upgrades-grid'),
         garagePaintsRow: document.getElementById('garage-paints-row'),
@@ -184,19 +197,26 @@
         garageTintsRow: document.getElementById('garage-tints-row'),
         garageStripesRow: document.getElementById('garage-stripes-row'),
         garageUnderglowRow: document.getElementById('garage-underglow-row'),
-        garageTransRow: document.getElementById('garage-trans-row'),
-        garageTransDesc: document.getElementById('garage-trans-desc'),
-        garageGaugeRow: document.getElementById('garage-gauge-row'),
 
         pauseModal: document.getElementById('modal-pause'),
         pauseStats: document.getElementById('pause-stats-line'),
+        pauseStatDist: document.getElementById('pause-stat-dist'),
+        pauseStatBank: document.getElementById('pause-stat-bank'),
+        pauseStatPasses: document.getElementById('pause-stat-passes'),
+        pauseStatStreak: document.getElementById('pause-stat-streak'),
+        btnPauseGauge: document.getElementById('btn-pause-gauge'),
+        btnPauseUnit: document.getElementById('btn-pause-unit'),
+        btnPauseMirror: document.getElementById('btn-pause-mirror'),
+        btnPauseAudio: document.getElementById('btn-pause-audio'),
         pauseQualityBtn: document.getElementById('btn-pause-quality'),
 
         crashModal: document.getElementById('modal-crash'),
         crashReason: document.getElementById('crash-reason'),
+        crashStreakBanner: document.getElementById('crash-streak-banner'),
         crashDistance: document.getElementById('crash-distance'),
         crashTopSpeed: document.getElementById('crash-top-speed'),
-        crashEarned: document.getElementById('crash-earned')
+        crashEarned: document.getElementById('crash-earned'),
+        btnCrashDriveTruck: document.getElementById('btn-crash-drive-truck')
       };
 
       if (this.profiler) {
@@ -209,6 +229,7 @@
       this.bindEvents();
       this.syncActiveCarUI();
       this.syncGaugeStyleUI();
+      this.syncSettingsUI();
       this.syncPlayerAndCamera(0.016, true);
       this.updateHUD();
 
@@ -365,15 +386,12 @@
       const isAnalog = style === 'analog';
       if (this.dom.digitalCluster) this.dom.digitalCluster.classList.toggle('hidden', isAnalog);
       if (this.dom.analogCluster) this.dom.analogCluster.classList.toggle('hidden', !isAnalog);
-      if (this.dom.gaugeLabel) {
-        this.dom.gaugeLabel.textContent = isAnalog ? 'Analog' : 'Digital';
-      }
+      this.syncSettingsUI();
     }
 
     toggleGaugeStyle() {
       const next = this.economy.toggleGaugeStyle();
       this.syncGaugeStyleUI();
-      this.renderGarageGauges();
       this.updateHUD();
       this.showToast(`Gauges: ${next === 'analog' ? 'Analog' : 'Digital'}`, 1.3);
     }
@@ -381,7 +399,7 @@
     syncActiveCarUI() {
       const specs = this.economy.getActiveCarSpecs();
       if (this.dom.carName) this.dom.carName.textContent = specs.name;
-      if (this.dom.transLabel) this.dom.transLabel.textContent = this.player.transmissionMode;
+      this.syncSettingsUI();
     }
 
     applyHardwareProfile(profile) {
@@ -395,11 +413,69 @@
     }
 
     updateQualityLabel() {
-      if (!this.dom.pauseQualityBtn || !this.profiler) return;
+      if (!this.profiler) return;
       const mode = this.profiler.mode;
       const tier = this.profiler.activeTier;
-      this.dom.pauseQualityBtn.textContent =
-        mode === 'AUTO' ? `Graphics: Auto (${tier})` : `Graphics: ${tier}`;
+      const label = mode === 'AUTO' ? `Graphics: Auto (${tier})` : `Graphics: ${tier}`;
+      if (this.dom.pauseQualityBtn) this.dom.pauseQualityBtn.textContent = label;
+      if (this.dom.btnSetupQuality) this.dom.btnSetupQuality.textContent = label;
+    }
+
+    syncSettingsUI() {
+      const preset = this.env.getCurrentLightingPreset();
+      const weatherIdx = this.env.lightingIndex || 0;
+      const trans = this.player ? this.player.transmissionMode : this.economy.getTransmission();
+      const isAnalog = this.economy.getGaugeStyle() === 'analog';
+      const muted = !!(window.HighwayAudio && window.HighwayAudio.muted);
+
+      if (this.dom.statusSummary) {
+        this.dom.statusSummary.textContent = `${this.cameraNames[this.cameraMode]} · ${trans} · ${preset.name}`;
+      }
+
+      document.querySelectorAll('[data-set-camera]').forEach((btn) => {
+        const idx = parseInt(btn.getAttribute('data-set-camera'), 10);
+        btn.classList.toggle('active', idx === this.cameraMode);
+      });
+      document.querySelectorAll('[data-set-trans]').forEach((btn) => {
+        const m = btn.getAttribute('data-set-trans');
+        btn.classList.toggle('active', m === trans);
+      });
+      document.querySelectorAll('[data-set-weather]').forEach((btn) => {
+        const idx = parseInt(btn.getAttribute('data-set-weather'), 10);
+        btn.classList.toggle('active', idx === weatherIdx);
+      });
+
+      const gaugeText = `Gauges: ${isAnalog ? 'Analog' : 'Digital'} [B]`;
+      const unitText = `Units: ${this.useKmh ? 'KM/H' : 'MPH'}`;
+      const mirrorText = `Mirror: ${this.hudMirrorEnabled ? 'On' : 'Off'} [N]`;
+      const audioText = `Audio: ${muted ? 'Muted' : 'On'} [K]`;
+
+      if (this.dom.btnSetupGauge) this.dom.btnSetupGauge.textContent = gaugeText;
+      if (this.dom.btnPauseGauge) this.dom.btnPauseGauge.textContent = gaugeText;
+      if (this.dom.btnSetupUnit) this.dom.btnSetupUnit.textContent = unitText;
+      if (this.dom.btnPauseUnit) this.dom.btnPauseUnit.textContent = unitText;
+      if (this.dom.btnSetupMirror) this.dom.btnSetupMirror.textContent = mirrorText;
+      if (this.dom.btnPauseMirror) this.dom.btnPauseMirror.textContent = mirrorText;
+      if (this.dom.btnSetupAudio) this.dom.btnSetupAudio.textContent = audioText;
+      if (this.dom.btnPauseAudio) this.dom.btnPauseAudio.textContent = audioText;
+      this.updateQualityLabel();
+    }
+
+    toggleSetupDrawer(forceState) {
+      if (this.calcLocked || this.garageOpen || this.paused || this.player.crashed) {
+        if (forceState !== false) return;
+      }
+      this.setupDrawerOpen = forceState !== undefined ? !!forceState : !this.setupDrawerOpen;
+      if (this.dom.setupDrawer) {
+        this.dom.setupDrawer.classList.toggle('open', this.setupDrawerOpen);
+        this.dom.setupDrawer.setAttribute('aria-hidden', this.setupDrawerOpen ? 'false' : 'true');
+      }
+      if (this.dom.btnDriveSetup) {
+        this.dom.btnDriveSetup.classList.toggle('active', this.setupDrawerOpen);
+      }
+      if (this.setupDrawerOpen) {
+        this.syncSettingsUI();
+      }
     }
 
     showToast(msg, durationSec) {
@@ -423,6 +499,9 @@
       this.input.right = false;
       this.input.clutch = false;
       this.rightShiftHeld = false;
+      this.headlightFlashHeld = false;
+      this.headlightFlashPulse = 0;
+      this.highBeamsActive = false;
       this.setHornActive(false);
     }
 
@@ -618,6 +697,7 @@
 
     lockToCalculator() {
       this.calcLocked = true;
+      this.toggleSetupDrawer(false);
       this.clearInputs();
       this.closeGarage(true);
       this.setPaused(false);
@@ -647,6 +727,7 @@
       if (document.activeElement && typeof document.activeElement.blur === 'function') {
         document.activeElement.blur();
       }
+      this.toggleSetupDrawer(false);
       this.garageOpen = true;
       this.clearInputs();
       if (this.dom.pauseModal) this.dom.pauseModal.classList.remove('open');
@@ -683,52 +764,46 @@
       this.renderGarageUpgrades(bank);
       this.renderGaragePaints();
       this.renderGarageCustomization();
-      this.renderGarageTransmissions();
-      this.renderGarageGauges();
-    }
-
-    renderGarageGauges() {
-      if (!this.dom.garageGaugeRow) return;
-      const activeStyle = this.economy.getGaugeStyle();
-      const styles = [
-        { id: 'digital', label: 'Digital' },
-        { id: 'analog', label: 'Analog Dials' }
-      ];
-      this.dom.garageGaugeRow.innerHTML = styles
-        .map((s) => `<button class="trans-pill-btn ${s.id === activeStyle ? 'active' : ''}" data-gauge="${s.id}">${s.label}</button>`)
-        .join('');
-      this.dom.garageGaugeRow.querySelectorAll('[data-gauge]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const style = btn.getAttribute('data-gauge');
-          if (this.economy.setGaugeStyle(style)) {
-            this.syncGaugeStyleUI();
-            this.renderGarageGauges();
-            this.updateHUD();
-          }
-        });
-      });
     }
 
     renderGarageVehicles(bank) {
       if (!this.dom.garageCarsGrid) return;
-      const cars = window.HighwayEconomy.PLAYER_CARS;
+      const allCars = window.HighwayEconomy.PLAYER_CARS;
       const activeId = this.economy.state.activeCarId;
+      const streak = this.economy.getCrashStreak();
+      const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
+
+      if (this.dom.garageCarFilters) {
+        this.dom.garageCarFilters.querySelectorAll('[data-car-filter]').forEach((btn) => {
+          btn.classList.toggle('active', btn.getAttribute('data-car-filter') === this.garageFilter);
+        });
+      }
+
+      const cars =
+        this.garageFilter === 'all'
+          ? allCars
+          : allCars.filter((c) => c.group === this.garageFilter);
 
       this.dom.garageCarsGrid.innerHTML = cars
         .map((c) => {
           const owned = this.economy.isOwned(c.id);
           const isActive = c.id === activeId;
+          const isSecret = !!c.secretUnlock;
           const merged = this.economy.getCarSpecs(c.id);
 
-          const speedPct = clamp(((merged.topSpeedKmh - 170) / 260) * 100, 12, 100);
-          const accelPct = clamp(((merged.accelPower - 4.5) / 13.5) * 100, 14, 100);
+          const speedPct = clamp(((merged.topSpeedKmh - 170) / 285) * 100, 12, 100);
+          const accelPct = clamp(((merged.accelPower - 4.5) / 14.5) * 100, 14, 100);
           const gripPct = clamp(((merged.weatherGripMult - 0.9) / 0.7) * 100, 18, 100);
 
           let btnHtml = '';
+          let secretBadgeHtml = '';
           if (isActive) {
             btnHtml = `<button class="hw-btn hw-btn-primary" disabled>Active Vehicle</button>`;
           } else if (owned) {
-            btnHtml = `<button class="hw-btn" data-select-car="${c.id}">Select Vehicle</button>`;
+            btnHtml = `<button class="hw-btn ${isSecret ? 'hw-btn-gold' : ''}" data-select-car="${c.id}">Select Vehicle</button>`;
+          } else if (isSecret) {
+            secretBadgeHtml = `<div class="secret-unlock-chip">🔒 Crash 3 times in a row (${streak}/${target})</div>`;
+            btnHtml = `<button class="hw-btn" disabled>Locked · Crash 3x in a Row</button>`;
           } else {
             const canBuy = bank >= c.price;
             btnHtml = `<button class="hw-btn ${canBuy ? 'hw-btn-primary' : ''}" data-buy-car="${c.id}" ${
@@ -736,16 +811,27 @@
             }>Buy for ${this.formatMoney(c.price)}</button>`;
           }
 
+          const cardClass = [
+            'car-shop-card',
+            isActive ? 'active-car' : '',
+            isSecret ? 'secret-card' : '',
+            isSecret && !owned ? 'secret-locked' : ''
+          ]
+            .filter(Boolean)
+            .join(' ');
+          const priceBadge = owned ? (isSecret ? 'UNLOCKED' : 'OWNED') : isSecret ? 'SECRET' : this.formatMoney(c.price);
+
           return `
-            <div class="car-shop-card ${isActive ? 'active-car' : ''}">
+            <div class="${cardClass}">
               <div class="car-shop-top">
                 <div>
                   <div class="car-shop-cat">${c.category}</div>
                   <div class="car-shop-name">${c.name}</div>
                 </div>
-                <span class="car-shop-price">${owned ? 'OWNED' : this.formatMoney(c.price)}</span>
+                <span class="car-shop-price">${priceBadge}</span>
               </div>
               <p class="car-shop-desc">${c.desc}</p>
+              ${secretBadgeHtml}
               <div class="car-bars">
                 <div class="car-bar-row"><span>Top Speed</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${speedPct.toFixed(0)}%"></div></div></div>
                 <div class="car-bar-row"><span>Accel</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${accelPct.toFixed(0)}%"></div></div></div>
@@ -810,7 +896,10 @@
           return `
             <div class="upgrade-card">
               <div class="upgrade-top">
-                <strong>${d.label}</strong>
+                <div>
+                  <strong>${d.label}</strong>
+                  <span class="upgrade-cat-tag">${d.category || 'Upgrade'}</span>
+                </div>
                 <span class="upgrade-lvl">LVL ${lvl}/${maxLvl}</span>
               </div>
               <div class="upgrade-pips">${pips}</div>
@@ -827,7 +916,7 @@
           if (res.ok) {
             const specs = this.economy.getActiveCarSpecs();
             this.player.applyCarSpecs(specs);
-            if (key === 'engine' || key === 'turbo') this.rebuildSpeedDialTicks();
+            if (key === 'engine' || key === 'turbo' || key === 'exhaust') this.rebuildSpeedDialTicks();
             this.renderGarage();
             this.updateHUD();
             this.showToast(`${defs[key].label} Lv ${res.level}`, 1.4);
@@ -887,27 +976,6 @@
       this.renderCustomOptionRow(this.dom.garageUnderglowRow, 'underglow', econ.UNDERGLOW_STYLES, custom);
     }
 
-    renderGarageTransmissions() {
-      if (!this.dom.garageTransRow) return;
-      const activeMode = this.economy.getTransmission();
-      this.dom.garageTransRow.innerHTML = window.HighwayEconomy.TRANSMISSION_MODES.map((m) => {
-        const cls = m === activeMode ? 'active' : '';
-        return `<button class="trans-pill-btn ${cls}" data-trans="${m}">${m}</button>`;
-      }).join('');
-
-      if (this.dom.garageTransDesc) {
-        this.dom.garageTransDesc.textContent = TRANS_DESCRIPTIONS[activeMode] || '';
-      }
-
-      this.dom.garageTransRow.querySelectorAll('[data-trans]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const mode = btn.getAttribute('data-trans');
-          this.setTransmissionMode(mode);
-          this.renderGarageTransmissions();
-        });
-      });
-    }
-
     /* ----------------------------------------------------------------------
        PAUSE, RESTART, TRANSMISSIONS & QUICK TOGGLES
        ---------------------------------------------------------------------- */
@@ -918,13 +986,27 @@
       }
       this.paused = !!nextPaused;
       if (this.paused) {
+        this.toggleSetupDrawer(false);
         this.clearInputs();
         if (window.HighwayAudio) window.HighwayAudio.suspend();
+        const distKm = (this.player.distanceMeters / 1000).toFixed(2);
+        const bankStr = this.formatMoney(this.economy.getBank());
+        const truckOwned = this.economy.isOwned(window.HighwayEconomy.SECRET_TRUCK_ID);
+        const streak = this.economy.getCrashStreak();
+        const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
+
         if (this.dom.pauseStats) {
-          this.dom.pauseStats.textContent = `${(this.player.distanceMeters / 1000).toFixed(
-            2
-          )} km • ${this.formatMoney(this.economy.getBank())}`;
+          this.dom.pauseStats.textContent = `${distKm} km • ${bankStr}`;
         }
+        if (this.dom.pauseStatDist) this.dom.pauseStatDist.textContent = `${distKm} km`;
+        if (this.dom.pauseStatBank) this.dom.pauseStatBank.textContent = bankStr;
+        if (this.dom.pauseStatPasses) {
+          this.dom.pauseStatPasses.textContent = String(this.economy.cleanPasses || 0);
+        }
+        if (this.dom.pauseStatStreak) {
+          this.dom.pauseStatStreak.textContent = truckOwned ? 'Unlocked' : `${streak} / ${target}`;
+        }
+        this.syncSettingsUI();
         if (this.dom.pauseModal) this.dom.pauseModal.classList.add('open');
       } else {
         if (this.dom.pauseModal) this.dom.pauseModal.classList.remove('open');
@@ -936,15 +1018,22 @@
     }
 
     restartDrive() {
+      const wasCrashed = !!this.player.crashed;
       this.clearInputs();
       if (document.activeElement && typeof document.activeElement.blur === 'function') {
         document.activeElement.blur();
       }
       this.paused = false;
+      this.toggleSetupDrawer(false);
       this.closeGarage(true);
       this.shakeMag = 0;
       if (this.dom.pauseModal) this.dom.pauseModal.classList.remove('open');
       if (this.dom.crashModal) this.dom.crashModal.classList.remove('open');
+
+      if (!wasCrashed) {
+        this.economy.resetCrashStreak();
+      }
+      this.cleanStreakResetDone = false;
 
       this.player.reset();
       this.player.applyCarSpecs(this.economy.getActiveCarSpecs());
@@ -955,6 +1044,7 @@
       this.traffic.reset(this.player.s, this.player.getLaneIndex());
       this.env.update(this.player.s, 0, 0);
       this.syncPlayerAndCamera(0.016, true);
+      this.syncSettingsUI();
       this.updateHUD();
 
       if (!this.calcLocked && window.HighwayAudio) {
@@ -967,7 +1057,7 @@
     setTransmissionMode(mode) {
       if (!this.economy.setTransmission(mode)) return;
       this.player.setTransmissionMode(mode);
-      if (this.dom.transLabel) this.dom.transLabel.textContent = mode;
+      this.syncSettingsUI();
       this.updateHUD();
       this.showToast(`Transmission: ${mode}`, 1.4);
     }
@@ -975,25 +1065,34 @@
     cycleTransmission() {
       const next = this.economy.cycleTransmission();
       this.player.setTransmissionMode(next);
-      if (this.dom.transLabel) this.dom.transLabel.textContent = next;
+      this.syncSettingsUI();
       this.updateHUD();
       this.showToast(`Transmission: ${next}`, 1.4);
     }
 
-    cycleCamera() {
-      this.cameraMode = (this.cameraMode + 1) % this.cameraNames.length;
-      if (this.dom.camLabel) {
-        this.dom.camLabel.textContent = this.cameraNames[this.cameraMode];
-      }
+    setCameraMode(modeIdx) {
+      const next = clamp(Math.floor(modeIdx || 0), 0, this.cameraNames.length - 1);
+      this.cameraMode = next;
       this.syncPlayerAndCamera(0.016, true);
+      this.syncSettingsUI();
+      this.updateHUD();
       this.showToast(`Camera: ${this.cameraNames[this.cameraMode]}`, 1.3);
+    }
+
+    cycleCamera() {
+      this.setCameraMode((this.cameraMode + 1) % this.cameraNames.length);
+    }
+
+    setLightingPreset(index) {
+      this.env.applyLightingPreset(index);
+      const preset = this.env.getCurrentLightingPreset();
+      this.syncSettingsUI();
+      this.showToast(`Weather: ${preset.name}`, 1.4);
     }
 
     cycleLighting() {
       const preset = this.env.cycleLightingPreset();
-      if (this.dom.lightLabel) {
-        this.dom.lightLabel.textContent = preset.name;
-      }
+      this.syncSettingsUI();
       this.showToast(`Weather: ${preset.name}`, 1.4);
     }
 
@@ -1001,9 +1100,7 @@
       if (!window.HighwayAudio) return;
       window.HighwayAudio.init();
       const muted = window.HighwayAudio.toggleMute();
-      if (this.dom.audioLabel) {
-        this.dom.audioLabel.textContent = muted ? 'Muted' : 'Sound On';
-      }
+      this.syncSettingsUI();
       this.showToast(muted ? 'Audio Muted' : 'Audio Enabled', 1.2);
     }
 
@@ -1026,8 +1123,8 @@
       if (next !== this.hornActive) {
         this.hornActive = next;
         if (window.HighwayAudio) {
-          const isPolice = this.player && this.player.archetype === 'police';
-          window.HighwayAudio.setHorn(next, isPolice);
+          const hornMode = this.player ? this.player.hornType : 'standard';
+          window.HighwayAudio.setHorn(next, hornMode);
         }
         this.updateHUD();
       }
@@ -1035,6 +1132,7 @@
 
     toggleHudMirror() {
       this.hudMirrorEnabled = !this.hudMirrorEnabled;
+      this.syncSettingsUI();
       this.updateHUD();
       this.showToast(this.hudMirrorEnabled ? 'Rearview Mirror: On' : 'Rearview Mirror: Off', 1.2);
     }
@@ -1048,11 +1146,13 @@
         this.dom.analogUnit.textContent = this.useKmh ? 'KM/H' : 'MPH';
       }
       this.rebuildSpeedDialTicks();
+      this.syncSettingsUI();
       this.updateHUD();
     }
 
-    openCrashModal() {
+    openCrashModal(crashRes) {
       if (!this.dom.crashModal) return;
+      this.toggleSetupDrawer(false);
       this.economy.save();
       const distKm = (this.player.distanceMeters / 1000).toFixed(2);
       const topDisp = this.useKmh
@@ -1068,6 +1168,31 @@
       if (this.dom.crashEarned) {
         this.dom.crashEarned.textContent = this.formatMoney(this.economy.sessionEarned);
       }
+
+      const target = window.HighwayEconomy.CRASH_UNLOCK_TARGET || 3;
+      const truckId = window.HighwayEconomy.SECRET_TRUCK_ID;
+      const streak = crashRes ? crashRes.crashStreak : this.economy.getCrashStreak();
+      const unlocked = !!(crashRes && crashRes.unlockedCar);
+
+      if (this.dom.crashStreakBanner) {
+        if (unlocked) {
+          this.dom.crashStreakBanner.textContent =
+            '🏆 SECRET UNLOCKED: COLOSSUS 18-WHEELER! Ready to drive now or from Garage.';
+          this.dom.crashStreakBanner.classList.remove('hidden');
+          this.dom.crashStreakBanner.classList.add('unlocked');
+        } else if (!this.economy.isOwned(truckId)) {
+          this.dom.crashStreakBanner.textContent = `Wreck Streak: ${streak}/${target} — Crash ${target} times in a row to unlock the Colossus 18-Wheeler`;
+          this.dom.crashStreakBanner.classList.remove('hidden', 'unlocked');
+        } else {
+          this.dom.crashStreakBanner.classList.add('hidden');
+          this.dom.crashStreakBanner.classList.remove('unlocked');
+        }
+      }
+
+      if (this.dom.btnCrashDriveTruck) {
+        this.dom.btnCrashDriveTruck.classList.toggle('hidden', !unlocked);
+      }
+
       this.dom.crashModal.classList.add('open');
     }
 
@@ -1131,6 +1256,8 @@
           e.preventDefault();
           if (this.garageOpen) {
             this.closeGarage();
+          } else if (this.setupDrawerOpen) {
+            this.toggleSetupDrawer(false);
           } else if (!this.player.crashed) {
             this.setPaused(!this.paused);
           }
@@ -1177,7 +1304,7 @@
           e.preventDefault();
           if (!e.repeat) {
             if (this.player.transmissionMode === 'AUTO') {
-              this.showToast('Auto mode — press [X] for SEMI or MANUAL', 1.6);
+              this.showToast('Auto mode — press [M] for SEMI or MANUAL', 1.6);
             } else {
               this.player.shiftUp(this.input.clutch || (e.shiftKey && !this.rightShiftHeld));
               this.updateHUD();
@@ -1187,30 +1314,41 @@
           e.preventDefault();
           if (!e.repeat) {
             if (this.player.transmissionMode === 'AUTO') {
-              this.showToast('Auto mode — press [X] for SEMI or MANUAL', 1.6);
+              this.showToast('Auto mode — press [M] for SEMI or MANUAL', 1.6);
             } else {
               this.player.shiftDown(this.input.clutch || (e.shiftKey && !this.rightShiftHeld));
               this.updateHUD();
             }
           }
-        } else if (code === 'KeyX') {
-          this.cycleTransmission();
-        } else if (code === 'KeyV') {
-          this.toggleGaugeStyle();
-        } else if (code === 'KeyC') {
-          this.cycleCamera();
-        } else if (code === 'KeyT') {
-          this.cycleLighting();
         } else if (code === 'KeyM') {
-          this.toggleAudio();
-        } else if (code === 'KeyN') {
-          this.toggleHudMirror();
-        } else if (code === 'Digit1') {
+          if (!e.repeat) this.cycleTransmission();
+        } else if (code === 'KeyZ') {
           if (!e.repeat) this.toggleTurnSignal(-1);
-        } else if (code === 'Digit2') {
+        } else if (code === 'KeyX') {
           if (!e.repeat) this.toggleTurnSignal(2);
-        } else if (code === 'Digit3') {
+        } else if (code === 'KeyC') {
           if (!e.repeat) this.toggleTurnSignal(1);
+        } else if (code === 'KeyL') {
+          if (!e.repeat) {
+            this.headlightFlashHeld = true;
+            this.headlightFlashPulse = 0.40;
+            this.highBeamsActive = true;
+            if (window.HighwayAudio) window.HighwayAudio.playHeadlightFlash(true);
+            this.updateHUD();
+          }
+        } else if (code === 'KeyV') {
+          if (!e.repeat) this.cycleCamera();
+        } else if (code === 'KeyB') {
+          if (!e.repeat) this.toggleGaugeStyle();
+        } else if (code === 'KeyK') {
+          if (!e.repeat) this.toggleAudio();
+        } else if (code === 'KeyT') {
+          if (!e.repeat) this.cycleLighting();
+        } else if (code === 'KeyN') {
+          if (!e.repeat) this.toggleHudMirror();
+        } else if (code === 'Tab') {
+          e.preventDefault();
+          if (!e.repeat) this.toggleSetupDrawer();
         } else if (code === 'KeyH' || code === 'Space') {
           e.preventDefault();
           this.setHornActive(true);
@@ -1223,6 +1361,7 @@
         if (code === 'KeyS' || code === 'ArrowDown') this.input.brake = 0;
         if (code === 'KeyA' || code === 'ArrowLeft') this.input.left = false;
         if (code === 'KeyD' || code === 'ArrowRight') this.input.right = false;
+        if (code === 'KeyL') this.headlightFlashHeld = false;
         if (code === 'KeyH' || code === 'Space') this.setHornActive(false);
         if (code === 'ShiftLeft') this.input.clutch = false;
         if (code === 'ShiftRight') this.rightShiftHeld = false;
@@ -1235,11 +1374,55 @@
       // Shop Tabs
       document.querySelectorAll('.shop-tab-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
+          btn.blur();
           document.querySelectorAll('.shop-tab-btn').forEach((b) => b.classList.remove('active'));
           document.querySelectorAll('.shop-pane').forEach((p) => p.classList.remove('active'));
           btn.classList.add('active');
           const tgt = document.getElementById(btn.getAttribute('data-shop-tab'));
           if (tgt) tgt.classList.add('active');
+        });
+      });
+
+      // Garage Vehicle Category Filters
+      if (this.dom.garageCarFilters) {
+        this.dom.garageCarFilters.querySelectorAll('[data-car-filter]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            btn.blur();
+            this.garageFilter = btn.getAttribute('data-car-filter') || 'all';
+            this.renderGarageVehicles(this.economy.getBank());
+          });
+        });
+      }
+
+      // Pause Menu Tabs
+      document.querySelectorAll('.pause-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          document.querySelectorAll('.pause-tab-btn').forEach((b) => b.classList.remove('active'));
+          document.querySelectorAll('.pause-pane').forEach((p) => p.classList.remove('active'));
+          btn.classList.add('active');
+          const tgt = document.getElementById(btn.getAttribute('data-pause-tab'));
+          if (tgt) tgt.classList.add('active');
+        });
+      });
+
+      // Direct Camera / Transmission / Weather buttons in Drive Setup Drawer & Pause Settings
+      document.querySelectorAll('[data-set-camera]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.setCameraMode(parseInt(btn.getAttribute('data-set-camera'), 10));
+        });
+      });
+      document.querySelectorAll('[data-set-trans]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.setTransmissionMode(btn.getAttribute('data-set-trans'));
+        });
+      });
+      document.querySelectorAll('[data-set-weather]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          this.setLightingPreset(parseInt(btn.getAttribute('data-set-weather'), 10));
         });
       });
 
@@ -1257,11 +1440,17 @@
       bindClick('btn-open-garage', () => this.openGarage());
       bindClick('btn-close-garage', () => this.closeGarage());
       bindClick('btn-restart', () => this.restartDrive());
-      bindClick('btn-trans', () => this.cycleTransmission());
-      bindClick('btn-gauge', () => this.toggleGaugeStyle());
-      bindClick('btn-camera', () => this.cycleCamera());
-      bindClick('btn-lighting', () => this.cycleLighting());
-      bindClick('btn-audio', () => this.toggleAudio());
+      bindClick('btn-drive-setup', () => this.toggleSetupDrawer());
+      bindClick('btn-close-setup', () => this.toggleSetupDrawer(false));
+
+      bindClick('btn-setup-gauge', () => this.toggleGaugeStyle());
+      bindClick('btn-setup-unit', () => this.toggleSpeedUnits());
+      bindClick('btn-setup-mirror', () => this.toggleHudMirror());
+      bindClick('btn-setup-audio', () => this.toggleAudio());
+      bindClick('btn-setup-quality', () => {
+        if (this.profiler) this.profiler.cyclePreset();
+      });
+
       bindClick('hud-unit', () => this.toggleSpeedUnits());
       bindClick('analog-unit', () => this.toggleSpeedUnits());
 
@@ -1269,12 +1458,25 @@
       bindClick('btn-pause-garage', () => this.openGarage());
       bindClick('btn-pause-restart', () => this.restartDrive());
       bindClick('btn-pause-calc', () => this.lockToCalculator());
+      bindClick('btn-pause-gauge', () => this.toggleGaugeStyle());
+      bindClick('btn-pause-unit', () => this.toggleSpeedUnits());
+      bindClick('btn-pause-mirror', () => this.toggleHudMirror());
+      bindClick('btn-pause-audio', () => this.toggleAudio());
       bindClick('btn-pause-quality', () => {
         if (this.profiler) {
           this.profiler.cyclePreset();
         }
       });
 
+      bindClick('btn-crash-drive-truck', () => {
+        const truckId = window.HighwayEconomy.SECRET_TRUCK_ID;
+        if (this.economy.selectCar(truckId)) {
+          this.rebuildPlayerMesh();
+          this.syncActiveCarUI();
+          this.restartDrive();
+          this.showToast('Driving Colossus 18-Wheeler!', 2.0);
+        }
+      });
       bindClick('btn-crash-restart', () => this.restartDrive());
       bindClick('btn-crash-garage', () => this.openGarage());
       bindClick('btn-crash-calc', () => this.lockToCalculator());
@@ -1286,6 +1488,7 @@
     syncPlayerAndCamera(dt, snap) {
       const p = this.env.project(this.player.s, this.player.d, this.playerProj, 0);
       const preset = this.env.getCurrentLightingPreset();
+      const spec = this.playerMesh.spec;
       const isInterior = this.cameraMode === 2;
       const isHood = this.cameraMode === 3;
 
@@ -1294,7 +1497,11 @@
       this.playerMesh.setBodyTilt(this.player.pitch, this.player.roll);
       this.playerMesh.updateWheels(this.player.speed, dt, this.player.steer * 0.25);
       this.playerMesh.setBraking(this.player.braking);
-      this.playerMesh.setHeadlights(Math.max(0.12, preset.headlightStrength));
+      const baseHl = Math.max(0.12, preset.headlightStrength);
+      this.playerMesh.setHeadlights(baseHl);
+      if (this.playerMesh.setHighBeam) {
+        this.playerMesh.setHighBeam(this.highBeamsActive, baseHl);
+      }
       const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
       this.playerMesh.setBlinker(this.signalMode, blinkOn);
       if (this.playerMesh.updateSpecialLights) {
@@ -1324,6 +1531,10 @@
               bankText: this.formatMoney(this.economy.getBank()),
               signalMode: this.signalMode,
               blinkOn,
+              highBeams: this.highBeamsActive,
+              hornActive: this.hornActive,
+              damage: this.player.damage,
+              streakMult: this.economy.streakMult,
               weatherName: preset.name,
               precip: preset.precip,
               paddleAnimTimer: this.player.paddleAnimTimer,
@@ -1339,7 +1550,7 @@
       this.playerMesh.group.visible = true;
 
       const speedFrac = clamp(this.player.speed / Math.max(40, this.player.maxSpeedMs), 0, 1);
-      const targetFov = isInterior ? 64 + speedFrac * 7 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
+      const targetFov = isInterior ? 68 + speedFrac * 6 : isHood ? 62 + speedFrac * 9 : 58 + speedFrac * 10;
       if (Math.abs(targetFov - this.lastFov) > 0.05) {
         this.lastFov += (targetFov - this.lastFov) * (snap ? 1 : Math.min(1, 6 * dt));
         this.camera.fov = this.lastFov;
@@ -1360,22 +1571,32 @@
         this.camPos.copy(this.eyeWorldVec);
         this.camLook.copy(this.lookWorldVec);
       } else if (isHood) {
-        this.env.project(this.player.s + 0.65, this.player.d, this.camPosProj, 1.08);
+        const isBigRig = spec && spec.id === 'big_rig';
+        const hoodS = this.player.s + (isBigRig ? spec.length * 0.5 - 1.55 : 0.65);
+        const hoodH = isBigRig
+          ? spec.clearance + 1.95
+          : Math.max(1.08, spec.clearance + (spec.height - spec.clearance) * 0.48 + 0.25);
+        this.env.project(hoodS, this.player.d, this.camPosProj, hoodH);
         this.env.project(
           this.player.s + 54,
           this.player.d + Math.sin(this.player.yawRel) * 35,
           this.camLookTarget,
-          1.02
+          isBigRig ? 1.55 : 1.02
         );
         this.camPos.set(this.camPosProj.x, this.camPosProj.y, this.camPosProj.z);
         this.camLook.set(this.camLookTarget.x, this.camLookTarget.y, this.camLookTarget.z);
       } else {
-        const backDist = (this.cameraMode === 1 ? 10.2 : 7.0) + this.player.camSurgeZ * 1.15;
-        const height = this.cameraMode === 1 ? 3.55 : 2.55;
+        const extraLen = Math.max(0, ((spec && spec.length) || 4.6) - 4.8);
+        const extraH = Math.max(0, ((spec && spec.height) || 1.4) - 1.5);
+        const backDist =
+          (this.cameraMode === 1 ? 10.2 + extraLen * 0.80 : 7.0 + extraLen * 0.68) +
+          this.player.camSurgeZ * 1.15;
+        const height =
+          this.cameraMode === 1 ? 3.55 + extraH * 1.12 : 2.55 + extraH * 1.05;
         const camD = this.player.d * 0.92;
 
         this.env.project(this.player.s - backDist, camD, this.camPosProj, height);
-        this.env.project(this.player.s + 38, this.player.d * 0.65, this.camLookTarget, 1.15);
+        this.env.project(this.player.s + 38, this.player.d * 0.65, this.camLookTarget, 1.15 + extraH * 0.45);
 
         const damp = snap ? 1 : Math.min(1, 10 * dt);
         this.camPos.x += (this.camPosProj.x - this.camPos.x) * damp;
@@ -1400,13 +1621,25 @@
     }
 
     updateHUD() {
+      const isInterior = this.cameraMode === 2;
       if (this.dom.bank) {
         this.dom.bank.textContent = this.formatMoney(this.economy.getBank());
       }
+      if (this.dom.statusSummary) {
+        const preset = this.env.getCurrentLightingPreset();
+        this.dom.statusSummary.textContent = `${this.cameraNames[this.cameraMode]} · ${this.player.transmissionMode} · ${preset.name}`;
+      }
 
       if (this.dom.rearMirrorBox) {
-        const showHudMirror = this.cameraMode !== 2 && this.hudMirrorEnabled && !this.garageOpen;
+        const showHudMirror = !isInterior && this.hudMirrorEnabled && !this.garageOpen;
         this.dom.rearMirrorBox.classList.toggle('hidden', !showHudMirror);
+      }
+
+      if (this.dom.bottomRight) {
+        this.dom.bottomRight.classList.toggle('hidden', isInterior);
+      }
+      if (isInterior) {
+        return;
       }
 
       const blinkOn = this.signalMode !== 0 && Math.floor(this.signalTimer * 2.7) % 2 === 0;
@@ -1418,6 +1651,9 @@
       }
       if (this.dom.sigRight) {
         this.dom.sigRight.classList.toggle('on', blinkOn && (this.signalMode === 1 || this.signalMode === 2));
+      }
+      if (this.dom.sigHighBeam) {
+        this.dom.sigHighBeam.classList.toggle('on', !!this.highBeamsActive);
       }
       if (this.dom.sigHorn) {
         this.dom.sigHorn.classList.toggle('hidden', !this.hornActive);
@@ -1539,13 +1775,21 @@
       this.renderer.shadowMap.autoUpdate = false;
       this.playerMesh.group.visible = false;
 
+      const spec = this.playerMesh.spec;
+      const isBigRig = spec && spec.id === 'big_rig';
+      const rearS = isBigRig ? this.player.s + 3.5 : this.player.s + 0.5;
+      const rearH = isBigRig ? 2.55 : 1.38;
+      const sideS = isBigRig ? this.player.s + 4.0 : this.player.s + 0.1;
+      const sideW = isBigRig ? 1.48 : 1.15;
+      const sideH = isBigRig ? 2.25 : 1.12;
+
       // Center Rearview Mirror Camera
-      this.env.project(this.player.s + 0.5, this.player.d, this.mirrorCamPos, 1.38);
+      this.env.project(rearS, this.player.d, this.mirrorCamPos, rearH);
       this.env.project(
         this.player.s - 65,
         this.player.d + Math.sin(this.player.yawRel) * 18,
         this.mirrorLookPos,
-        1.05
+        isBigRig ? 1.45 : 1.05
       );
       this.mirrorCamera.fov = 48;
       this.mirrorCamera.aspect = 320 / 144;
@@ -1562,16 +1806,16 @@
         this.mirrorCamera.aspect = 144 / 112;
         this.mirrorCamera.updateProjectionMatrix();
 
-        this.env.project(this.player.s + 0.1, this.player.d - 1.15, this.mirrorCamPos, 1.12);
-        this.env.project(this.player.s - 45, this.player.d - 4.2, this.mirrorLookPos, 0.95);
+        this.env.project(sideS, this.player.d - sideW, this.mirrorCamPos, sideH);
+        this.env.project(this.player.s - 45, this.player.d - (sideW + 3.1), this.mirrorLookPos, isBigRig ? 1.35 : 0.95);
         this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
         this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
         this.renderer.setRenderTarget(this.leftMirrorRT);
         this.renderer.clear();
         this.renderer.render(this.scene, this.mirrorCamera);
 
-        this.env.project(this.player.s + 0.1, this.player.d + 1.15, this.mirrorCamPos, 1.12);
-        this.env.project(this.player.s - 45, this.player.d + 4.2, this.mirrorLookPos, 0.95);
+        this.env.project(sideS, this.player.d + sideW, this.mirrorCamPos, sideH);
+        this.env.project(this.player.s - 45, this.player.d + (sideW + 3.1), this.mirrorLookPos, isBigRig ? 1.35 : 0.95);
         this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
         this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
         this.renderer.setRenderTarget(this.rightMirrorRT);
@@ -1641,6 +1885,17 @@
           this.profiler.updateFPS(dt);
         }
 
+        if (this.headlightFlashPulse > 0) {
+          this.headlightFlashPulse = Math.max(0, this.headlightFlashPulse - dt);
+        }
+        this.highBeamsActive =
+          !this.player.crashed && (this.headlightFlashHeld || this.headlightFlashPulse > 0);
+
+        if (!this.cleanStreakResetDone && this.player.distanceMeters >= 3000) {
+          this.economy.resetCrashStreak();
+          this.cleanStreakResetDone = true;
+        }
+
         // Turn signal timer, audio relay tick & lane-change auto-cancel
         if (this.signalMode !== 0) {
           this.signalTimer += dt;
@@ -1674,7 +1929,14 @@
 
         for (let s = 0; s < substeps; s++) {
           const events = this.player.step(subDt, this.input, this.traffic, preset.grip);
-          this.traffic.step(subDt, this.player, preset.headlightStrength, preset, this.hornActive);
+          this.traffic.step(
+            subDt,
+            this.player,
+            preset.headlightStrength,
+            preset,
+            this.hornActive,
+            this.highBeamsActive
+          );
 
           for (let e = 0; e < events.length; e++) {
             const ev = events[e];
@@ -1700,14 +1962,13 @@
               if (window.HighwayAudio) {
                 window.HighwayAudio.playCollision(ev.type);
               }
-              if (ev.type === 'minor' || ev.type === 'crash') {
+              if (ev.type === 'minor') {
                 this.economy.onCollision();
-              }
-              if (ev.type === 'crash') {
-                this.clearInputs();
-                this.openCrashModal();
-              } else if (ev.type === 'minor') {
                 this.showToast('Traffic Contact', 1.2);
+              } else if (ev.type === 'crash') {
+                const crashRes = this.economy.recordCrash();
+                this.clearInputs();
+                this.openCrashModal(crashRes);
               }
             }
           }
@@ -1736,6 +1997,7 @@
             throttle: this.input.throttle,
             turboBoost: this.player.turboBoost,
             turboLevel: this.player.turboLevel,
+            exhaustLevel: this.player.exhaustLevel,
             onShoulder: this.player.onShoulder,
             precip: preset.precip,
             hitRevLimiter: this.player.hitRevLimiter

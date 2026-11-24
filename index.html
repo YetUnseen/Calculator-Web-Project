@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="css/style.css?v=hw12" />
+  <link rel="stylesheet" href="css/style.css?v=hw13" />
 </head>
 <body>
   <!-- WORKING CALCULATOR DISGUISE LAYER (Type 190311 and hit = to unlock the game) -->
@@ -58,22 +58,18 @@
   <!-- Subtle Edge Vignette -->
   <div id="fx-vignette"></div>
 
-  <!-- Minimalist Highway HUD -->
+  <!-- Clean Decluttered Highway HUD -->
   <div id="hud">
-    <!-- Top Left: Pause, Garage/Shop ($), Restart & Calculator Quick-Lock -->
-    <div class="hud-top-left">
-      <button class="hud-pill-btn" id="btn-pause" title="Pause [ESC / P]">
-        <span>Pause</span>
+    <!-- Top Left Dock: Menu, Garage ($) & Calculator Quick-Lock -->
+    <div class="hud-dock hud-top-left">
+      <button class="hud-pill-btn" id="btn-pause" title="Pause & Settings [ESC / P]">
+        <span>Menu</span>
         <kbd>ESC</kbd>
       </button>
-      <button class="hud-pill-btn hud-pill-garage" id="btn-open-garage" title="Open Garage & Shop [G]">
+      <button class="hud-pill-btn hud-pill-garage" id="btn-open-garage" title="Open Garage & Tuning Hub [G]">
         <span>Garage</span>
         <strong class="bank-chip" id="hud-bank">$0</strong>
         <kbd>G</kbd>
-      </button>
-      <button class="hud-pill-btn" id="btn-restart" title="Restart Drive [R]">
-        <span>Restart</span>
-        <kbd>R</kbd>
       </button>
       <button class="hud-pill-btn hud-pill-calc" id="btn-lock-calc" title="Return to Calculator [`]">
         <span>Calc</span>
@@ -81,28 +77,69 @@
       </button>
     </div>
 
-    <!-- Top Right: Transmission, Gauges, Camera, Weather & Audio Quick Pills -->
-    <div class="hud-top-right">
-      <button class="hud-pill-btn" id="btn-trans" title="Cycle Transmission [X]">
-        <span id="hud-trans-label">AUTO</span>
-        <kbd>X</kbd>
+    <!-- Top Right Dock: Drive Setup Drawer Toggle & Quick Restart -->
+    <div class="hud-dock hud-top-right">
+      <button class="hud-pill-btn hud-pill-setup" id="btn-drive-setup" title="Open Drive Setup [TAB]">
+        <span class="status-summary" id="hud-status-summary">Chase · AUTO · Afternoon</span>
+        <span class="setup-pill-tag">Setup <kbd>TAB</kbd></span>
       </button>
-      <button class="hud-pill-btn" id="btn-gauge" title="Toggle Digital / Analog Gauges [V]">
-        <span id="hud-gauge-label">Digital</span>
-        <kbd>V</kbd>
+      <button class="hud-pill-btn" id="btn-restart" title="Restart Drive [R]">
+        <span>Restart</span>
+        <kbd>R</kbd>
       </button>
-      <button class="hud-pill-btn" id="btn-camera" title="Cycle Camera [C]">
-        <span id="hud-camera-label">Chase</span>
-        <kbd>C</kbd>
-      </button>
-      <button class="hud-pill-btn" id="btn-lighting" title="Cycle Weather & Time [T]">
-        <span id="hud-lighting-label">Afternoon</span>
-        <kbd>T</kbd>
-      </button>
-      <button class="hud-pill-btn" id="btn-audio" title="Toggle Audio [M]">
-        <span id="hud-audio-label">Sound On</span>
-        <kbd>M</kbd>
-      </button>
+    </div>
+
+    <!-- Designated Floating Drive Setup Drawer (Camera, Transmission, Weather & Display) -->
+    <div id="drive-setup-drawer" class="drive-setup-drawer" aria-hidden="true">
+      <div class="drawer-header">
+        <div>
+          <h3>Drive Setup</h3>
+          <span class="drawer-sub">Quick live controls while driving</span>
+        </div>
+        <button class="drawer-close-btn" id="btn-close-setup" title="Close Setup [TAB / ESC]">×</button>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">Camera View <kbd>V</kbd></div>
+        <div class="drawer-pill-grid cols-4">
+          <button class="drawer-opt-btn" data-set-camera="0">Chase</button>
+          <button class="drawer-opt-btn" data-set-camera="1">Far Chase</button>
+          <button class="drawer-opt-btn" data-set-camera="2">Interior</button>
+          <button class="drawer-opt-btn" data-set-camera="3">Hood</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">Transmission <kbd>M</kbd></div>
+        <div class="drawer-pill-grid cols-3">
+          <button class="drawer-opt-btn" data-set-trans="AUTO">AUTO</button>
+          <button class="drawer-opt-btn" data-set-trans="SEMI">SEMI</button>
+          <button class="drawer-opt-btn" data-set-trans="MANUAL">MANUAL</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">Weather &amp; Time <kbd>T</kbd></div>
+        <div class="drawer-pill-grid cols-3">
+          <button class="drawer-opt-btn" data-set-weather="0">Afternoon</button>
+          <button class="drawer-opt-btn" data-set-weather="1">Sunset</button>
+          <button class="drawer-opt-btn" data-set-weather="2">Dusk</button>
+          <button class="drawer-opt-btn" data-set-weather="3">Rain</button>
+          <button class="drawer-opt-btn" data-set-weather="4">Night Rain</button>
+          <button class="drawer-opt-btn" data-set-weather="5">Snow</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-label">Display &amp; System</div>
+        <div class="drawer-pill-grid cols-2">
+          <button class="drawer-opt-btn" id="btn-setup-gauge">Gauges: Digital [B]</button>
+          <button class="drawer-opt-btn" id="btn-setup-unit">Units: KM/H</button>
+          <button class="drawer-opt-btn" id="btn-setup-mirror">Mirror: On [N]</button>
+          <button class="drawer-opt-btn" id="btn-setup-audio">Audio: On [K]</button>
+          <button class="drawer-opt-btn span-2" id="btn-setup-quality">Graphics: Auto</button>
+        </div>
+      </div>
     </div>
 
     <!-- Live Top-Center HUD Rearview Mirror [N] -->
@@ -110,28 +147,32 @@
       <span class="mirror-tag">REARVIEW [N]</span>
     </div>
 
-    <!-- Transient Toast Notification -->
-    <div id="hud-toast" class="hud-toast hidden"></div>
+    <!-- Center Toasts & Clean Pass Bonuses (always visible even in Interior mode) -->
+    <div class="hud-center-alerts">
+      <div id="hud-toast" class="hud-toast hidden"></div>
+      <div class="bonus-toast hidden" id="hud-bonus-pill">+$50 Clean Pass</div>
+    </div>
 
     <!-- Auto-fading Controls Hint on Start -->
     <div id="controls-hint" class="controls-hint">
       <span><kbd>W</kbd><kbd>S</kbd> Drive</span>
       <span><kbd>A</kbd><kbd>D</kbd> Steer</span>
-      <span><kbd>E</kbd> Up / <kbd>Q</kbd> Down</span>
-      <span><kbd>L-Shift</kbd> Clutch</span>
-      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Signals</span>
-      <span><kbd>H</kbd>/<kbd>Space</kbd> Horn</span>
-      <span><kbd>N</kbd> Mirror</span>
+      <span><kbd>E</kbd><kbd>Q</kbd> Shift</span>
+      <span><kbd>M</kbd> Trans</span>
+      <span><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> Signals</span>
+      <span><kbd>L</kbd> Flash</span>
+      <span><kbd>V</kbd> Cam</span>
       <span><kbd>G</kbd> Garage</span>
+      <span><kbd>Tab</kbd> Setup</span>
     </div>
 
-    <!-- Bottom Right: Clean Speedometer, Gear/RPM, Distance & Earnings (Digital / Analog) -->
-    <div class="hud-bottom-right">
-      <div class="bonus-toast hidden" id="hud-bonus-pill">+$50 Clean Pass</div>
+    <!-- Bottom Right: Default Speedometer, Signals & Telemetry (Hidden in Interior mode) -->
+    <div class="hud-bottom-right" id="hud-bottom-right">
       <div class="signal-strip" id="hud-signal-strip">
-        <span class="sig-ind" id="sig-left" title="Left Turn Signal [1]">◀</span>
-        <span class="sig-ind sig-hazard" id="sig-hazard" title="Hazard Lights [2]">⚠</span>
-        <span class="sig-ind" id="sig-right" title="Right Turn Signal [3]">▶</span>
+        <span class="sig-ind" id="sig-left" title="Left Turn Signal [Z]">◀</span>
+        <span class="sig-ind sig-hazard" id="sig-hazard" title="Hazard Lights [X]">⚠</span>
+        <span class="sig-ind" id="sig-right" title="Right Turn Signal [C]">▶</span>
+        <span class="sig-ind sig-highbeam" id="sig-highbeam" title="Flash High Beams [L]">≡D</span>
         <span class="sig-horn hidden" id="sig-horn">HORN</span>
       </div>
       <div class="clutch-pill hidden" id="hud-clutch-pill">CLUTCH · L-SHIFT</div>
@@ -209,12 +250,12 @@
     </div>
   </div>
 
-  <!-- Garage & Shop Modal [G] -->
+  <!-- Garage & Tuning Hub Modal [G] -->
   <div class="hw-modal-backdrop" id="modal-garage">
     <div class="hw-shop-card">
       <div class="shop-header">
         <div>
-          <h2>Garage &amp; Tuning</h2>
+          <h2>Garage &amp; Tuning Hub</h2>
           <span class="hw-modal-sub" id="garage-active-car">Active: Civic Touring</span>
         </div>
         <div class="shop-header-right">
@@ -227,13 +268,20 @@
       </div>
 
       <div class="shop-tabs">
-        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (10)</button>
-        <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades (7)</button>
-        <button class="shop-tab-btn" data-shop-tab="tab-custom">Customize &amp; Setup</button>
+        <button class="shop-tab-btn active" data-shop-tab="tab-vehicles">Vehicles (16)</button>
+        <button class="shop-tab-btn" data-shop-tab="tab-upgrades">Upgrades (10)</button>
+        <button class="shop-tab-btn" data-shop-tab="tab-custom">Visual Styling</button>
       </div>
 
       <div class="shop-body">
         <div class="shop-pane active" id="tab-vehicles">
+          <div class="filter-pill-row" id="garage-car-filters">
+            <button class="filter-pill-btn active" data-car-filter="all">All (16)</button>
+            <button class="filter-pill-btn" data-car-filter="street">Street</button>
+            <button class="filter-pill-btn" data-car-filter="sport">Sport &amp; Muscle</button>
+            <button class="filter-pill-btn" data-car-filter="super">Super &amp; Hyper</button>
+            <button class="filter-pill-btn" data-car-filter="special">Trucks &amp; Special</button>
+          </div>
           <div class="vehicles-grid" id="garage-cars-grid"></div>
         </div>
 
@@ -273,45 +321,127 @@
             <div class="setup-label">Chassis Underglow Neon</div>
             <div class="trans-selector-row" id="garage-underglow-row"></div>
           </div>
-
-          <div class="setup-section">
-            <div class="setup-label">Transmission System</div>
-            <div class="trans-selector-row" id="garage-trans-row"></div>
-            <p class="trans-desc" id="garage-trans-desc"></p>
-          </div>
-
-          <div class="setup-section">
-            <div class="setup-label">Instrument Cluster Style [V]</div>
-            <div class="trans-selector-row" id="garage-gauge-row"></div>
-          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Simple Pause Overlay Modal -->
+  <!-- Designated Pause, Settings & Controls Modal [ESC / P] -->
   <div class="hw-modal-backdrop" id="modal-pause">
-    <div class="hw-modal-card">
+    <div class="hw-modal-card hw-modal-pause">
       <div class="hw-modal-head">
         <h2>Paused</h2>
-        <span class="hw-modal-sub" id="pause-stats-line">0.0 km driven</span>
+        <span class="hw-modal-sub" id="pause-stats-line">0.00 km driven</span>
       </div>
 
-      <div class="hw-modal-actions">
-        <button class="hw-btn hw-btn-primary" id="btn-resume">Resume Driving</button>
-        <button class="hw-btn" id="btn-pause-garage">Garage &amp; Shop [G]</button>
-        <button class="hw-btn" id="btn-pause-restart">Restart</button>
-        <button class="hw-btn" id="btn-pause-quality">Graphics: Auto</button>
-        <button class="hw-btn hw-btn-subtle" id="btn-pause-calc">Switch to Calculator</button>
+      <div class="pause-tabs">
+        <button class="pause-tab-btn active" data-pause-tab="pause-tab-game">Game</button>
+        <button class="pause-tab-btn" data-pause-tab="pause-tab-settings">Settings</button>
+        <button class="pause-tab-btn" data-pause-tab="pause-tab-controls">Controls</button>
       </div>
 
-      <div class="hw-controls-ref">
-        <div><span>Accelerate / Brake</span><kbd>W / S</kbd> or <kbd>↑ / ↓</kbd></div>
-        <div><span>Steer</span><kbd>A / D</kbd> or <kbd>← / →</kbd></div>
-        <div><span>Shift Up / Down / Clutch</span><kbd>E / Q</kbd> &amp; <kbd>L-Shift</kbd></div>
-        <div><span>Signals / Hazards / Horn</span><kbd>1 2 3</kbd> <kbd>H / Space</kbd></div>
-        <div><span>Mirror / Camera / Gauges / Weather</span><kbd>N</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>T</kbd></div>
-        <div><span>Trans / Garage / Pause / Restart / Calc</span><kbd>X</kbd> <kbd>G</kbd> <kbd>ESC</kbd> <kbd>R</kbd> <kbd>`</kbd></div>
+      <div class="pause-pane active" id="pause-tab-game">
+        <div class="pause-stats-grid">
+          <div class="crash-stat">
+            <span>Distance</span>
+            <strong id="pause-stat-dist">0.00 km</strong>
+          </div>
+          <div class="crash-stat">
+            <span>Bank</span>
+            <strong id="pause-stat-bank">$0</strong>
+          </div>
+          <div class="crash-stat">
+            <span>Clean Passes</span>
+            <strong id="pause-stat-passes">0</strong>
+          </div>
+          <div class="crash-stat">
+            <span>Wreck Streak</span>
+            <strong id="pause-stat-streak">0 / 3</strong>
+          </div>
+        </div>
+
+        <div class="hw-modal-actions">
+          <button class="hw-btn hw-btn-primary" id="btn-resume">Resume Driving</button>
+          <button class="hw-btn" id="btn-pause-garage">Garage &amp; Tuning Hub [G]</button>
+          <button class="hw-btn" id="btn-pause-restart">Restart Drive [R]</button>
+          <button class="hw-btn hw-btn-subtle" id="btn-pause-calc">Switch to Calculator [`]</button>
+        </div>
+      </div>
+
+      <div class="pause-pane" id="pause-tab-settings">
+        <div class="drawer-section">
+          <div class="drawer-label">Camera View <kbd>V</kbd></div>
+          <div class="drawer-pill-grid cols-4">
+            <button class="drawer-opt-btn" data-set-camera="0">Chase</button>
+            <button class="drawer-opt-btn" data-set-camera="1">Far Chase</button>
+            <button class="drawer-opt-btn" data-set-camera="2">Interior</button>
+            <button class="drawer-opt-btn" data-set-camera="3">Hood</button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-label">Transmission <kbd>M</kbd></div>
+          <div class="drawer-pill-grid cols-3">
+            <button class="drawer-opt-btn" data-set-trans="AUTO">AUTO</button>
+            <button class="drawer-opt-btn" data-set-trans="SEMI">SEMI</button>
+            <button class="drawer-opt-btn" data-set-trans="MANUAL">MANUAL</button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-label">Weather &amp; Time <kbd>T</kbd></div>
+          <div class="drawer-pill-grid cols-3">
+            <button class="drawer-opt-btn" data-set-weather="0">Afternoon</button>
+            <button class="drawer-opt-btn" data-set-weather="1">Sunset</button>
+            <button class="drawer-opt-btn" data-set-weather="2">Dusk</button>
+            <button class="drawer-opt-btn" data-set-weather="3">Rain</button>
+            <button class="drawer-opt-btn" data-set-weather="4">Night Rain</button>
+            <button class="drawer-opt-btn" data-set-weather="5">Snow</button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="drawer-label">Display &amp; System</div>
+          <div class="drawer-pill-grid cols-2">
+            <button class="drawer-opt-btn" id="btn-pause-gauge">Gauges: Digital [B]</button>
+            <button class="drawer-opt-btn" id="btn-pause-unit">Units: KM/H</button>
+            <button class="drawer-opt-btn" id="btn-pause-mirror">Mirror: On [N]</button>
+            <button class="drawer-opt-btn" id="btn-pause-audio">Audio: On [K]</button>
+            <button class="drawer-opt-btn span-2" id="btn-pause-quality">Graphics: Auto</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pause-pane" id="pause-tab-controls">
+        <div class="controls-cat">
+          <div class="controls-cat-title">Driving &amp; Shifting</div>
+          <div class="hw-controls-ref">
+            <div><span>Accelerate / Brake</span><span class="key-group"><kbd>W / S</kbd> or <kbd>↑ / ↓</kbd></span></div>
+            <div><span>Steer Left / Right</span><span class="key-group"><kbd>A / D</kbd> or <kbd>← / →</kbd></span></div>
+            <div><span>Shift Up / Down</span><span class="key-group"><kbd>E</kbd> <kbd>Q</kbd></span></div>
+            <div><span>Clutch (Manual Mode)</span><span class="key-group"><kbd>L-Shift</kbd></span></div>
+            <div><span>Cycle Transmission</span><span class="key-group"><kbd>M</kbd></span></div>
+          </div>
+        </div>
+
+        <div class="controls-cat">
+          <div class="controls-cat-title">Lights, Signals &amp; Horn</div>
+          <div class="hw-controls-ref">
+            <div><span>Left / Hazard / Right Signal</span><span class="key-group"><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></span></div>
+            <div><span>Flash High Beams</span><span class="key-group"><kbd>L</kbd></span></div>
+            <div><span>Horn / Air Horn / Siren</span><span class="key-group"><kbd>H</kbd> or <kbd>Space</kbd></span></div>
+          </div>
+        </div>
+
+        <div class="controls-cat">
+          <div class="controls-cat-title">Cameras &amp; Menus</div>
+          <div class="hw-controls-ref">
+            <div><span>Cycle Camera / Gauge Style</span><span class="key-group"><kbd>V</kbd> <kbd>B</kbd></span></div>
+            <div><span>Rearview Mirror / Weather / Audio</span><span class="key-group"><kbd>N</kbd> <kbd>T</kbd> <kbd>K</kbd></span></div>
+            <div><span>Drive Setup / Garage / Restart</span><span class="key-group"><kbd>Tab</kbd> <kbd>G</kbd> <kbd>R</kbd></span></div>
+            <div><span>Pause Menu / Calculator Disguise</span><span class="key-group"><kbd>ESC</kbd> <kbd>`</kbd></span></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -323,6 +453,8 @@
         <h2>Collision</h2>
         <span class="hw-modal-sub" id="crash-reason">Vehicle disabled in traffic collision</span>
       </div>
+
+      <div class="crash-unlock-banner hidden" id="crash-streak-banner"></div>
 
       <div class="crash-stats-grid">
         <div class="crash-stat">
@@ -340,6 +472,7 @@
       </div>
 
       <div class="hw-modal-actions">
+        <button class="hw-btn hw-btn-gold hidden" id="btn-crash-drive-truck">Drive Colossus 18-Wheeler Now</button>
         <button class="hw-btn hw-btn-primary" id="btn-crash-restart">Restart Drive [R]</button>
         <button class="hw-btn" id="btn-crash-garage">Garage &amp; Upgrades [G]</button>
         <button class="hw-btn hw-btn-subtle" id="btn-crash-calc">Calculator [`]</button>
@@ -348,14 +481,14 @@
   </div>
 
   <!-- Three.js & Endless Highway Modules -->
-  <script src="vendor/three.min.js?v=hw12"></script>
-  <script src="js/hardware.js?v=hw12"></script>
-  <script src="js/economy.js?v=hw12"></script>
-  <script src="js/audio.js?v=hw12"></script>
-  <script src="js/vehicles.js?v=hw12"></script>
-  <script src="js/highway.js?v=hw12"></script>
-  <script src="js/traffic.js?v=hw12"></script>
-  <script src="js/physics.js?v=hw12"></script>
-  <script src="js/main.js?v=hw12"></script>
+  <script src="vendor/three.min.js?v=hw13"></script>
+  <script src="js/hardware.js?v=hw13"></script>
+  <script src="js/economy.js?v=hw13"></script>
+  <script src="js/audio.js?v=hw13"></script>
+  <script src="js/vehicles.js?v=hw13"></script>
+  <script src="js/highway.js?v=hw13"></script>
+  <script src="js/traffic.js?v=hw13"></script>
+  <script src="js/physics.js?v=hw13"></script>
+  <script src="js/main.js?v=hw13"></script>
 </body>
 </html>

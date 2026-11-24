@@ -63,6 +63,11 @@
       this.turboLevel = 0.55;
       this.turboSpoolMult = 1.0;
       this.rollStiffness = 1.0;
+      this.steerResponseMult = 1.0;
+      this.highRpmBoost = 1.0;
+      this.exhaustLevel = 0;
+      this.hornType = 'standard';
+      this.isBigRig = false;
 
       if (opts.specs) {
         this.applyCarSpecs(opts.specs);
@@ -92,6 +97,11 @@
       this.turboLevel = specs.turboLevel || 0.7;
       this.turboSpoolMult = specs.turboSpoolMult || 1.0;
       this.rollStiffness = specs.rollStiffness || 1.0;
+      this.steerResponseMult = specs.steerResponseMult || 1.0;
+      this.highRpmBoost = specs.highRpmBoost || 1.0;
+      this.exhaustLevel = specs.exhaustLevel || 0;
+      this.hornType = specs.hornType || (this.archetype === 'police' ? 'police' : 'standard');
+      this.isBigRig = this.archetype === 'big_rig';
 
       if (this.gear > this.gearCount) {
         this.gear = this.gearCount;
@@ -438,6 +448,9 @@
           } else {
             bandMult = 1.0 - (rawNorm - 0.88) * 1.1;
           }
+          if (rawNorm > 0.65) {
+            bandMult *= this.highRpmBoost || 1.0;
+          }
           torqueMult = gearMult * bandMult * kickBoost;
         }
       }
@@ -577,10 +590,11 @@
       // 2. Planted Speed-Adaptive Steering (lateral-velocity capped with progressive turn-in)
       const absV = Math.abs(this.speed);
       const speedNorm = clamp(absV / this.maxSpeedMs, 0, 1);
+      const steerMult = this.steerResponseMult || 1.0;
       const isReversingSteer = steerDir !== 0 && steerDir * this.steer < 0;
-      const turnInRate = lerp(6.2, 4.0, speedNorm);
-      const counterRate = lerp(13.5, 10.5, speedNorm);
-      const centerRate = lerp(11.0, 9.0, speedNorm);
+      const turnInRate = lerp(6.2, 4.0, speedNorm) * steerMult;
+      const counterRate = lerp(13.5, 10.5, speedNorm) * steerMult;
+      const centerRate = lerp(11.0, 9.0, speedNorm) * steerMult;
       const steerRamp = steerDir === 0 ? centerRate : isReversingSteer ? counterRate : turnInRate;
       this.steer += (steerDir - this.steer) * Math.min(1, steerRamp * clampedDt);
       if (steerDir === 0 && Math.abs(this.steer) < 0.005) this.steer = 0;
@@ -599,7 +613,7 @@
 
       const authority = clamp(absV / 3.5, 0, 1);
       const gripResponse = clamp(0.58 + 0.42 * effectiveGrip, 0.65, 1.08);
-      const yawRate = (steerDir !== 0 ? 7.2 : 11.2) * gripResponse;
+      const yawRate = (steerDir !== 0 ? 7.2 : 11.2) * gripResponse * steerMult;
       this.yawRel += (targetYaw - this.yawRel) * Math.min(1, yawRate * authority * clampedDt);
       if (steerDir === 0 && Math.abs(this.yawRel) < 0.001) this.yawRel = 0;
 
@@ -703,28 +717,34 @@
             this.collisionCount++;
             npc.passedByPlayer = true;
 
+            const rigCrashBoost = this.isBigRig ? 1.35 : 1.0;
+
             if (normPenS <= normPenD) {
               const pushSign = dsGap >= 0 ? 1 : -1;
               this.s = npc.s + pushSign * (hlSum + 0.08);
               const impactMs = pushSign < 0 ? Math.max(0, this.speed - npc.v) : relLong;
               const dmgAdd = Math.round((12 + impactMs * 1.8) * this.damageResist);
 
-              if (impactMs >= 13.5 / Math.sqrt(this.damageResist) || this.damage + dmgAdd >= 100) {
+              if (impactMs >= (13.5 * rigCrashBoost) / Math.sqrt(this.damageResist) || this.damage + dmgAdd >= 100) {
                 this.damage = 100;
                 this.crashed = true;
                 this.lastCrashReason = 'Collision with highway traffic';
                 this.speed = Math.min(this.speed * 0.22, npc.v * 0.45);
-                traffic.onPlayerCollision(npc, impactMs, 0);
+                traffic.onPlayerCollision(npc, impactMs * (this.isBigRig ? 1.5 : 1.0), 0);
                 events.push({ type: 'crash', intensity: 1.0, impactMs, npc });
                 break;
               } else {
-                this.damage = Math.min(99, this.damage + Math.max(6, dmgAdd));
+                this.damage = Math.min(99, this.damage + Math.max(this.isBigRig ? 3 : 6, dmgAdd));
                 this.speed = clamp(
-                  pushSign < 0 ? Math.min(this.speed, npc.v * 0.84) : Math.max(this.speed, npc.v * 1.05),
+                  pushSign < 0
+                    ? this.isBigRig
+                      ? Math.max(this.speed * 0.90, npc.v * 0.92)
+                      : Math.min(this.speed, npc.v * 0.84)
+                    : Math.max(this.speed, npc.v * 1.05),
                   0,
                   this.maxSpeedMs
                 );
-                traffic.onPlayerCollision(npc, impactMs, 0);
+                traffic.onPlayerCollision(npc, impactMs * (this.isBigRig ? 1.5 : 1.0), 0);
                 events.push({
                   type: 'minor',
                   intensity: clamp(impactMs / 11, 0.25, 0.9),
@@ -740,19 +760,20 @@
 
               const latSpeed = Math.abs(this.speed * Math.sin(this.yawRel));
               const impactMs = Math.max(latSpeed, relLong * 0.45);
-              this.speed *= 0.88;
+              this.speed *= this.isBigRig ? 0.95 : 0.88;
               const dmgAdd = Math.round((10 + impactMs * 1.4) * this.damageResist);
+              const latPushScale = this.isBigRig ? 1.6 : 1.0;
 
-              if (this.damage + dmgAdd >= 100 || impactMs >= 14.5 / Math.sqrt(this.damageResist)) {
+              if (this.damage + dmgAdd >= 100 || impactMs >= (14.5 * rigCrashBoost) / Math.sqrt(this.damageResist)) {
                 this.damage = 100;
                 this.crashed = true;
                 this.lastCrashReason = 'High-speed sideswipe collision';
-                traffic.onPlayerCollision(npc, impactMs, -sideSign * 0.35);
+                traffic.onPlayerCollision(npc, impactMs * latPushScale, -sideSign * 0.35 * latPushScale);
                 events.push({ type: 'crash', intensity: 1.0, impactMs, npc });
                 break;
               } else {
-                this.damage = Math.min(99, this.damage + Math.max(5, dmgAdd));
-                traffic.onPlayerCollision(npc, impactMs, -sideSign * 0.25);
+                this.damage = Math.min(99, this.damage + Math.max(this.isBigRig ? 3 : 5, dmgAdd));
+                traffic.onPlayerCollision(npc, impactMs * latPushScale, -sideSign * (this.isBigRig ? 0.48 : 0.25));
                 events.push({
                   type: 'minor',
                   intensity: clamp(impactMs / 10, 0.22, 0.85),

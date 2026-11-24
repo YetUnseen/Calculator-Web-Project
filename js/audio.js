@@ -16,7 +16,9 @@
     t5: { baseScale: 1.06, harmRatio: 1.67, subWeight: 0.52, filterBoost: 1.00 },
     i6_high: { baseScale: 1.24, harmRatio: 2.0, subWeight: 0.42, filterBoost: 1.08 },
     v8: { baseScale: 0.88, harmRatio: 1.98, subWeight: 0.65, filterBoost: 1.04 },
-    v10: { baseScale: 1.38, harmRatio: 2.02, subWeight: 0.48, filterBoost: 1.12 }
+    v10: { baseScale: 1.38, harmRatio: 2.02, subWeight: 0.48, filterBoost: 1.12 },
+    v12: { baseScale: 1.48, harmRatio: 1.5, subWeight: 0.44, filterBoost: 1.18 },
+    diesel_v8: { baseScale: 0.62, harmRatio: 2.0, subWeight: 0.85, filterBoost: 0.82 }
   };
 
   function clamp(v, lo, hi) {
@@ -325,11 +327,12 @@
       this.oscHarmonic.frequency.setTargetAtTime(baseFreq * cfg.harmRatio, now, 0.04);
       this.oscSub.frequency.setTargetAtTime(baseFreq * 0.5, now, 0.04);
 
-      const rawCutoff = (220 + (rpm / 7000) * 680 + throttle * 220) * cfg.filterBoost;
-      const filterCutoff = Math.min(1080, rawCutoff);
+      const exhaustLvl = clamp(tele.exhaustLevel || 0, 0, 4);
+      const rawCutoff = (220 + (rpm / 7000) * 680 + throttle * 220) * cfg.filterBoost + exhaustLvl * 45;
+      const filterCutoff = Math.min(1220, rawCutoff);
       this.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.05);
 
-      let engVol = 0.045 + throttle * 0.052 + speedFrac * 0.022;
+      let engVol = 0.045 + throttle * 0.052 + speedFrac * 0.022 + exhaustLvl * 0.004;
       if (tele.hitRevLimiter) {
         engVol *= Math.sin(now * 88) > 0 ? 1.12 : 0.35;
       }
@@ -517,22 +520,46 @@
       } catch (e) {}
     }
 
-    setHorn(active, isPolice) {
+    setHorn(active, hornMode) {
       if (!this.initialized || !this.ctx || !this.hornGain) return;
       const on = !!active && !this.muted && !this.suspended;
       const now = this.ctx.currentTime;
+      const mode = hornMode === true ? 'police' : hornMode || 'standard';
       if (this.hornOsc1 && this.hornOsc2) {
-        const f1 = isPolice ? 370 : 405;
-        const f2 = isPolice ? 466 : 505;
+        const f1 = mode === 'airhorn' ? 185 : mode === 'police' ? 370 : 405;
+        const f2 = mode === 'airhorn' ? 233 : mode === 'police' ? 466 : 505;
         this.hornOsc1.frequency.setTargetAtTime(f1, now, 0.01);
         this.hornOsc2.frequency.setTargetAtTime(f2, now, 0.01);
+      }
+      if (this.hornFilter) {
+        this.hornFilter.frequency.setTargetAtTime(mode === 'airhorn' ? 1150 : 1650, now, 0.02);
       }
       if (on && !this.hornIsOn && this.customBuffers.horn) {
         this._playCustomBuffer(this.customBuffers.horn, 0.35);
       }
       this.hornIsOn = on;
-      const targetVol = on && !this.customBuffers.horn ? 0.13 : 0;
+      const peakGain = mode === 'airhorn' ? 0.17 : 0.13;
+      const targetVol = on && !this.customBuffers.horn ? peakGain : 0;
       this.hornGain.gain.setTargetAtTime(targetVol, now, on ? 0.015 : 0.02);
+    }
+
+    playHeadlightFlash(on) {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(on ? 1450 : 1120, now);
+        osc.frequency.exponentialRampToValueAtTime(380, now + 0.018);
+
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.035, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.024);
+      } catch (e) {}
     }
 
     playBlinkerTick(isOn) {

@@ -1,8 +1,8 @@
 /* ==========================================================================
-   HIGHWAY VEHICLES — 14 SCULPTED 3D VEHICLE ARCHETYPES & LIGHT CONTROLLERS
+   HIGHWAY VEHICLES — 23 SCULPTED 3D VEHICLE ARCHETYPES & LIGHT CONTROLLERS
    - All meshes face -Z (forward), +X (right), +Y (up), grounded at y = 0
-   - Angled windshields, rear glass, wheel arches, spoilers, trailers & beacons
-   - Independent brake lights, L/R blinkers, hazard flashers & patrol lights
+   - Angled windshields, rear glass, wheel arches, spoilers, big rigs & beacons
+   - Independent brake lights, L/R blinkers, hazard flashers & high-beam flashers
    - Shared geometry & core material caches for crisp 60 FPS on integrated GPUs
    ========================================================================== */
 
@@ -24,6 +24,51 @@
       cabinHeightFrac: 0.50,
       minSpeedKmh: 0,
       maxSpeedKmh: 280
+    },
+    rally_hatch: {
+      id: 'rally_hatch',
+      label: 'Stratos WRC Hatch',
+      length: 4.18,
+      width: 1.88,
+      height: 1.46,
+      wheelRadius: 0.33,
+      wheelWidth: 0.25,
+      clearance: 0.17,
+      hoodFrac: 0.25,
+      cabinFrac: 0.55,
+      cabinHeightFrac: 0.53,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 285
+    },
+    sport_pickup: {
+      id: 'sport_pickup',
+      label: 'Raptor SVT Street',
+      length: 5.42,
+      width: 2.06,
+      height: 1.78,
+      wheelRadius: 0.41,
+      wheelWidth: 0.29,
+      clearance: 0.23,
+      hoodFrac: 0.28,
+      cabinFrac: 0.35,
+      cabinHeightFrac: 0.47,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 310
+    },
+    sport_suv: {
+      id: 'sport_suv',
+      label: 'Kodiak Trackhawk SUV',
+      length: 4.90,
+      width: 2.02,
+      height: 1.66,
+      wheelRadius: 0.39,
+      wheelWidth: 0.28,
+      clearance: 0.20,
+      hoodFrac: 0.27,
+      cabinFrac: 0.54,
+      cabinHeightFrac: 0.49,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 330
     },
     gt_v8: {
       id: 'gt_v8',
@@ -54,6 +99,21 @@
       cabinHeightFrac: 0.46,
       minSpeedKmh: 0,
       maxSpeedKmh: 370
+    },
+    gt3: {
+      id: 'gt3',
+      label: 'Corsa GT3 RS',
+      length: 4.58,
+      width: 2.02,
+      height: 1.24,
+      wheelRadius: 0.35,
+      wheelWidth: 0.29,
+      clearance: 0.12,
+      hoodFrac: 0.30,
+      cabinFrac: 0.41,
+      cabinHeightFrac: 0.47,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 440
     },
     jdm_coupe: {
       id: 'jdm_coupe',
@@ -99,6 +159,36 @@
       cabinHeightFrac: 0.45,
       minSpeedKmh: 0,
       maxSpeedKmh: 480
+    },
+    prototype: {
+      id: 'prototype',
+      label: 'Valkyrie AMR-Pro',
+      length: 4.78,
+      width: 2.08,
+      height: 1.08,
+      wheelRadius: 0.36,
+      wheelWidth: 0.31,
+      clearance: 0.10,
+      hoodFrac: 0.26,
+      cabinFrac: 0.38,
+      cabinHeightFrac: 0.44,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 460
+    },
+    big_rig: {
+      id: 'big_rig',
+      label: 'Colossus 18-Wheeler',
+      length: 13.80,
+      width: 2.68,
+      height: 3.85,
+      wheelRadius: 0.54,
+      wheelWidth: 0.34,
+      clearance: 0.42,
+      hoodFrac: 0.14,
+      cabinFrac: 0.15,
+      cabinHeightFrac: 0.58,
+      minSpeedKmh: 0,
+      maxSpeedKmh: 310
     },
     hatchback: {
       id: 'hatchback',
@@ -322,6 +412,47 @@
     return tex;
   }
 
+  function makeBeamTexture() {
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = 128;
+    c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 128, 128);
+
+    // Draw tapered volumetric beam cone: narrow & bright at bottom (uv.y=0, headlight), wide & soft at top (uv.y=1, far ahead)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(52, 128);
+    ctx.lineTo(76, 128);
+    ctx.lineTo(126, 0);
+    ctx.lineTo(2, 0);
+    ctx.closePath();
+    ctx.clip();
+
+    const vGrad = ctx.createLinearGradient(0, 128, 0, 0);
+    vGrad.addColorStop(0.0, 'rgba(235, 248, 255, 0.92)');
+    vGrad.addColorStop(0.28, 'rgba(220, 244, 255, 0.56)');
+    vGrad.addColorStop(0.68, 'rgba(195, 232, 255, 0.18)');
+    vGrad.addColorStop(1.0, 'rgba(180, 224, 255, 0.0)');
+    ctx.fillStyle = vGrad;
+    ctx.fillRect(0, 0, 128, 128);
+
+    const hGrad = ctx.createLinearGradient(0, 0, 128, 0);
+    hGrad.addColorStop(0.0, 'rgba(0, 0, 0, 1)');
+    hGrad.addColorStop(0.18, 'rgba(0, 0, 0, 0)');
+    hGrad.addColorStop(0.82, 'rgba(0, 0, 0, 0)');
+    hGrad.addColorStop(1.0, 'rgba(0, 0, 0, 1)');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = hGrad;
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.restore();
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
   function getShared() {
     if (_shared) return _shared;
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -335,6 +466,7 @@
     const amberGlowTex = makeGlowTexture('255, 175, 25');
     const redGlowTex = makeGlowTexture('255, 45, 45');
     const headlightGlowTex = makeGlowTexture('255, 248, 225');
+    const beamTex = makeBeamTexture();
 
     _shared = {
       boxGeo,
@@ -358,7 +490,8 @@
       }),
       amberGlowTex,
       redGlowTex,
-      headlightGlowTex
+      headlightGlowTex,
+      beamTex
     };
     return _shared;
   }
@@ -423,14 +556,21 @@
     const typeKey = opts.archetype && ARCHETYPES[opts.archetype] ? opts.archetype : 'sedan';
     const spec = ARCHETYPES[typeKey];
     const shared = getShared();
-    const isPlayer =
-      !!opts.isPlayer ||
-      typeKey === 'player_gt' ||
-      typeKey === 'gt_v8' ||
-      typeKey === 'supercar' ||
-      typeKey === 'jdm_coupe' ||
-      typeKey === 'muscle' ||
-      typeKey === 'hypercar';
+    const PLAYER_ARCHETYPES = [
+      'player_gt',
+      'rally_hatch',
+      'sport_pickup',
+      'sport_suv',
+      'gt_v8',
+      'supercar',
+      'gt3',
+      'jdm_coupe',
+      'muscle',
+      'hypercar',
+      'prototype',
+      'big_rig'
+    ];
+    const isPlayer = !!opts.isPlayer || PLAYER_ARCHETYPES.indexOf(typeKey) !== -1;
     const castShadow = opts.castShadow !== false;
     const custom = opts.custom || {};
 
@@ -507,7 +647,67 @@
     const wheelZPositions = [];
     const frontZAxles = [];
 
-    if (typeKey === 'semi') {
+    if (typeKey === 'big_rig') {
+      // Colossus 18-Wheeler: massive long-nose tractor + twin stacks + armored freight trailer (5 axles)
+      const tractorHoodLen = 1.95;
+      const cabLen = 2.20;
+      const trailerLen = 9.15;
+      const hoodZ = -L * 0.5 + tractorHoodLen * 0.5;
+      const cabZ = -L * 0.5 + tractorHoodLen + cabLen * 0.5;
+      const trailerZ = L * 0.5 - trailerLen * 0.5;
+
+      // Heavy steel chassis rail & front chrome cowcatcher bullbar
+      addBox(bodyTiltGroup, W * 0.88, 0.48, L * 0.94, 0, clear + 0.24, 0.15, shared.darkTrimMat, castShadow);
+      addBox(bodyTiltGroup, W * 0.94, 0.52, 0.18, 0, clear + 0.36, -L * 0.5 - 0.10, shared.chromeMat, castShadow);
+      addBox(bodyTiltGroup, W * 0.86, 0.64, 0.08, 0, clear + 0.72, -L * 0.5 - 0.12, shared.chromeMat, false);
+
+      // Long-nose muscular hood & huge slatted chrome radiator grille (stays visible in Interior view!)
+      addBox(bodyTiltGroup, W * 0.86, 1.32, tractorHoodLen, 0, clear + 1.02, hoodZ, bodyMat, castShadow);
+      addBox(bodyTiltGroup, W * 0.56, 1.12, 0.10, 0, clear + 1.00, -L * 0.5 + 0.02, shared.chromeMat, false);
+      addBox(bodyTiltGroup, W * 0.46, 0.92, 0.11, 0, clear + 1.00, -L * 0.5 + 0.015, shared.grilleMat, false);
+
+      // Cylindrical-profile chrome side fuel tanks & twin towering exhaust stacks behind cab
+      addBox(bodyTiltGroup, 0.38, 0.44, 1.75, -W * 0.44, clear + 0.36, cabZ + 0.25, shared.chromeMat, false);
+      addBox(bodyTiltGroup, 0.38, 0.44, 1.75, W * 0.44, clear + 0.36, cabZ + 0.25, shared.chromeMat, false);
+      addBox(bodyTiltGroup, 0.14, 2.95, 0.14, -W * 0.47, clear + 2.15, cabZ + cabLen * 0.5 + 0.08, shared.chromeMat, castShadow);
+      addBox(bodyTiltGroup, 0.14, 2.95, 0.14, W * 0.47, clear + 2.15, cabZ + cabLen * 0.5 + 0.08, shared.chromeMat, castShadow);
+
+      // Exterior sleeper cab shell, glass, fairing, side mirrors & amber clearance lights (hidden in Interior view)
+      addBox(exteriorCabinGroup, W * 0.94, 2.48, cabLen, 0, clear + 1.76, cabZ, bodyMat, castShadow);
+      addBox(exteriorCabinGroup, W * 0.86, 0.74, 0.09, 0, clear + 2.34, cabZ - cabLen * 0.48, activeGlassMat, false, 0.10);
+      addBox(exteriorCabinGroup, W * 0.955, 0.68, cabLen * 0.58, 0, clear + 2.34, cabZ - 0.15, activeGlassMat, false);
+      addBox(exteriorCabinGroup, W * 0.88, 0.46, cabLen * 0.82, 0, clear + 3.16, cabZ + 0.12, bodyMat, false);
+      // Big rig exterior side mirrors
+      addBox(exteriorCabinGroup, 0.12, 0.38, 0.14, -W * 0.53, clear + 2.15, cabZ - cabLen * 0.35, shared.chromeMat, false);
+      addBox(exteriorCabinGroup, 0.12, 0.38, 0.14, W * 0.53, clear + 2.15, cabZ - cabLen * 0.35, shared.chromeMat, false);
+      // 5 amber cab roof clearance lights
+      const clearanceMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+      [-0.58, -0.29, 0, 0.29, 0.58].forEach((cx) => {
+        addBox(exteriorCabinGroup, 0.09, 0.055, 0.08, cx, clear + 3.40, cabZ - cabLen * 0.32, clearanceMat, false);
+      });
+
+      // Massive armored freight trailer with body-colored side stripe + amber clearance strips
+      const trailerMat = new THREE.MeshStandardMaterial({ color: 0x1e2430, roughness: 0.46, metalness: 0.22 });
+      const trailerH = H - clear - 0.68;
+      const trailerMidY = clear + 0.68 + trailerH * 0.5;
+      addBox(bodyTiltGroup, W, trailerH, trailerLen, 0, trailerMidY, trailerZ, trailerMat, castShadow);
+      addBox(bodyTiltGroup, W * 1.006, 0.34, trailerLen * 0.96, 0, trailerMidY - 0.15, trailerZ, bodyMat, false);
+      addBox(bodyTiltGroup, W * 1.01, 0.06, trailerLen * 0.92, 0, clear + 0.74, trailerZ, clearanceMat, false);
+      // Trailer rear door frame & heavy chrome underride bumper
+      addBox(bodyTiltGroup, W * 0.92, trailerH * 0.88, 0.06, 0, trailerMidY, L * 0.5 - 0.01, shared.darkTrimMat, false);
+      addBox(bodyTiltGroup, W * 0.84, trailerH * 0.82, 0.05, 0, trailerMidY, L * 0.5 + 0.004, trailerMat, false);
+      addBox(bodyTiltGroup, W * 0.96, 0.22, 0.16, 0, clear + 0.24, L * 0.5 - 0.04, shared.chromeMat, false);
+
+      // 5 Axles (10 giant wheels): Front steer + 2 tractor drive axles + 2 trailer axles
+      wheelZPositions.push(
+        -L * 0.5 + 1.05,
+        cabZ + cabLen * 0.5 + 0.55,
+        cabZ + cabLen * 0.5 + 1.75,
+        trailerZ + trailerLen * 0.28,
+        trailerZ + trailerLen * 0.41
+      );
+      frontZAxles.push(-L * 0.5 + 1.05);
+    } else if (typeKey === 'semi') {
       // Articulated Semi-Truck: tractor cab in front + long freight box trailer behind
       const tractorLen = 3.65;
       const trailerLen = 8.20;
@@ -579,22 +779,22 @@
 
       wheelZPositions.push(-L * 0.30, L * 0.30);
       frontZAxles.push(-L * 0.30);
-    } else if (typeKey === 'pickup') {
-      const hoodLen = L * 0.27;
-      const cabLen = L * 0.34;
-      const bedLen = L * 0.37;
+    } else if (typeKey === 'pickup' || typeKey === 'sport_pickup') {
+      const hoodLen = L * spec.hoodFrac;
+      const cabLen = L * spec.cabinFrac;
+      const bedLen = L * (1 - spec.hoodFrac - spec.cabinFrac - 0.02);
       const hoodZ = -L * 0.5 + hoodLen * 0.5;
       const cabZ = hoodZ + hoodLen * 0.5 + cabLen * 0.5;
       const bedZ = L * 0.5 - bedLen * 0.5;
 
       addBox(bodyTiltGroup, W * 0.96, bodyLowerH, hoodLen, 0, bodyBaseY, hoodZ, bodyMat, castShadow);
       addBox(bodyTiltGroup, W * 0.98, bodyLowerH, cabLen, 0, bodyBaseY, cabZ, bodyMat, castShadow);
-      const cabinH = (H - clear) * 0.46;
+      const cabinH = (H - clear) * spec.cabinHeightFrac;
       const cabinY = clear + bodyLowerH + cabinH * 0.5 - 0.04;
-      addBox(bodyTiltGroup, W * 0.86, cabinH, cabLen * 0.90, 0, cabinY, cabZ + 0.04, bodyMat, castShadow);
-      addBox(bodyTiltGroup, W * 0.80, cabinH * 0.78, 0.08, 0, cabinY, cabZ - cabLen * 0.45, shared.glassMat, false, 0.38);
-      addBox(bodyTiltGroup, W * 0.82, cabinH * 0.72, cabLen * 0.94, 0, cabinY - 0.02, cabZ + 0.04, shared.glassMat, false);
-      addBox(bodyTiltGroup, W * 0.88, cabinH * 0.68, cabLen * 0.70, 0, cabinY - 0.02, cabZ + 0.04, shared.glassMat, false);
+      addBox(exteriorCabinGroup, W * 0.86, cabinH, cabLen * 0.90, 0, cabinY, cabZ + 0.04, bodyMat, castShadow);
+      addBox(exteriorCabinGroup, W * 0.80, cabinH * 0.78, 0.08, 0, cabinY, cabZ - cabLen * 0.45, activeGlassMat, false, 0.38);
+      addBox(exteriorCabinGroup, W * 0.82, cabinH * 0.72, cabLen * 0.94, 0, cabinY - 0.02, cabZ + 0.04, activeGlassMat, false);
+      addBox(exteriorCabinGroup, W * 0.88, cabinH * 0.68, cabLen * 0.70, 0, cabinY - 0.02, cabZ + 0.04, activeGlassMat, false);
 
       const bedSideW = 0.14;
       const bedH = bodyLowerH * 0.96;
@@ -605,6 +805,29 @@
       addBox(bodyTiltGroup, W * 0.96, bedH, 0.12, 0, bedY, L * 0.5 - 0.06, bodyMat, castShadow);
       addBox(bodyTiltGroup, W * 0.99, 0.20, 0.14, 0, clear + 0.10, -L * 0.5 + 0.03, shared.darkTrimMat, false);
       addBox(bodyTiltGroup, W * 0.99, 0.20, 0.14, 0, clear + 0.10, L * 0.5 - 0.03, shared.darkTrimMat, false);
+
+      if (typeKey === 'sport_pickup') {
+        // Hood power-bulge scoop, chin splitter, bed sport rollbar & twin chrome exhausts
+        addBox(bodyTiltGroup, W * 0.36, 0.08, hoodLen * 0.52, 0, clear + bodyLowerH + 0.03, hoodZ + 0.08, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 0.98, 0.10, 0.16, 0, clear + 0.06, -L * 0.5 + 0.04, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.09, cabinH * 0.85, 0.10, -W * 0.41, clear + bodyLowerH + cabinH * 0.40, cabZ + cabLen * 0.52, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.09, cabinH * 0.85, 0.10, W * 0.41, clear + bodyLowerH + cabinH * 0.40, cabZ + cabLen * 0.52, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 0.88, 0.09, 0.10, 0, clear + bodyLowerH + cabinH * 0.80, cabZ + cabLen * 0.52, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.12, 0.08, 0.16, -W * 0.32, clear + 0.12, L * 0.50, shared.chromeMat, false);
+        addBox(bodyTiltGroup, 0.12, 0.08, 0.16, W * 0.32, clear + 0.12, L * 0.50, shared.chromeMat, false);
+        // Optional racing stripes on hood + cab roof
+        if (custom.stripe && STRIPE_HEX[custom.stripe] !== undefined) {
+          const stripeMat = new THREE.MeshStandardMaterial({
+            color: STRIPE_HEX[custom.stripe],
+            roughness: 0.32,
+            metalness: 0.15
+          });
+          [-0.12, 0.12].forEach((sx) => {
+            addBox(bodyTiltGroup, 0.14, 0.012, hoodLen * 0.90, sx, clear + bodyLowerH + 0.008, hoodZ, stripeMat, false);
+            addBox(exteriorCabinGroup, 0.14, 0.012, cabLen * 0.82, sx, cabinY + cabinH * 0.505, cabZ + 0.04, stripeMat, false);
+          });
+        }
+      }
 
       wheelZPositions.push(-L * 0.30, L * 0.30);
       frontZAxles.push(-L * 0.30);
@@ -625,7 +848,17 @@
       const cabinCenterZ = -L * 0.5 + hoodLen + cabinLen * 0.5;
       const cabinH = (H - clear) * spec.cabinHeightFrac;
       const cabinY = clear + bodyLowerH + cabinH * 0.5 - 0.05;
-      const cabinW = W * (typeKey === 'supercar' || typeKey === 'gt_v8' || typeKey === 'coupe' || typeKey === 'player_gt' ? 0.77 : 0.82);
+      const cabinW =
+        W *
+        (typeKey === 'supercar' ||
+        typeKey === 'hypercar' ||
+        typeKey === 'gt3' ||
+        typeKey === 'prototype' ||
+        typeKey === 'gt_v8' ||
+        typeKey === 'coupe' ||
+        typeKey === 'player_gt'
+          ? 0.77
+          : 0.82);
 
       // Roof & core cabin
       addBox(exteriorCabinGroup, cabinW, cabinH * 0.94, cabinLen * 0.74, 0, cabinY, cabinCenterZ, bodyMat, castShadow);
@@ -644,14 +877,29 @@
         cabinCenterZ - cabinLen * 0.39,
         activeGlassMat,
         false,
-        typeKey === 'supercar' || typeKey === 'hypercar' ? 0.68 : 0.54
+        typeKey === 'supercar' || typeKey === 'hypercar' || typeKey === 'prototype'
+          ? 0.68
+          : typeKey === 'gt3'
+          ? 0.60
+          : 0.54
       );
 
       // Sloped Rear Glass (tilts forward at top: -rotX)
       const rearSlopeAngle =
-        typeKey === 'hatchback' || typeKey === 'suv' || typeKey === 'wagon'
+        typeKey === 'hatchback' ||
+        typeKey === 'rally_hatch' ||
+        typeKey === 'suv' ||
+        typeKey === 'sport_suv' ||
+        typeKey === 'wagon'
           ? -0.26
-          : typeKey === 'supercar' || typeKey === 'hypercar' || typeKey === 'coupe' || typeKey === 'gt_v8' || typeKey === 'jdm_coupe' || typeKey === 'muscle'
+          : typeKey === 'supercar' ||
+            typeKey === 'hypercar' ||
+            typeKey === 'gt3' ||
+            typeKey === 'prototype' ||
+            typeKey === 'coupe' ||
+            typeKey === 'gt_v8' ||
+            typeKey === 'jdm_coupe' ||
+            typeKey === 'muscle'
           ? -0.66
           : -0.50;
       const rgLen = Math.hypot(cabinH * 0.95, cabinLen * 0.20);
@@ -674,7 +922,7 @@
       addBox(exteriorCabinGroup, 0.14, 0.08, 0.11, -W * 0.51, mirrorY, mirrorZ, bodyMat, false);
       addBox(exteriorCabinGroup, 0.14, 0.08, 0.11, W * 0.51, mirrorY, mirrorZ, bodyMat, false);
 
-      if (typeKey === 'suv' || typeKey === 'wagon') {
+      if (typeKey === 'suv' || typeKey === 'wagon' || typeKey === 'sport_suv') {
         addBox(exteriorCabinGroup, 0.055, 0.055, cabinLen * 0.72, -cabinW * 0.42, cabinY + cabinH * 0.50, cabinCenterZ, shared.darkTrimMat, false);
         addBox(exteriorCabinGroup, 0.055, 0.055, cabinLen * 0.72, cabinW * 0.42, cabinY + cabinH * 0.50, cabinCenterZ, shared.darkTrimMat, false);
       }
@@ -739,13 +987,59 @@
         addBox(bodyTiltGroup, 0.22, 0.09, 0.16, 0, clear + 0.14, L * 0.49, shared.chromeMat, false);
       }
 
+      if (typeKey === 'rally_hatch') {
+        // Quad rally bumper fog lamps + roof scoop + wide fender arches + twin exhausts
+        [-0.24, -0.09, 0.09, 0.24].forEach((fx) => {
+          addBox(bodyTiltGroup, 0.09, 0.09, 0.06, fx, clear + bodyLowerH * 0.36, -L * 0.5 + 0.01, headlightMat, false);
+        });
+        addBox(exteriorCabinGroup, 0.22, 0.08, 0.34, 0, cabinY + cabinH * 0.49, cabinCenterZ - 0.10, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 1.04, bodyLowerH * 0.40, 0.76, 0, clear + bodyLowerH * 0.35, -L * 0.30, bodyMat, false);
+        addBox(bodyTiltGroup, W * 1.04, bodyLowerH * 0.40, 0.76, 0, clear + bodyLowerH * 0.35, L * 0.30, bodyMat, false);
+        addBox(bodyTiltGroup, 0.10, 0.08, 0.14, -W * 0.28, clear + 0.11, L * 0.49, shared.chromeMat, false);
+        addBox(bodyTiltGroup, 0.10, 0.08, 0.14, W * 0.28, clear + 0.11, L * 0.49, shared.chromeMat, false);
+      }
+
+      if (typeKey === 'sport_suv') {
+        // Hood twin vents + deep aggressive front splitter + quad chrome exhausts
+        const hoodZ = -L * 0.5 + hoodLen * 0.55;
+        addBox(bodyTiltGroup, 0.18, 0.03, hoodLen * 0.36, -W * 0.18, clear + bodyLowerH + 0.015, hoodZ, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.18, 0.03, hoodLen * 0.36, W * 0.18, clear + bodyLowerH + 0.015, hoodZ, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, W * 0.99, 0.10, 0.16, 0, clear + 0.06, -L * 0.49, shared.darkTrimMat, false);
+        [-0.36, -0.26, 0.26, 0.36].forEach((ex) => {
+          addBox(bodyTiltGroup, 0.08, 0.065, 0.14, W * ex, clear + 0.10, L * 0.49, shared.chromeMat, false);
+        });
+      }
+
+      if (typeKey === 'gt3') {
+        // Front dive-plane canards + wide vented splitter + rear diffuser fins + twin center exhausts
+        addBox(bodyTiltGroup, W * 1.04, 0.05, 0.20, 0, clear + 0.05, -L * 0.49, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.11, 0.035, 0.24, -W * 0.50, clear + bodyLowerH * 0.42, -L * 0.44, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.11, 0.035, 0.24, W * 0.50, clear + bodyLowerH * 0.42, -L * 0.44, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.09, 0.07, 0.15, -0.09, clear + 0.09, L * 0.49, shared.chromeMat, false);
+        addBox(bodyTiltGroup, 0.09, 0.07, 0.15, 0.09, clear + 0.09, L * 0.49, shared.chromeMat, false);
+      }
+
+      if (typeKey === 'prototype') {
+        // Le Mans sculpted wheel pontoons + dorsal shark fin + roof intake + center titanium exhaust
+        addBox(bodyTiltGroup, W * 1.04, bodyLowerH * 0.72, 1.05, 0, clear + bodyLowerH * 0.44, -L * 0.31, bodyMat, castShadow);
+        addBox(bodyTiltGroup, W * 1.04, bodyLowerH * 0.72, 1.05, 0, clear + bodyLowerH * 0.44, L * 0.31, bodyMat, castShadow);
+        addBox(exteriorCabinGroup, 0.28, 0.11, 0.62, 0, cabinY + cabinH * 0.50, cabinCenterZ + 0.08, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.04, 0.26, 0.95, 0, clear + bodyLowerH + 0.13, cabinCenterZ + cabinLen * 0.52, shared.darkTrimMat, false);
+        addBox(bodyTiltGroup, 0.24, 0.09, 0.18, 0, clear + 0.14, L * 0.49, shared.chromeMat, false);
+      }
+
       // Spoiler System (per customization override or archetype default)
       const spoilerStyle =
         custom.spoiler && custom.spoiler !== 'stock'
           ? custom.spoiler
-          : typeKey === 'supercar' || typeKey === 'hypercar' || typeKey === 'jdm_coupe'
+          : typeKey === 'supercar' ||
+            typeKey === 'hypercar' ||
+            typeKey === 'jdm_coupe' ||
+            typeKey === 'gt3' ||
+            typeKey === 'prototype' ||
+            typeKey === 'rally_hatch'
           ? 'gt'
-          : typeKey === 'player_gt' || typeKey === 'gt_v8' || typeKey === 'muscle'
+          : typeKey === 'player_gt' || typeKey === 'gt_v8' || typeKey === 'muscle' || typeKey === 'sport_suv'
           ? 'lip'
           : 'none';
 
@@ -799,11 +1093,11 @@
     }
 
     // Front grille & rear license plate
-    if (typeKey !== 'semi' && typeKey !== 'bus') {
+    if (typeKey !== 'semi' && typeKey !== 'bus' && typeKey !== 'big_rig') {
       const grilleY = clear + bodyLowerH * 0.46;
       addBox(bodyTiltGroup, W * 0.46, bodyLowerH * 0.32, 0.06, 0, grilleY, -L * 0.5 + 0.01, shared.grilleMat, false);
     }
-    const plateY = typeKey === 'semi' ? clear + 0.45 : clear + bodyLowerH * 0.42;
+    const plateY = typeKey === 'semi' || typeKey === 'big_rig' ? clear + 0.45 : clear + bodyLowerH * 0.42;
     addBox(bodyTiltGroup, 0.48, 0.12, 0.03, 0, plateY, L * 0.485 + 0.01, shared.plateMat, false);
 
     // Lighting positions
@@ -812,6 +1106,8 @@
         ? clear + H * 0.24
         : typeKey === 'semi'
         ? clear + 0.65
+        : typeKey === 'big_rig'
+        ? clear + 0.78
         : typeKey === 'bus'
         ? clear + 0.55
         : clear + bodyLowerH * 0.64;
@@ -820,6 +1116,8 @@
         ? clear + H * 0.26
         : typeKey === 'semi'
         ? clear + 0.56
+        : typeKey === 'big_rig'
+        ? clear + 0.62
         : typeKey === 'bus'
         ? clear + 0.68
         : clear + bodyLowerH * 0.70;
@@ -854,19 +1152,30 @@
     addBox(bodyTiltGroup, W * 0.16, 0.11, 0.06, -lightX + 0.02, rearLightY, rearZ + 0.005, brakeMat, false);
     addBox(bodyTiltGroup, W * 0.16, 0.11, 0.06, lightX - 0.02, rearLightY, rearZ + 0.005, brakeMat, false);
 
-    if (typeKey === 'gt_v8' || typeKey === 'supercar' || typeKey === 'hypercar') {
+    if (
+      typeKey === 'gt_v8' ||
+      typeKey === 'supercar' ||
+      typeKey === 'hypercar' ||
+      typeKey === 'gt3' ||
+      typeKey === 'prototype'
+    ) {
       // Sleek full-width rear LED light bar
       addBox(bodyTiltGroup, W * 0.72, 0.035, 0.045, 0, rearLightY, rearZ + 0.003, tailRunningMat, false);
     }
 
     const highBrakeY =
-      typeKey === 'van' || typeKey === 'semi' || typeKey === 'bus'
+      typeKey === 'van' || typeKey === 'semi' || typeKey === 'bus' || typeKey === 'big_rig'
         ? H - 0.22
-        : typeKey === 'pickup'
+        : typeKey === 'pickup' || typeKey === 'sport_pickup'
         ? clear + bodyLowerH * 0.92
         : clear + bodyLowerH + 0.04;
     const highBrakeZ =
-      typeKey === 'van' || typeKey === 'semi' || typeKey === 'bus' || typeKey === 'pickup'
+      typeKey === 'van' ||
+      typeKey === 'semi' ||
+      typeKey === 'bus' ||
+      typeKey === 'big_rig' ||
+      typeKey === 'pickup' ||
+      typeKey === 'sport_pickup'
         ? L * 0.5 + 0.01
         : L * 0.44;
     addBox(bodyTiltGroup, W * 0.24, 0.045, 0.05, 0, highBrakeY, highBrakeZ, brakeMat, false);
@@ -957,9 +1266,66 @@
       makeWheel(trackX, wz, isFront);
     }
 
+    // High-beam flasher cones, road pool & dynamic SpotLight (player vehicles only)
+    let highBeamGroup = null;
+    let highBeamSpot = null;
+    if (isPlayer && shared.beamTex) {
+      highBeamGroup = new THREE.Group();
+      highBeamGroup.visible = false;
+
+      const beamMat = new THREE.MeshBasicMaterial({
+        map: shared.beamTex,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        opacity: 0.55
+      });
+
+      const poolMat = new THREE.MeshBasicMaterial({
+        map: shared.beamTex,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.48
+      });
+
+      [-lightX, lightX].forEach((bx) => {
+        const horizBeam = new THREE.Mesh(shared.planeGeo, beamMat);
+        horizBeam.scale.set(3.4, 34, 1);
+        horizBeam.position.set(bx, lightY - 0.14, frontZ - 17);
+        horizBeam.rotation.x = 0.018;
+        highBeamGroup.add(horizBeam);
+
+        const vertBeam = new THREE.Mesh(shared.planeGeo, beamMat);
+        vertBeam.scale.set(2.2, 34, 1);
+        vertBeam.position.set(bx, lightY - 0.08, frontZ - 17);
+        vertBeam.rotation.z = Math.PI / 2;
+        highBeamGroup.add(vertBeam);
+      });
+
+      const roadPool = new THREE.Mesh(shared.planeGeo, poolMat);
+      roadPool.scale.set(6.8, 44, 1);
+      roadPool.position.set(0, 0.09, frontZ - 22);
+      highBeamGroup.add(roadPool);
+
+      bodyTiltGroup.add(highBeamGroup);
+
+      if (typeof THREE.SpotLight === 'function') {
+        highBeamSpot = new THREE.SpotLight(0xeef7ff, 0, 145, Math.PI / 4.8, 0.48, 1.05);
+        highBeamSpot.castShadow = false;
+        highBeamSpot.position.set(0, lightY + 0.25, frontZ);
+        highBeamSpot.target.position.set(0, 0.2, frontZ - 42);
+        bodyTiltGroup.add(highBeamSpot);
+        bodyTiltGroup.add(highBeamSpot.target);
+      }
+    }
+
     let lastBraking = null;
     let lastSignalState = null;
     let lastHeadlightBoost = null;
+    let lastHighBeamActive = false;
+    let currentBaseStrength = 0.1;
 
     function setBraking(on) {
       const b = !!on;
@@ -983,6 +1349,8 @@
     }
 
     function setHeadlights(intensity) {
+      currentBaseStrength = intensity;
+      if (lastHighBeamActive) return;
       const q = Math.round(intensity * 10);
       if (q === lastHeadlightBoost) return;
       lastHeadlightBoost = q;
@@ -994,6 +1362,32 @@
         headlightMat.color.setHex(0xf1f5f9);
         headlightGlowMat.opacity = 0.08;
         tailRunningMat.color.setHex(0x8f141b);
+      }
+    }
+
+    function setHighBeam(active, baseStrength) {
+      if (baseStrength !== undefined) {
+        currentBaseStrength = baseStrength;
+      }
+      const on = !!active;
+      if (highBeamSpot) {
+        highBeamSpot.intensity = on ? 5.2 : currentBaseStrength > 0.5 ? 1.1 : 0.0;
+      }
+      if (on === lastHighBeamActive) return;
+      lastHighBeamActive = on;
+      if (highBeamGroup) {
+        highBeamGroup.visible = on;
+      }
+      if (on) {
+        headlightMat.color.setHex(0xffffff);
+        hlGlowL.scale.set(1.35, 1.35, 1);
+        hlGlowR.scale.set(1.35, 1.35, 1);
+        headlightGlowMat.opacity = 1.0;
+      } else {
+        hlGlowL.scale.set(0.65, 0.65, 1);
+        hlGlowR.scale.set(0.65, 0.65, 1);
+        lastHeadlightBoost = null;
+        setHeadlights(currentBaseStrength);
       }
     }
 
@@ -1045,6 +1439,7 @@
       setBraking,
       setBlinker,
       setHeadlights,
+      setHighBeam,
       updateSpecialLights,
       updateWheels,
       setBodyTilt,
@@ -1055,7 +1450,8 @@
 
   /**
    * Build detailed LHD 3D Cockpit Interior Rig with live Digital/Analog dash,
-   * translucent windshield HUD, animated steering wheel + paddles & wipers.
+   * lowered ergonomic driver eye framing gauges cleanly through the wheel,
+   * live mirrors, animated steering wheel + paddles & wipers.
    */
   function createInteriorRig(options) {
     const opts = options || {};
@@ -1068,14 +1464,15 @@
     const W = spec.width;
     const H = spec.height;
     const clear = spec.clearance;
+    const isBigRig = spec.id === 'big_rig';
     const bodyLowerH = (H - clear) * 0.48;
-    const hoodTopY = clear + bodyLowerH;
+    const hoodTopY = isBigRig ? clear + 1.68 : clear + bodyLowerH;
     const hoodLen = L * spec.hoodFrac;
-    const cowlZ = -L * 0.5 + hoodLen;
+    const cowlZ = isBigRig ? -L * 0.5 + 1.95 : -L * 0.5 + hoodLen;
 
-    const driverX = -W * 0.20;
-    const eyeY = hoodTopY + 0.37;
-    const eyeZ = cowlZ + 0.82;
+    const driverX = isBigRig ? -W * 0.24 : -W * 0.20;
+    const eyeY = hoodTopY + 0.265;
+    const eyeZ = cowlZ + 0.86;
 
     const interiorGroup = new THREE.Group();
     interiorGroup.visible = false;
@@ -1096,31 +1493,31 @@
       return m;
     }
 
-    // 1. Dashboard shelf, satin trim strip, and driver instrument cowl
+    // 1. Dashboard shelf, satin trim strip, and raised instrument binnacle
     const dashW = W * 0.86;
-    const dashY = hoodTopY + 0.03;
+    const dashY = hoodTopY + 0.015;
     const dashZ = cowlZ + 0.14;
-    addPart(interiorGroup, shared.boxGeo, dashMat, 0, dashY - 0.05, dashZ, dashW, 0.18, 0.36);
-    addPart(interiorGroup, shared.boxGeo, trimMat, 0, dashY + 0.025, dashZ + 0.18, dashW * 0.96, 0.022, 0.025);
+    addPart(interiorGroup, shared.boxGeo, dashMat, 0, dashY - 0.06, dashZ, dashW, 0.16, 0.36);
+    addPart(interiorGroup, shared.boxGeo, trimMat, 0, dashY + 0.015, dashZ + 0.18, dashW * 0.96, 0.020, 0.025);
 
-    // Instrument binnacle hood over gauges
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, dashY + 0.13, dashZ + 0.08, 0.42, 0.03, 0.19, 0.08);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.195, dashY + 0.08, dashZ + 0.08, 0.028, 0.13, 0.18);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.195, dashY + 0.08, dashZ + 0.08, 0.028, 0.13, 0.18);
+    // Instrument binnacle hood framing the 3D gauge cluster cleanly
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.214, cowlZ + 0.24, 0.44, 0.025, 0.19, 0.06);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX - 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, driverX + 0.215, hoodTopY + 0.130, cowlZ + 0.24, 0.026, 0.16, 0.18);
 
     // Center console divider & armrest
-    addPart(interiorGroup, shared.boxGeo, dashMat, 0, clear + 0.36, cowlZ + 0.56, 0.26, 0.38, 0.86);
-    addPart(interiorGroup, shared.boxGeo, trimMat, 0, clear + 0.555, cowlZ + 0.58, 0.12, 0.015, 0.38);
+    addPart(interiorGroup, shared.boxGeo, dashMat, 0, hoodTopY - 0.18, cowlZ + 0.56, 0.26, 0.36, 0.86);
+    addPart(interiorGroup, shared.boxGeo, trimMat, 0, hoodTopY + 0.005, cowlZ + 0.58, 0.12, 0.015, 0.38);
 
     // Door sill armrests (left & right peripheral framing)
     addPart(interiorGroup, shared.boxGeo, leatherMat, -W * 0.43, hoodTopY + 0.02, cowlZ + 0.46, 0.09, 0.12, 0.92);
     addPart(interiorGroup, shared.boxGeo, leatherMat, W * 0.43, hoodTopY + 0.02, cowlZ + 0.46, 0.09, 0.12, 0.92);
 
     // 2. Slim A-Pillars, Roof Header & Rearview Mirror
-    const pillarLen = Math.hypot(eyeY + 0.26 - (dashY + 0.04), 0.44);
-    const pillarPitch = Math.atan2(0.44, eyeY + 0.26 - (dashY + 0.04));
+    const pillarLen = Math.hypot(eyeY + 0.28 - (dashY + 0.03), 0.44);
+    const pillarPitch = Math.atan2(0.44, eyeY + 0.28 - (dashY + 0.03));
     const pillarGeo = new THREE.BoxGeometry(0.044, pillarLen, 0.055);
-    const pillarMidY = (dashY + 0.04 + eyeY + 0.26) * 0.5;
+    const pillarMidY = (dashY + 0.03 + eyeY + 0.28) * 0.5;
     const pillarMidZ = cowlZ + 0.24;
     addPart(interiorGroup, pillarGeo, pillarMat, -W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, -0.14);
     addPart(interiorGroup, pillarGeo, pillarMat, W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, 0.14);
@@ -1160,20 +1557,20 @@
       ? new THREE.MeshBasicMaterial({ map: mirrorTex.right })
       : new THREE.MeshBasicMaterial({ map: mirrorFallbackTex });
 
-    addPart(interiorGroup, shared.boxGeo, pillarMat, 0, eyeY + 0.28, cowlZ + 0.46, W * 0.78, 0.06, 0.14);
-    addPart(interiorGroup, shared.boxGeo, leatherMat, 0, eyeY + 0.17, cowlZ + 0.36, 0.26, 0.068, 0.032);
-    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.22, cowlZ + 0.39, 0.02, 0.08, 0.025);
-    addPart(interiorGroup, makeMirroredPlane(0.24, 0.054), rearMirrorMat, 0, eyeY + 0.17, cowlZ + 0.378);
+    addPart(interiorGroup, shared.boxGeo, pillarMat, 0, eyeY + 0.29, cowlZ + 0.46, W * 0.78, 0.06, 0.14);
+    addPart(interiorGroup, shared.boxGeo, leatherMat, 0, eyeY + 0.19, cowlZ + 0.36, 0.26, 0.068, 0.032);
+    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, 0, eyeY + 0.24, cowlZ + 0.39, 0.02, 0.08, 0.025);
+    addPart(interiorGroup, makeMirroredPlane(0.24, 0.054), rearMirrorMat, 0, eyeY + 0.19, cowlZ + 0.378);
 
     // Driver Left Side Mirror outside left A-pillar
-    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.50, dashY + 0.08, cowlZ + 0.17, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.50, dashY + 0.08, cowlZ + 0.225);
+    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.49, dashY + 0.085, cowlZ + 0.245);
 
     // Passenger Right Side Mirror outside right A-pillar
-    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.50, dashY + 0.08, cowlZ + 0.17, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.50, dashY + 0.08, cowlZ + 0.225);
+    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
+    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.49, dashY + 0.085, cowlZ + 0.245);
 
-    // 3. Center Infotainment Screen (positioned cleanly left of bottom-right HUD dials)
+    // 3. Center Infotainment Screen (shifted right of steering rim for clear view)
     const infoCanvas = document.createElement('canvas');
     infoCanvas.width = 256;
     infoCanvas.height = 128;
@@ -1181,8 +1578,9 @@
     const infoTex = new THREE.CanvasTexture(infoCanvas);
     if (THREE.sRGBEncoding !== undefined) infoTex.encoding = THREE.sRGBEncoding;
     const infoMat = new THREE.MeshBasicMaterial({ map: infoTex });
-    addPart(interiorGroup, shared.boxGeo, leatherMat, -0.02, dashY + 0.11, dashZ + 0.16, 0.23, 0.12, 0.025, 0, 0.20, 0);
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, -0.018, dashY + 0.11, dashZ + 0.175, 1, 1, 1, 0, 0.20, 0);
+    const infoX = isBigRig ? 0.08 : 0.06;
+    addPart(interiorGroup, shared.boxGeo, leatherMat, infoX, dashY + 0.105, dashZ + 0.17, 0.23, 0.12, 0.025, 0, 0.20, 0);
+    addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, infoX + 0.002, dashY + 0.105, dashZ + 0.185, 1, 1, 1, 0, 0.20, 0);
 
     function drawInfotainment(weatherName) {
       infoCtx.fillStyle = '#0c1220';
@@ -1190,7 +1588,6 @@
       infoCtx.strokeStyle = '#1e293b';
       infoCtx.lineWidth = 3;
       infoCtx.strokeRect(2, 2, 252, 124);
-      // Mini stylized road ribbon graphic
       infoCtx.fillStyle = '#1e293b';
       infoCtx.beginPath();
       infoCtx.moveTo(95, 118);
@@ -1215,66 +1612,52 @@
     }
     drawInfotainment('Afternoon');
 
-    // 4. Live 3D In-Dash Instrument Cluster (Digital OR Analog!)
+    // 4. High-Res Live 3D In-Dash Instrument Cluster (Digital OR Analog, crisp through wheel!)
     const clusterCanvas = document.createElement('canvas');
-    clusterCanvas.width = 512;
-    clusterCanvas.height = 224;
+    clusterCanvas.width = 640;
+    clusterCanvas.height = 280;
     const cCtx = clusterCanvas.getContext('2d');
     const clusterTex = new THREE.CanvasTexture(clusterCanvas);
     if (THREE.sRGBEncoding !== undefined) clusterTex.encoding = THREE.sRGBEncoding;
     const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex });
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.35, 0.15), clusterMat, driverX, dashY + 0.088, dashZ + 0.16, 1, 1, 1, -0.10);
+    addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.125, cowlZ + 0.26, 1, 1, 1, -0.08);
 
-    // 5. Subtle Translucent Windshield HUD Projection
-    const hudCanvas = document.createElement('canvas');
-    hudCanvas.width = 256;
-    hudCanvas.height = 128;
-    const hCtx = hudCanvas.getContext('2d');
-    const hudTex = new THREE.CanvasTexture(hudCanvas);
-    const hudMat = new THREE.MeshBasicMaterial({
-      map: hudTex,
-      transparent: true,
-      depthWrite: false,
-      opacity: 0.94
-    });
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.28, 0.13), hudMat, driverX, dashY + 0.22, cowlZ + 0.11, 1, 1, 1, -0.35);
-
-    // 6. Animated 3D Steering Wheel + Column + Shift Paddles
+    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges are unobstructed)
     const wheelMount = new THREE.Group();
-    wheelMount.position.set(driverX, dashY + 0.015, cowlZ + 0.44);
-    wheelMount.rotation.x = -0.32;
+    wheelMount.position.set(driverX, hoodTopY + 0.062, cowlZ + 0.54);
+    wheelMount.rotation.x = -0.16;
     interiorGroup.add(wheelMount);
 
-    addPart(wheelMount, new THREE.CylinderGeometry(0.036, 0.044, 0.22, 10), leatherMat, 0, 0, -0.11, 1, 1, 1, Math.PI / 2);
+    addPart(wheelMount, new THREE.CylinderGeometry(0.024, 0.028, 0.22, 10), leatherMat, 0, -0.022, -0.11, 1, 1, 1, Math.PI / 2);
 
     const wheelSpinGroup = new THREE.Group();
     wheelMount.add(wheelSpinGroup);
 
-    const rimGeo = new THREE.TorusGeometry(0.138, 0.016, 10, 28);
+    const rimGeo = new THREE.TorusGeometry(0.198, 0.013, 10, 32);
     const rimMesh = new THREE.Mesh(rimGeo, leatherMat);
     wheelSpinGroup.add(rimMesh);
 
     // 12 o'clock centering stripe
-    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.138, 0, 0.020, 0.036, 0.036);
-    // 3 Spokes + Hub
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.068, 0, 0, 0.125, 0.024, 0.015);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.068, 0, 0, 0.125, 0.024, 0.015);
-    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.068, 0, 0.026, 0.125, 0.015);
-    addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.048, 0.048, 0.030, 16), leatherMat, 0, 0, 0.005, 1, 1, 1, Math.PI / 2);
-    addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.015, 0.015, 0.034, 12), trimMat, 0, 0, 0.007, 1, 1, 1, Math.PI / 2);
+    addPart(wheelSpinGroup, shared.boxGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0, 0.198, 0, 0.020, 0.028, 0.030);
+    // Angled 3 Spokes + Hub (keeps upper window wide open for gauges)
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, -0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, 0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0.112, -0.024, 0, 0.135, 0.022, 0.014, 0, 0, -0.22);
+    addPart(wheelSpinGroup, shared.boxGeo, trimMat, 0, -0.112, 0, 0.024, 0.135, 0.014);
+    addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.040, 0.040, 0.026, 16), leatherMat, 0, 0, 0.005, 1, 1, 1, Math.PI / 2);
+    addPart(wheelSpinGroup, new THREE.CylinderGeometry(0.013, 0.013, 0.030, 12), trimMat, 0, 0, 0.007, 1, 1, 1, Math.PI / 2);
 
     // Left (-) & Right (+) Paddle Shifters
     const leftPaddlePivot = new THREE.Group();
-    leftPaddlePivot.position.set(-0.080, 0.018, -0.025);
+    leftPaddlePivot.position.set(-0.105, -0.01, -0.025);
     addPart(leftPaddlePivot, shared.boxGeo, trimMat, -0.020, 0.014, 0, 0.026, 0.075, 0.008);
     wheelSpinGroup.add(leftPaddlePivot);
 
     const rightPaddlePivot = new THREE.Group();
-    rightPaddlePivot.position.set(0.080, 0.018, -0.025);
+    rightPaddlePivot.position.set(0.105, -0.01, -0.025);
     addPart(rightPaddlePivot, shared.boxGeo, trimMat, 0.020, 0.014, 0, 0.026, 0.075, 0.008);
     wheelSpinGroup.add(rightPaddlePivot);
 
-    // 7. Dual Animated Windshield Wipers
+    // 6. Dual Animated Windshield Wipers
     const wiperTiltGroup = new THREE.Group();
     wiperTiltGroup.position.set(0, dashY + 0.04, cowlZ + 0.03);
     wiperTiltGroup.rotation.x = 0.54;
@@ -1305,53 +1688,50 @@
       ctx.fillStyle = '#0b101b';
       ctx.fill();
       ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
       ctx.stroke();
 
       const startAng = Math.PI * 0.75;
       const sweepAng = Math.PI * 1.5;
 
-      // Redline arc if applicable
       if (redZoneStart !== undefined) {
         ctx.beginPath();
-        ctx.arc(cx, cy, r - 8, startAng + sweepAng * redZoneStart, startAng + sweepAng);
-        ctx.lineWidth = 6;
+        ctx.arc(cx, cy, r - 9, startAng + sweepAng * redZoneStart, startAng + sweepAng);
+        ctx.lineWidth = 7;
         ctx.strokeStyle = '#ef4444';
         ctx.stroke();
       }
 
-      // Tick marks
       for (let i = 0; i <= 10; i++) {
         const ang = startAng + (i / 10) * sweepAng;
-        const inner = i % 2 === 0 ? r - 18 : r - 12;
+        const inner = i % 2 === 0 ? r - 20 : r - 13;
         ctx.beginPath();
         ctx.moveTo(cx + Math.cos(ang) * inner, cy + Math.sin(ang) * inner);
         ctx.lineTo(cx + Math.cos(ang) * (r - 5), cy + Math.sin(ang) * (r - 5));
-        ctx.lineWidth = i % 2 === 0 ? 2.5 : 1.5;
+        ctx.lineWidth = i % 2 === 0 ? 3 : 1.5;
         ctx.strokeStyle = redZoneStart !== undefined && i / 10 >= redZoneStart ? '#f87171' : '#cbd5e1';
         ctx.stroke();
       }
 
       ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(title, cx, cy - 22);
+      ctx.fillText(title, cx, cy - 26);
 
       ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(valueText, cx, cy + 40);
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillText(valueText, cx, cy + 48);
 
-      // Sweeping needle
       const nAng = startAng + clampFrac(frac) * sweepAng;
       ctx.beginPath();
-      ctx.moveTo(cx - Math.cos(nAng) * 10, cy - Math.sin(nAng) * 10);
-      ctx.lineTo(cx + Math.cos(nAng) * (r - 12), cy + Math.sin(nAng) * (r - 12));
-      ctx.lineWidth = 3.5;
+      ctx.moveTo(cx - Math.cos(nAng) * 12, cy - Math.sin(nAng) * 12);
+      ctx.lineTo(cx + Math.cos(nAng) * (r - 14), cy + Math.sin(nAng) * (r - 14));
+      ctx.lineWidth = 4;
       ctx.strokeStyle = needleColor;
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
       ctx.fillStyle = '#e2e8f0';
       ctx.fill();
       ctx.restore();
@@ -1359,6 +1739,48 @@
 
     function clampFrac(v) {
       return v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+
+    function drawDashIcons(state, yCenter) {
+      const sig = state.signalMode || 0;
+      const blinkActive = !!state.blinkOn && sig !== 0;
+      const leftOn = blinkActive && (sig === -1 || sig === 2);
+      const rightOn = blinkActive && (sig === 1 || sig === 2);
+      const hazOn = blinkActive && sig === 2;
+
+      cCtx.font = 'bold 24px sans-serif';
+      cCtx.textAlign = 'left';
+      cCtx.fillStyle = leftOn ? (sig === 2 ? '#fbbf24' : '#4ade80') : 'rgba(148, 163, 184, 0.22)';
+      cCtx.fillText('◀', 26, yCenter);
+
+      cCtx.textAlign = 'right';
+      cCtx.fillStyle = rightOn ? (sig === 2 ? '#fbbf24' : '#4ade80') : 'rgba(148, 163, 184, 0.22)';
+      cCtx.fillText('▶', 614, yCenter);
+
+      // High-beam flash indicator (blue ≡D icon) & hazard / horn badges
+      cCtx.textAlign = 'center';
+      cCtx.font = 'bold 17px sans-serif';
+      if (state.highBeams) {
+        cCtx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+        cCtx.fillRect(246, yCenter - 20, 62, 26);
+        cCtx.strokeStyle = '#38bdf8';
+        cCtx.lineWidth = 2;
+        cCtx.strokeRect(246, yCenter - 20, 62, 26);
+        cCtx.fillStyle = '#38bdf8';
+      } else {
+        cCtx.fillStyle = 'rgba(148, 163, 184, 0.26)';
+      }
+      cCtx.fillText('≡D', 277, yCenter - 1);
+
+      if (hazOn) {
+        cCtx.fillStyle = '#fbbf24';
+        cCtx.fillText('⚠', 332, yCenter - 1);
+      }
+      if (state.hornActive) {
+        cCtx.fillStyle = '#fde68a';
+        cCtx.font = 'bold 14px sans-serif';
+        cCtx.fillText('HORN', 384, yCenter - 2);
+      }
     }
 
     function redrawClusterAndHud(state) {
@@ -1371,51 +1793,70 @@
         : Math.max(175, Math.ceil(((state.maxSpeedKmh || 240) * 0.621371 * 1.08) / 25) * 25);
       const spdFrac = clampFrac(dispSpeed / maxDialSpeed);
 
-      // Draw 3D Dash Cluster
       cCtx.fillStyle = '#070b14';
-      cCtx.fillRect(0, 0, 512, 224);
+      cCtx.fillRect(0, 0, 640, 280);
 
       if (state.gaugeStyle === 'analog') {
-        drawAnalogDial(cCtx, 130, 114, 86, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
-        drawAnalogDial(cCtx, 382, 114, 86, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
+        drawAnalogDial(cCtx, 152, 148, 102, rpmFrac, '#f43f5e', 'RPM', (state.rpm / 1000).toFixed(1), 0.85);
+        drawAnalogDial(cCtx, 488, 148, 102, spdFrac, '#38bdf8', unitTxt, String(dispSpeed));
 
-        // Center Gear Badge
+        // Center Gear Badge & Telemetry
         cCtx.fillStyle = state.clutchPressed ? '#78350f' : rpmFrac > 0.9 ? '#991b1b' : '#0f172a';
-        cCtx.fillRect(226, 76, 60, 56);
+        cCtx.fillRect(284, 82, 72, 66);
         cCtx.strokeStyle = state.clutchPressed ? '#fbbf24' : rpmFrac > 0.9 ? '#ef4444' : '#38bdf8';
         cCtx.lineWidth = 2;
-        cCtx.strokeRect(226, 76, 60, 56);
+        cCtx.strokeRect(284, 82, 72, 66);
         cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'bold 26px sans-serif';
+        cCtx.font = 'bold 30px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(gearTxt, 256, 113);
+        cCtx.fillText(gearTxt, 320, 126);
 
         cCtx.fillStyle = state.clutchPressed ? '#fbbf24' : '#94a3b8';
-        cCtx.font = 'bold 13px sans-serif';
+        cCtx.font = 'bold 14px sans-serif';
         cCtx.fillText(
-          state.clutchPressed ? 'CLUTCH' : `${(state.distanceKm || 0).toFixed(1)} km`,
-          256,
-          165
+          state.clutchPressed
+            ? 'CLUTCH'
+            : state.shiftPrompt === 1
+            ? 'SHIFT ▲'
+            : `${(state.distanceKm || 0).toFixed(1)} km`,
+          320,
+          176
         );
+
+        const bankLabel = state.bankText || `$${Math.floor(state.bank || 0).toLocaleString('en-US')}`;
+        cCtx.fillStyle = '#4ade80';
+        cCtx.font = 'bold 16px sans-serif';
+        cCtx.fillText(bankLabel, 320, 204);
+
+        if ((state.damage || 0) > 0) {
+          const cond = Math.max(0, Math.round(100 - state.damage));
+          cCtx.fillStyle = cond > 60 ? '#22c55e' : cond > 30 ? '#f59e0b' : '#ef4444';
+          cCtx.font = 'bold 13px sans-serif';
+          cCtx.fillText(`COND ${cond}%`, 320, 232);
+        }
+
+        drawDashIcons(state, 36);
       } else {
-        // Digital Dash
-        cCtx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        // Crisp Digital Dash
+        cCtx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
         cCtx.lineWidth = 2;
-        cCtx.strokeRect(10, 10, 492, 204);
+        cCtx.strokeRect(10, 10, 620, 260);
 
         // Segmented RPM bar across top
-        const segs = 24;
+        const segs = 28;
         for (let i = 0; i < segs; i++) {
           const lit = i / segs < rpmFrac;
           cCtx.fillStyle = !lit
             ? 'rgba(255,255,255,0.08)'
-            : i >= 20
+            : i >= 23
             ? '#ef4444'
-            : i >= 16
+            : i >= 18
             ? '#f59e0b'
             : '#38bdf8';
-          cCtx.fillRect(28 + i * 19, 26, 14, 22);
+          cCtx.fillRect(30 + i * 21, 24, 15, 22);
         }
+
+        drawDashIcons(state, 82);
 
         // Gear badge left
         cCtx.fillStyle = state.clutchPressed
@@ -1423,112 +1864,75 @@
           : rpmFrac > 0.9
           ? 'rgba(239,68,68,0.28)'
           : 'rgba(56,189,248,0.16)';
-        cCtx.fillRect(36, 84, 96, 84);
+        cCtx.fillRect(40, 106, 110, 96);
         cCtx.strokeStyle = state.clutchPressed ? '#fbbf24' : rpmFrac > 0.9 ? '#ef4444' : '#38bdf8';
-        cCtx.strokeRect(36, 84, 96, 84);
+        cCtx.strokeRect(40, 106, 110, 96);
         cCtx.fillStyle = '#e0f2fe';
-        cCtx.font = 'bold 40px sans-serif';
+        cCtx.font = 'bold 46px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(gearTxt, 84, 140);
+        cCtx.fillText(gearTxt, 95, 168);
 
         if (state.clutchPressed) {
           cCtx.fillStyle = '#fbbf24';
-          cCtx.font = 'bold 12px sans-serif';
-          cCtx.fillText('CLUTCH', 84, 186);
+          cCtx.font = 'bold 14px sans-serif';
+          cCtx.fillText('CLUTCH', 95, 224);
+        } else if (state.shiftPrompt === 1) {
+          cCtx.fillStyle = '#fbbf24';
+          cCtx.font = 'bold 14px sans-serif';
+          cCtx.fillText('SHIFT ▲', 95, 224);
+        } else if (state.shiftPrompt === -1) {
+          cCtx.fillStyle = '#fbbf24';
+          cCtx.font = 'bold 14px sans-serif';
+          cCtx.fillText('DOWN ▼', 95, 224);
         }
 
         // Big digital speed center
         cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'bold 84px sans-serif';
+        cCtx.font = 'bold 104px sans-serif';
         cCtx.textAlign = 'center';
-        cCtx.fillText(String(dispSpeed), 278, 150);
+        cCtx.fillText(String(dispSpeed), 336, 188);
         cCtx.fillStyle = '#38bdf8';
-        cCtx.font = 'bold 18px sans-serif';
-        cCtx.fillText(unitTxt, 278, 178);
+        cCtx.font = 'bold 20px sans-serif';
+        cCtx.fillText(unitTxt, 336, 218);
 
-        // Subtle turbo boost gauge bar at bottom of dash
+        // Turbo boost gauge bar at bottom center
         const boostFrac = clampFrac(state.turboBoost || 0);
         if (boostFrac > 0.04) {
           cCtx.fillStyle = 'rgba(255,255,255,0.08)';
-          cCtx.fillRect(216, 191, 124, 6);
+          cCtx.fillRect(256, 234, 160, 7);
           cCtx.fillStyle = boostFrac > 0.78 ? '#f59e0b' : '#38bdf8';
-          cCtx.fillRect(216, 191, 124 * boostFrac, 6);
+          cCtx.fillRect(256, 234, 160 * boostFrac, 7);
         }
 
-        // Distance & trans mode right
+        // Distance, streak, condition & bank right
         cCtx.textAlign = 'right';
         cCtx.fillStyle = '#94a3b8';
-        cCtx.font = 'bold 16px sans-serif';
-        cCtx.fillText(state.transmissionMode || 'AUTO', 476, 98);
+        cCtx.font = 'bold 17px sans-serif';
+        cCtx.fillText(state.transmissionMode || 'AUTO', 598, 122);
         cCtx.fillStyle = '#f8fafc';
-        cCtx.font = 'bold 24px sans-serif';
-        cCtx.fillText(`${(state.distanceKm || 0).toFixed(2)} km`, 476, 134);
+        cCtx.font = 'bold 28px sans-serif';
+        cCtx.fillText(`${(state.distanceKm || 0).toFixed(2)} km`, 598, 160);
         cCtx.fillStyle = '#4ade80';
-        cCtx.font = 'bold 18px sans-serif';
+        cCtx.font = 'bold 20px sans-serif';
         const bankLabel = state.bankText || `$${Math.floor(state.bank || 0).toLocaleString('en-US')}`;
-        cCtx.fillText(bankLabel, 476, 168);
+        cCtx.fillText(bankLabel, 598, 194);
+
+        if ((state.streakMult || 1.0) > 1.04) {
+          cCtx.fillStyle = '#fde047';
+          cCtx.font = 'bold 16px sans-serif';
+          cCtx.fillText(`${state.streakMult.toFixed(1)}x STREAK`, 598, 224);
+        }
+
+        if ((state.damage || 0) > 0) {
+          const cond = Math.max(0, Math.round(100 - state.damage));
+          cCtx.fillStyle = 'rgba(255,255,255,0.12)';
+          cCtx.fillRect(468, 240, 130, 8);
+          cCtx.fillStyle = cond > 60 ? '#22c55e' : cond > 30 ? '#f59e0b' : '#ef4444';
+          cCtx.fillRect(468, 240, (130 * cond) / 100, 8);
+        }
       }
 
-      // Turn signal / hazard indicators on 3D dash
-      const sig = state.signalMode || 0;
-      const blinkActive = !!state.blinkOn && sig !== 0;
-      if (blinkActive) {
-        cCtx.fillStyle = sig === 2 ? '#fbbf24' : '#4ade80';
-        cCtx.font = 'bold 24px sans-serif';
-        if (sig === -1 || sig === 2) {
-          cCtx.textAlign = 'left';
-          cCtx.fillText('◀', 20, 72);
-        }
-        if (sig === 1 || sig === 2) {
-          cCtx.textAlign = 'right';
-          cCtx.fillText('▶', 492, 72);
-        }
-      }
       clusterTex.needsUpdate = true;
-
-      // Draw Almost-Opaque Translucent Windshield HUD Backing
-      hCtx.clearRect(0, 0, 256, 128);
-      hCtx.fillStyle = 'rgba(8, 12, 22, 0.86)';
-      hCtx.fillRect(6, 6, 244, 114);
-      hCtx.strokeStyle = 'rgba(56, 189, 248, 0.42)';
-      hCtx.lineWidth = 2;
-      hCtx.strokeRect(6, 6, 244, 114);
-      hCtx.fillStyle = 'rgba(224, 242, 254, 0.98)';
-      hCtx.font = 'bold 54px sans-serif';
-      hCtx.textAlign = 'left';
-      hCtx.fillText(String(dispSpeed), 18, 76);
-
-      hCtx.font = 'bold 18px sans-serif';
-      hCtx.fillStyle = 'rgba(125, 211, 252, 0.85)';
-      hCtx.fillText(unitTxt, 20, 102);
-
-      if (blinkActive) {
-        hCtx.fillStyle = sig === 2 ? '#fbbf24' : '#4ade80';
-        hCtx.font = 'bold 20px sans-serif';
-        hCtx.textAlign = 'center';
-        const sigStr = sig === 2 ? '◀ ⚠ ▶' : sig < 0 ? '◀' : '▶';
-        hCtx.fillText(sigStr, 146, 30);
-      }
-
-      hCtx.textAlign = 'right';
-      hCtx.font = 'bold 34px sans-serif';
-      hCtx.fillStyle = state.clutchPressed
-        ? 'rgba(251, 191, 36, 0.95)'
-        : rpmFrac > 0.9
-        ? 'rgba(248, 113, 113, 0.95)'
-        : 'rgba(125, 211, 252, 0.95)';
-      hCtx.fillText(gearTxt, 238, 70);
-
-      if (state.clutchPressed) {
-        hCtx.fillStyle = '#fbbf24';
-        hCtx.font = 'bold 16px sans-serif';
-        hCtx.fillText('CLUTCH', 238, 102);
-      } else if (state.shiftPrompt === 1) {
-        hCtx.fillStyle = '#fbbf24';
-        hCtx.font = 'bold 18px sans-serif';
-        hCtx.fillText('SHIFT ▲', 238, 102);
-      }
-      hudTex.needsUpdate = true;
 
       if (state.weatherName !== lastWeatherDrawn) {
         lastWeatherDrawn = state.weatherName || 'Afternoon';
@@ -1573,7 +1977,7 @@
         x: driverX,
         y: eyeY,
         z: eyeZ,
-        lookY: eyeY - 0.22,
+        lookY: eyeY - 2.35,
         lookZ: -38
       };
     }

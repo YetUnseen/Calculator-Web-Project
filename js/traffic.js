@@ -595,17 +595,18 @@
       return true;
     }
 
-    triggerHornYield(player) {
+    triggerHornYield(player, maxRange) {
       if (!player) return null;
       let closest = null;
       let minDs = Infinity;
+      const range = maxRange || 95;
       const playerS = player.s || 0;
       const playerD = player.d || 0;
       for (let i = 0; i < this.vehicles.length; i++) {
         const npc = this.vehicles[i];
         const ds = npc.s - playerS;
         const dd = Math.abs(npc.d - playerD);
-        if (dd < 2.25 && ds >= 4 && ds <= 95 && ds < minDs) {
+        if (dd < 2.25 && ds >= 4 && ds <= range && ds < minDs) {
           minDs = ds;
           closest = npc;
         }
@@ -633,7 +634,7 @@
       }
     }
 
-    step(dt, player, headlightStrength, weather, hornActive) {
+    step(dt, player, headlightStrength, weather, hornActive, highBeamsActive) {
       if (!dt || dt <= 0) return;
       const clampedDt = Math.min(dt, 0.05);
       this.simTime += clampedDt;
@@ -665,8 +666,8 @@
       // 3. Build sorted lane neighbor tables
       this.rebuildLaneBuckets(player);
 
-      if (hornActive && player) {
-        this.triggerHornYield(player);
+      if ((hornActive || highBeamsActive) && player) {
+        this.triggerHornYield(player, highBeamsActive ? 130 : 95);
       }
 
       // 4. Longitudinal IDM + Lateral MOBIL update per NPC
