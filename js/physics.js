@@ -22,8 +22,8 @@
   const MAX_REVERSE_MS = 22 / 3.6;
   const BARRIER_MIN_D = -8.55;
   const BARRIER_MAX_D = 9.55;
-  const SHOULDER_LEFT_D = -7.40;
-  const SHOULDER_RIGHT_D = 7.40;
+  const SHOULDER_LEFT_D = -7.25;
+  const SHOULDER_RIGHT_D = 7.25;
 
   const GEAR_RATIOS_BY_COUNT = {
     6: [0.22, 0.37, 0.54, 0.72, 0.88, 1.04],
@@ -43,6 +43,9 @@
     constructor(options) {
       const opts = options || {};
       this.getCurvature = opts.getCurvature || (() => 0);
+      this.getSlope = opts.getSlope || (() => 0);
+      this.getRadarInfo = opts.getRadarInfo || null;
+      this.getShoulderHazardInfo = opts.getShoulderHazardInfo || null;
       this.transmissionMode = opts.transmissionMode || 'AUTO';
 
       // Default specs (Civic Touring baseline; overridden cleanly by applyCarSpecs)
@@ -131,6 +134,10 @@
       this.accel = 0;
       this.steer = 0;
       this.yawRel = 0;
+      this.yawRate = 0;
+      this.frontWheelAngle = 0;
+      this.slipAngle = 0;
+      this.lateralSlip = 0;
       this.pitch = 0;
       this.roll = 0;
 
@@ -146,6 +153,7 @@
       this.pendingClutchBite = false;
       this.clutchPressed = false;
       this._prevClutch = false;
+      this.reverseHoldTimer = 0;
       this.rpmBlipTimer = 0;
       this.paddleAnimTimer = 0;
       this.paddleAnimDir = 0;
@@ -163,6 +171,7 @@
 
       this.braking = false;
       this.onShoulder = false;
+      this.shoulderTime = 0;
 
       this.distanceMeters = 0;
       this.elapsedSeconds = 0;
@@ -171,6 +180,9 @@
       this.collisionCount = 0;
       this.crashed = false;
       this.barrierCooldown = 0;
+      this._lastRadarHitSlot = -1;
+      this._lastHazardHitSlot = -1;
+      this._needleCooldown = 0;
       this.lastCrashReason = '';
     }
 
@@ -243,7 +255,7 @@
       if (this.transmissionMode !== 'SEMI' && this.transmissionMode !== 'MANUAL') return false;
       const hasClutch = clutchHeld !== undefined ? !!clutchHeld : this.clutchPressed;
       if (this.transmissionMode === 'MANUAL' && !hasClutch) {
-        this._pendingShiftEvent = { type: 'shift_grind' };
+        this._pendingShiftEvent = { type: 'shift_grind', reason: 'no_clutch' };
         return false;
       }
       if (this.gear >= this.gearCount) return false;
@@ -269,16 +281,28 @@
       if (this.transmissionMode !== 'SEMI' && this.transmissionMode !== 'MANUAL') return false;
       const hasClutch = clutchHeld !== undefined ? !!clutchHeld : this.clutchPressed;
       if (this.transmissionMode === 'MANUAL' && !hasClutch) {
-        this._pendingShiftEvent = { type: 'shift_grind' };
+        this._pendingShiftEvent = { type: 'shift_grind', reason: 'no_clutch' };
         return false;
       }
 
       const from = this.gear;
       if (this.gear > 1) {
+        const prevTop = this.getGearTopSpeedMs(this.gear - 1);
+        const projNorm =
+          IDLE_RPM_NORM +
+          (Math.max(0, this.speed) / Math.max(4, prevTop)) * (1.0 - IDLE_RPM_NORM);
+        if (this.transmissionMode === 'SEMI' && projNorm > 0.96) {
+          this._pendingShiftEvent = { type: 'shift_denied', reason: 'overrev' };
+          return false;
+        }
+        if (this.transmissionMode === 'MANUAL' && projNorm > 1.12) {
+          this._pendingShiftEvent = { type: 'shift_grind', reason: 'overrev' };
+          return false;
+        }
         this.gear -= 1;
-      } else if (this.gear === 1 && this.speed < 2.2) {
+      } else if (this.gear === 1 && this.speed < 3.0) {
         this.gear = 0;
-      } else if (this.gear === 0 && this.speed < 0.8) {
+      } else if (this.gear === 0 && this.speed < 1.2) {
         this.gear = -1;
       } else {
         return false;
@@ -364,7 +388,12 @@
 
       if (this.gear === -1 && !clutchNow) {
         const revFrac = clamp(Math.abs(this.speed) / MAX_REVERSE_MS, 0, 1);
-        const targetNorm = clamp(IDLE_RPM_NORM + revFrac * 0.65, IDLE_RPM_NORM, 0.85);
+        const revPedal = mode === 'AUTO' ? brake : throttle;
+        const targetNorm = clamp(
+          IDLE_RPM_NORM + Math.max(revFrac * 0.68, (revPedal || 0) * 0.52),
+          IDLE_RPM_NORM,
+          0.88
+        );
         this.rpmNorm += (targetNorm - this.rpmNorm) * Math.min(1, 10 * dt);
         this.rpm = clamp(this.rpmNorm, IDLE_RPM_NORM, 1.03) * 7000;
         this.turboBoost = Math.max(0, this.turboBoost - 4.6 * dt);
@@ -382,7 +411,7 @@
       } else {
         const vPos = Math.max(0, this.speed);
         const gTop = this.getGearTopSpeedMs(this.gear);
-        let rawNorm = clamp(IDLE_RPM_NORM + (vPos / Math.max(4, gTop)) * (1.0 - IDLE_RPM_NORM), IDLE_RPM_NORM, 1.04);
+        let rawNorm = clamp(IDLE_RPM_NORM + (vPos / Math.max(4, gTop)) * (1.0 - IDLE_RPM_NORM), IDLE_RPM_NORM, 1.12);
 
         if (mode === 'AUTO' && this.shiftCutTimer <= 0) {
           const upThresh = 0.66 + throttle * 0.25;
@@ -396,7 +425,7 @@
             rawNorm = clamp(
               IDLE_RPM_NORM + (vPos / Math.max(4, this.getGearTopSpeedMs(this.gear))) * (1.0 - IDLE_RPM_NORM),
               IDLE_RPM_NORM,
-              1.0
+              1.05
             );
           } else if (rawNorm < downThresh && this.gear > 1) {
             const prevTop = this.getGearTopSpeedMs(this.gear - 1);
@@ -421,7 +450,7 @@
           if (rawNorm > 0.90 && this.gear < this.gearCount) this.shiftPrompt = 1;
           else if (rawNorm < 0.28 && this.gear > 1 && vPos > 6) this.shiftPrompt = -1;
 
-          if (rawNorm >= 0.985 && throttle > 0.1) {
+          if (rawNorm >= 0.985 && throttle > 0.05) {
             this.hitRevLimiter = true;
             this.rpmNorm = clamp(0.97 + Math.sin(this.elapsedSeconds * 58) * 0.025, 0.92, 1.02);
           }
@@ -430,7 +459,7 @@
         this.rpm = clamp(this.rpmNorm, IDLE_RPM_NORM, 1.03) * 7000;
 
         if (this.hitRevLimiter) {
-          torqueMult = 0.02;
+          torqueMult = 0;
         } else if (this.shiftCutTimer > 0) {
           torqueMult = mode === 'SEMI' ? 0.22 : 0.06;
         } else {
@@ -439,14 +468,15 @@
               ? 1 + 0.18 * (this.shiftKickTimer / 0.34) * this.shiftKickMag
               : 1.0;
 
-          const gearMult = 1.15 - ((this.gear - 1) / Math.max(1, this.gearCount - 1)) * 0.22;
+          const gearFrac = (this.gear - 1) / Math.max(1, this.gearCount - 1);
+          const gearMult = 1.24 - gearFrac * 0.30;
           let bandMult = 1.0;
           if (rawNorm < 0.28) {
             bandMult = 0.72 + (rawNorm / 0.28) * 0.28;
           } else if (rawNorm <= 0.88) {
             bandMult = 1.0 + Math.sin(((rawNorm - 0.28) / 0.60) * Math.PI) * 0.16;
           } else {
-            bandMult = 1.0 - (rawNorm - 0.88) * 1.1;
+            bandMult = Math.max(0.45, 1.0 - (rawNorm - 0.88) * 0.75);
           }
           if (rawNorm > 0.65) {
             bandMult *= this.highRpmBoost || 1.0;
@@ -493,6 +523,8 @@
         this.speed *= Math.max(0, 1 - 5.5 * clampedDt);
         if (Math.abs(this.speed) < 0.05) this.speed = 0;
         this.braking = true;
+        this.lateralSlip = 0;
+        this.slipAngle *= Math.max(0, 1 - 8 * clampedDt);
         this.steer *= Math.max(0, 1 - 6 * clampedDt);
         this.pitch *= Math.max(0, 1 - 7 * clampedDt);
         this.roll *= Math.max(0, 1 - 7 * clampedDt);
@@ -527,43 +559,77 @@
 
       // Effective surface grip combining weather + car all-weather rating + tire upgrades
       const baseWeatherGrip = weatherGrip !== undefined ? weatherGrip : 1.0;
-      const effectiveGrip = clamp(baseWeatherGrip * this.weatherGripMult, 0.48, 1.05);
+      const effectiveGrip = clamp(baseWeatherGrip * this.weatherGripMult, 0.48, 1.15);
 
-      // Handle Auto R <-> 1 transitions cleanly when stopped
+      // Handle Auto R <-> 1 transitions with brief standstill hold so braking doesn't snap into R
       if (this.transmissionMode === 'AUTO') {
-        if (brake > 0.05 && this.speed <= 0.35) {
-          this.gear = -1;
-        } else if (effThrottle > 0.05 && this.gear === -1 && this.speed >= -0.4) {
+        if (brake > 0.05 && this.gear > 0) {
+          if (this.speed <= 0.35) {
+            this.reverseHoldTimer += clampedDt;
+            if (this.reverseHoldTimer >= 0.22) {
+              this.gear = -1;
+              this.reverseHoldTimer = 0;
+            }
+          } else {
+            this.reverseHoldTimer = 0;
+          }
+        } else if (effThrottle > 0.05 && this.gear === -1 && this.speed >= -0.35) {
           this.gear = 1;
+          this.reverseHoldTimer = 0;
+        } else {
+          this.reverseHoldTimer = 0;
         }
       }
 
       const torqueMult = this.updateTransmission(effThrottle, brake, clutch, clampedDt, events);
 
-      // 1. Longitudinal Acceleration / Braking / Aero Drag
+      // 1. Longitudinal Acceleration (Power-Hyperbola + Tire Launch + Aero Drag + Road Grade)
       let targetAccel = 0;
       this.braking = false;
 
-      const effAero = Math.max(0.00018, (this.accelPower * 0.36 - 0.18) / (this.maxSpeedMs * this.maxSpeedMs));
+      const launchG = Math.min(
+        this.accelPower * 0.72,
+        9.81 * clamp(0.55 + 0.52 * effectiveGrip * this.gripMult, 0.45, 1.18)
+      );
+      const topGearDriveAtMax = launchG * (1 / 4.10) * 0.85 * (this.highRpmBoost || 1.0);
+      const rollResist = 0.16 + (this.onShoulder ? 0.95 : 0);
+      const effAero = Math.max(0.00014, (topGearDriveAtMax - 0.16) / (this.maxSpeedMs * this.maxSpeedMs));
+      const slope = this.getSlope ? this.getSlope(this.s) : 0;
+      const gradeAccel = -9.81 * slope;
 
       if (brake > 0.05) {
         if (v > 0.45) {
           const brakeGripScale = (0.54 + 0.46 * effectiveGrip) * this.brakeWeatherBonus;
-          targetAccel = -this.brakePower * clamp(brakeGripScale, 0.55, 1.15) * brake;
+          const steerBrakeScale = 1 - 0.10 * this.steer * this.steer;
+          targetAccel = -this.brakePower * clamp(brakeGripScale, 0.55, 1.18) * brake * steerBrakeScale;
           this.braking = true;
         } else if (this.clutchPressed || this.gear === 0) {
           targetAccel = -(10.0 * brake);
           this.braking = true;
-        } else if (this.gear === -1 || this.transmissionMode === 'AUTO') {
-          const revFrac = clamp(1 - Math.abs(v) / MAX_REVERSE_MS, 0, 1);
-          targetAccel = -4.6 * brake * revFrac;
+        } else if (this.gear === -1) {
+          if (this.transmissionMode === 'AUTO') {
+            const revFrac = clamp(1 - Math.abs(v) / MAX_REVERSE_MS, 0, 1);
+            targetAccel = -4.6 * brake * revFrac;
+          } else {
+            if (v < -0.05) {
+              targetAccel = 12.0 * brake;
+            } else {
+              targetAccel = 0;
+              this.speed = 0;
+            }
+            this.braking = true;
+          }
+        } else if (this.transmissionMode === 'AUTO') {
+          targetAccel = v > 0.02 ? -(12.0 * brake) : 0;
+          if (v <= 0.02) this.speed = 0;
+          this.braking = true;
         } else {
           targetAccel = -(10.0 * brake);
           this.braking = true;
         }
       } else if (this.gear === 0 || this.clutchPressed) {
         if (v > 0.05) {
-          targetAccel = -(0.35 + effAero * v * v);
+          targetAccel = -(0.28 + (this.onShoulder ? 0.85 : 0) + effAero * v * v) + gradeAccel;
         } else if (v < -0.05) {
           targetAccel = 1.8;
         } else {
@@ -571,19 +637,28 @@
         }
       } else if (effThrottle > 0.05) {
         if (this.gear === -1) {
-          targetAccel = v < -0.1 ? 12.0 * effThrottle : 0;
+          if (this.transmissionMode === 'AUTO') {
+            targetAccel = v < -0.1 ? 12.0 * effThrottle : 0;
+            if (v < -0.1) this.braking = true;
+          } else if (v > 0.25) {
+            targetAccel = -10.0 * effThrottle;
+          } else {
+            const revFrac = clamp(1 - Math.abs(v) / MAX_REVERSE_MS, 0, 1);
+            targetAccel = -5.2 * effThrottle * revFrac * clamp(0.7 + 0.3 * effectiveGrip, 0.72, 1.0);
+          }
         } else if (v < 0) {
           targetAccel = 14.0 * effThrottle;
         } else {
-          const speedFrac = clamp(v / this.maxSpeedMs, 0, 1);
-          const driveCurve = this.accelPower * (1 - 0.48 * Math.pow(speedFrac, 1.35)) * torqueMult;
-          const tractionCap = clamp(0.66 + 0.34 * effectiveGrip, 0.72, 1.0);
-          const drag = effAero * v * v + 0.22;
-          targetAccel = driveCurve * tractionCap * effThrottle - drag;
+          const speedFrac = clamp(v / this.maxSpeedMs, 0, 1.05);
+          const powerDecay = 1 / (1 + 3.10 * Math.pow(speedFrac, 1.30));
+          const driveCurve = launchG * powerDecay * torqueMult;
+          const tractionCap = clamp(0.68 + 0.32 * effectiveGrip, 0.65, 1.0);
+          const drag = effAero * v * v + rollResist;
+          targetAccel = driveCurve * tractionCap * effThrottle - drag + gradeAccel;
         }
       } else {
         if (v > 0.05) {
-          targetAccel = -(0.42 + effAero * v * v);
+          targetAccel = -(0.36 + (this.onShoulder ? 0.85 : 0) + effAero * v * v) + gradeAccel;
         } else if (v < -0.05) {
           targetAccel = 1.8;
         } else {
@@ -592,55 +667,99 @@
         }
       }
 
+      // Progressive engine braking above current gear top speed (never teleports speed on downshift)
+      if (!this.clutchPressed && this.gear > 0 && v > 1.0) {
+        const gTop = this.getGearTopSpeedMs(this.gear);
+        if (v > gTop * 0.995) {
+          const overFrac = (v - gTop * 0.995) / Math.max(6, gTop);
+          targetAccel = Math.min(targetAccel, -(1.8 + overFrac * 24.0));
+        }
+      }
+
       this.accel = targetAccel;
-      const forwardCap =
-        (this.transmissionMode === 'MANUAL' || this.transmissionMode === 'SEMI') && this.gear > 0
-          ? Math.min(this.maxSpeedMs, this.getGearTopSpeedMs(this.gear))
-          : this.maxSpeedMs;
-      this.speed = clamp(this.speed + targetAccel * clampedDt, -MAX_REVERSE_MS, forwardCap);
+      this.speed = clamp(this.speed + targetAccel * clampedDt, -MAX_REVERSE_MS, this.maxSpeedMs);
       if (Math.abs(this.speed) < 0.04 && effThrottle === 0 && brake === 0) {
         this.speed = 0;
       }
 
-      // 2. Planted Speed-Adaptive Steering (lateral-velocity capped with progressive turn-in)
+      // 2. Bicycle-Model Steering & Tire-Grip Cornering (real chassis turn-in + curves)
       const absV = Math.abs(this.speed);
       const speedNorm = clamp(absV / this.maxSpeedMs, 0, 1);
       const steerMult = this.steerResponseMult || 1.0;
       const isReversingSteer = steerDir !== 0 && steerDir * this.steer < 0;
-      const turnInRate = lerp(6.2, 4.0, speedNorm) * steerMult;
-      const counterRate = lerp(13.5, 10.5, speedNorm) * steerMult;
-      const centerRate = lerp(11.0, 9.0, speedNorm) * steerMult;
+      const turnInRate = lerp(5.4, 3.3, speedNorm) * steerMult;
+      const counterRate = lerp(12.2, 9.2, speedNorm) * steerMult;
+      const centerRate = lerp(9.8, 7.8, speedNorm) * steerMult;
       const steerRamp = steerDir === 0 ? centerRate : isReversingSteer ? counterRate : turnInRate;
       this.steer += (steerDir - this.steer) * Math.min(1, steerRamp * clampedDt);
       if (steerDir === 0 && Math.abs(this.steer) < 0.005) this.steer = 0;
 
-      const shapedSteer = Math.sign(this.steer) * Math.pow(Math.abs(this.steer), 1.32);
-      const latGripScale = clamp(effectiveGrip * this.gripMult, 0.50, 1.25);
-      const maxLatSpeed =
-        lerp(5.4, 7.2, clamp((absV - 18) / 72, 0, 1)) *
-        clamp(0.78 + 0.22 * latGripScale, 0.76, 1.14);
-      const maxYawForSpeed = Math.min(
-        0.30,
-        Math.asin(clamp(maxLatSpeed / Math.max(absV, 8.0), 0, 0.30))
-      );
-      const revSign = this.speed >= -0.05 ? 1 : -1;
-      const targetYaw = shapedSteer * maxYawForSpeed * revSign;
+      const shapedSteer = Math.sign(this.steer) * Math.pow(Math.abs(this.steer), 1.28);
+      const latGripScale = clamp(effectiveGrip * this.gripMult, 0.45, 1.85);
+      const gripResponse = clamp(0.62 + 0.38 * effectiveGrip, 0.65, 1.15);
+      const brakeTurnPenalty = this.braking ? 1 - 0.12 * brake : 1.0;
+      const maxLatAccel = 9.81 * clamp(0.74 * latGripScale, 0.40, 1.34) * brakeTurnPenalty;
+      const wheelbase = clamp(this.length * 0.60, 2.45, 6.80);
+      const maxSteerAngle = lerp(0.42, 0.13, clamp(absV / 75, 0, 1));
+      this.frontWheelAngle = shapedSteer * maxSteerAngle;
 
-      const authority = clamp(absV / 3.5, 0, 1);
-      const gripResponse = clamp(0.58 + 0.42 * effectiveGrip, 0.65, 1.08);
-      const yawRate = (steerDir !== 0 ? 7.2 : 11.2) * gripResponse * steerMult;
-      this.yawRel += (targetYaw - this.yawRel) * Math.min(1, yawRate * authority * clampedDt);
-      if (steerDir === 0 && Math.abs(this.yawRel) < 0.001) this.yawRel = 0;
+      const revSign = this.speed >= -0.05 ? 1 : -1;
+      const kinematicYawRate =
+        (absV / wheelbase) *
+        Math.tan(Math.abs(this.frontWheelAngle)) *
+        Math.sign(shapedSteer) *
+        revSign;
+      const gripMaxYawRate = maxLatAccel / Math.max(absV, 5.5);
+      const commandedYawRate = clamp(kinematicYawRate, -gripMaxYawRate, gripMaxYawRate);
+
+      const roadCurv = this.getCurvature(this.s);
+      const curvYawRate = -roadCurv * this.speed * Math.cos(this.yawRel);
+      const steerAuthority = clamp(absV / 2.2, 0, 1);
+      const casterGain =
+        steerDir === 0 ? lerp(4.4, 5.6, clamp(absV / 35, 0, 1)) * gripResponse : 0.85;
+      const alignYawRate = -this.yawRel * casterGain * steerAuthority;
+
+      const netYawRate = commandedYawRate + curvYawRate + alignYawRate;
+      this.yawRate += (netYawRate - this.yawRate) * Math.min(1, 14 * clampedDt);
+      const maxSafeYaw = clamp(0.14 + 4.4 / Math.max(absV, 9.0), 0.15, 0.42);
+      this.yawRel = clamp(this.yawRel + this.yawRate * clampedDt, -maxSafeYaw, maxSafeYaw);
+      if (steerDir === 0 && Math.abs(roadCurv) < 0.0002 && Math.abs(this.yawRel) < 0.0008) {
+        this.yawRel = 0;
+      }
+
+      const latAccelDemand = Math.abs(this.speed * (commandedYawRate + alignYawRate));
+      const cornerDemand = Math.abs(roadCurv) * absV * absV;
+      const slipRatio = clamp(Math.max(latAccelDemand, cornerDemand * 0.72) / Math.max(3.0, maxLatAccel), 0, 1.25);
+      const targetSlipAng =
+        Math.sign(this.steer) * clamp((slipRatio - 0.30) * 0.048, 0, 0.045) * revSign;
+      this.slipAngle += (targetSlipAng - this.slipAngle) * Math.min(1, 10 * clampedDt);
+      this.lateralSlip = clamp(
+        slipRatio * 0.82 + (this.braking && absV > 14 ? brake * 0.48 * (1.15 - effectiveGrip * 0.35) : 0),
+        0,
+        1.25
+      );
+
+      // Extra outward centrifugal drift if corner speed exceeds available tire lateral grip
+      let overGripSlideVel = 0;
+      if (cornerDemand > maxLatAccel && absV > 15) {
+        overGripSlideVel = clamp(
+          -Math.sign(roadCurv) * (cornerDemand - maxLatAccel) * 0.16,
+          -1.8,
+          1.8
+        );
+      }
 
       // 3. Advance Curvilinear Position
+      const prevS = this.s;
       const ds = this.speed * Math.cos(this.yawRel) * clampedDt;
-      const dd = this.speed * Math.sin(this.yawRel) * clampedDt;
+      const dd = (this.speed * Math.sin(this.yawRel) + overGripSlideVel) * clampedDt;
       this.s += ds;
       this.d += dd;
 
       if (ds > 0) this.distanceMeters += ds;
       if (this.speedKmh > this.topSpeedKmh) this.topSpeedKmh = this.speedKmh;
       this.onShoulder = this.d < SHOULDER_LEFT_D || this.d > SHOULDER_RIGHT_D;
+      this.shoulderTime = this.onShoulder && absV > 3 ? this.shoulderTime + clampedDt : 0;
 
       // 4. Visual Pitch, 3-Phase Shift Squat & Longitudinal Surge Inertia
       const shiftCutUnload = this.shiftCutTimer > 0 && this.shiftDir > 0 ? -0.014 : 0;
@@ -659,71 +778,56 @@
 
       const basePitch = clamp(this.accel * 0.0044 + shiftCutUnload, -0.048, 0.038);
       const targetPitch = clamp(basePitch + this.shiftPitchSpring, -0.055, 0.065);
-      const roadCurv = this.getCurvature(this.s);
-      const curveLatForce = roadCurv * this.speed * this.speed * 0.0025;
-      const steerLatForce = shapedSteer * clamp(absV / 22, 0, 1.25) * 0.025;
+      const curveLatForce = roadCurv * this.speed * this.speed * 0.0022;
+      const steerLatForce = (latAccelDemand / 9.81) * Math.sign(this.steer || 0) * 0.036;
       const rollDamp = 1 / (this.rollStiffness || 1.0);
-      const targetRoll = clamp((steerLatForce + curveLatForce) * rollDamp, -0.045, 0.045);
+      const targetRoll = clamp((steerLatForce + curveLatForce) * rollDamp, -0.052, 0.052);
 
       this.pitch += (targetPitch - this.pitch) * Math.min(1, 13 * clampedDt);
       this.roll += (targetRoll - this.roll) * Math.min(1, 10 * clampedDt);
 
-      // 5. Highway Median & Guardrail Collision Clamping
-      const scrapeSpeedKeep = lerp(0.91, 0.95, clamp(1 - this.damageResist, 0, 1));
+      // 5. Highway Median & Guardrail Collision Clamping (angle/speed proportional)
       if (this.d < BARRIER_MIN_D) {
-        this.d = BARRIER_MIN_D;
-        if (this.yawRel < 0) this.yawRel *= 0.15;
+        const latImpact = Math.max(0.8, Math.abs(this.speed * Math.sin(this.yawRel)) + 0.05 * absV);
+        const keep = clamp(1 - (0.025 + Math.min(0.11, latImpact * 0.012)) * this.damageResist, 0.84, 0.985);
+        this.d = BARRIER_MIN_D + 0.04;
+        if (this.yawRel < 0) this.yawRel = 0.012;
         if (this.barrierCooldown <= 0 && this.speed > 4) {
-          this.speed *= scrapeSpeedKeep;
+          this.speed *= keep;
           this.barrierCooldown = 0.35;
-          this.damage = Math.min(95, this.damage + Math.max(2, Math.round(6 * this.damageResist)));
-          events.push({ type: 'barrier', intensity: clamp(this.speed / 30, 0.2, 1.0) });
+          this.damage = Math.min(95, this.damage + Math.max(1, Math.round((1.8 + latImpact * 1.05) * this.damageResist)));
+          events.push({ type: 'barrier', intensity: clamp(latImpact / 14, 0.18, 1.0) });
         }
       } else if (this.d > BARRIER_MAX_D) {
-        this.d = BARRIER_MAX_D;
-        if (this.yawRel > 0) this.yawRel *= 0.15;
+        const latImpact = Math.max(0.8, Math.abs(this.speed * Math.sin(this.yawRel)) + 0.05 * absV);
+        const keep = clamp(1 - (0.025 + Math.min(0.11, latImpact * 0.012)) * this.damageResist, 0.84, 0.985);
+        this.d = BARRIER_MAX_D - 0.04;
+        if (this.yawRel > 0) this.yawRel = -0.012;
         if (this.barrierCooldown <= 0 && this.speed > 4) {
-          this.speed *= scrapeSpeedKeep;
+          this.speed *= keep;
           this.barrierCooldown = 0.35;
-          this.damage = Math.min(95, this.damage + Math.max(2, Math.round(6 * this.damageResist)));
-          events.push({ type: 'barrier', intensity: clamp(this.speed / 30, 0.2, 1.0) });
+          this.damage = Math.min(95, this.damage + Math.max(1, Math.round((1.8 + latImpact * 1.05) * this.damageResist)));
+          events.push({ type: 'barrier', intensity: clamp(latImpact / 14, 0.18, 1.0) });
         }
       }
 
-      // 6. Traffic Collisions & Clean Overtake Pass Detection
+      // 6. Traffic Collisions, Clean Passes & Thread-the-Needle Detection
       if (traffic && traffic.vehicles) {
         const vehicles = traffic.vehicles;
+        let leftFlank = false;
+        let rightFlank = false;
+
         for (let i = 0; i < vehicles.length; i++) {
           const npc = vehicles[i];
-
-          // Clean pass check when flying smoothly past an NPC in an adjacent lane
-          const dsPass = this.s - npc.s;
-          const ddPass = Math.abs(this.d - npc.d);
-          if (
-            !npc.passedByPlayer &&
-            this.speed > 24 &&
-            this.speed > npc.v + 4.5 &&
-            Math.abs(dsPass) < 3.2 &&
-            ddPass >= 1.85 &&
-            ddPass <= 4.35
-          ) {
-            npc.passedByPlayer = true;
-            events.push({
-              type: 'clean_pass',
-              relSpeedKmh: (this.speed - npc.v) * 3.6,
-              isClose: ddPass < 3.0,
-              npc
-            });
-          }
-
-          if (npc.hitCooldown > 0) continue;
 
           const hlSum = (this.length + npc.length) * 0.5 - 0.14;
           const hwSum = (this.width + npc.width) * 0.5 - 0.12;
           const dsGap = this.s - npc.s;
           const ddGap = this.d - npc.d;
 
-          if (Math.abs(dsGap) < hlSum && Math.abs(ddGap) < hwSum) {
+          let collidedThisNpc = false;
+          if (npc.hitCooldown <= 0 && Math.abs(dsGap) < hlSum && Math.abs(ddGap) < hwSum) {
+            collidedThisNpc = true;
             const penS = hlSum - Math.abs(dsGap);
             const penD = hwSum - Math.abs(ddGap);
             const normPenS = penS / Math.max(0.5, hlSum);
@@ -731,13 +835,20 @@
             const relLong = Math.abs(this.speed - npc.v);
             this.collisionCount++;
             npc.passedByPlayer = true;
+            npc._passCandidate = false;
 
             const rigCrashBoost = this.isBigRig ? 1.35 : 1.0;
 
             if (normPenS <= normPenD) {
               const pushSign = dsGap >= 0 ? 1 : -1;
               this.s = npc.s + pushSign * (hlSum + 0.08);
-              const impactMs = pushSign < 0 ? Math.max(0, this.speed - npc.v) : relLong;
+              const closingLongMs =
+                pushSign < 0 ? Math.max(0, this.speed - npc.v) : Math.max(0, npc.v - this.speed);
+              const impactMs = Math.max(
+                closingLongMs,
+                Math.abs(this.speed * Math.sin(this.yawRel)) * 0.65,
+                1.2
+              );
               const dmgAdd = Math.round((12 + impactMs * 1.8) * this.damageResist);
 
               if (impactMs >= (13.5 * rigCrashBoost) / Math.sqrt(this.damageResist) || this.damage + dmgAdd >= 100) {
@@ -755,7 +866,7 @@
                     ? this.isBigRig
                       ? Math.max(this.speed * 0.90, npc.v * 0.92)
                       : Math.min(this.speed, npc.v * 0.84)
-                    : Math.max(this.speed, npc.v * 1.05),
+                    : Math.max(this.speed, npc.v + 1.2),
                   0,
                   this.maxSpeedMs
                 );
@@ -798,10 +909,134 @@
               }
             }
           }
+
+          if (!collidedThisNpc && !this.crashed && !npc.passedByPlayer) {
+            const absDd = Math.abs(ddGap);
+            if (
+              this.speed > 22 &&
+              this.speed > npc.v + 4.0 &&
+              Math.abs(dsGap) <= hlSum + 1.0 &&
+              absDd >= hwSum + 0.06 &&
+              absDd <= 4.75
+            ) {
+              npc._passCandidate = true;
+              npc._minPassDd = Math.min(npc._minPassDd || 99, absDd);
+              npc._passRelKmh = Math.max(npc._passRelKmh || 0, (this.speed - npc.v) * 3.6);
+              if (ddGap > 0) leftFlank = true;
+              else rightFlank = true;
+            }
+
+            const clearedNormally = npc._passCandidate && dsGap > hlSum * 0.70 && dsGap < hlSum + 14;
+            const crossedSubstep =
+              prevS <= npc.s &&
+              this.s > npc.s &&
+              this.speed > 22 &&
+              this.speed > npc.v + 4.0 &&
+              absDd >= hwSum + 0.12 &&
+              absDd <= 4.75;
+
+            if (clearedNormally || crossedSubstep) {
+              npc.passedByPlayer = true;
+              const bestDd = npc._minPassDd || absDd;
+              events.push({
+                type: 'clean_pass',
+                relSpeedKmh: npc._passRelKmh || (this.speed - npc.v) * 3.6,
+                isClose: bestDd < 3.0,
+                npc
+              });
+            }
+          }
+        }
+
+        if (!this.crashed && leftFlank && rightFlank && this.speed > 30.5 && this._needleCooldown <= 0) {
+          this._needleCooldown = 2.0;
+          events.push({ type: 'thread_needle' });
+        }
+      }
+
+      if (this._needleCooldown > 0) {
+        this._needleCooldown = Math.max(0, this._needleCooldown - clampedDt);
+      }
+
+      // 7. Parked Emergency Shoulder Obstacles (Undercover Radar Cars + Broken-Down Hazard Cars)
+      if (!this.crashed && this.getRadarInfo) {
+        const rInfo = this.getRadarInfo(this.s - 10);
+        if (rInfo && this._lastRadarHitSlot !== rInfo.slot) {
+          if (this._resolveStaticObstacle(rInfo.radarS, 9.15, 4.65, 1.86, 'Collided with parked radar patrol unit', events)) {
+            this._lastRadarHitSlot = rInfo.slot;
+          }
+        }
+      }
+      if (!this.crashed && this.getShoulderHazardInfo) {
+        const hInfo = this.getShoulderHazardInfo(this.s);
+        if (hInfo && this._lastHazardHitSlot !== hInfo.slot) {
+          if (
+            this._resolveStaticObstacle(
+              hInfo.hazardS,
+              hInfo.d,
+              hInfo.length,
+              hInfo.width,
+              'Collided with broken-down shoulder vehicle',
+              events
+            )
+          ) {
+            this._lastHazardHitSlot = hInfo.slot;
+          }
         }
       }
 
       return events;
+    }
+
+    _resolveStaticObstacle(obsS, obsD, obsL, obsW, crashReason, events) {
+      const hlSum = (this.length + obsL) * 0.5 - 0.14;
+      const hwSum = (this.width + obsW) * 0.5 - 0.12;
+      const dsGap = this.s - obsS;
+      const ddGap = this.d - obsD;
+      if (Math.abs(dsGap) >= hlSum || Math.abs(ddGap) >= hwSum) return false;
+
+      const penS = hlSum - Math.abs(dsGap);
+      const penD = hwSum - Math.abs(ddGap);
+      const normPenS = penS / Math.max(0.5, hlSum);
+      const normPenD = penD / Math.max(0.5, hwSum);
+      this.collisionCount++;
+      const rigCrashBoost = this.isBigRig ? 1.35 : 1.0;
+
+      if (normPenS <= normPenD) {
+        const pushSign = dsGap >= 0 ? 1 : -1;
+        this.s = obsS + pushSign * (hlSum + 0.08);
+        const impactMs = Math.max(pushSign < 0 ? Math.abs(this.speed) : 2.0, 2.0);
+        const dmgAdd = Math.round((14 + impactMs * 1.9) * this.damageResist);
+        if (impactMs >= (13.5 * rigCrashBoost) / Math.sqrt(this.damageResist) || this.damage + dmgAdd >= 100) {
+          this.damage = 100;
+          this.crashed = true;
+          this.lastCrashReason = crashReason;
+          this.speed *= 0.20;
+          events.push({ type: 'crash', intensity: 1.0, impactMs });
+        } else {
+          this.damage = Math.min(99, this.damage + Math.max(6, dmgAdd));
+          this.speed *= 0.45;
+          events.push({ type: 'minor', intensity: clamp(impactMs / 12, 0.3, 0.9), impactMs });
+        }
+      } else {
+        const sideSign = ddGap >= 0 ? 1 : -1;
+        this.d = clamp(obsD + sideSign * (hwSum + 0.08), BARRIER_MIN_D, BARRIER_MAX_D);
+        if (sideSign > 0 && this.yawRel < 0) this.yawRel *= 0.2;
+        if (sideSign < 0 && this.yawRel > 0) this.yawRel *= 0.2;
+        const impactMs = Math.max(Math.abs(this.speed * Math.sin(this.yawRel)), Math.abs(this.speed) * 0.42);
+        this.speed *= this.isBigRig ? 0.92 : 0.80;
+        const dmgAdd = Math.round((12 + impactMs * 1.5) * this.damageResist);
+        if (this.damage + dmgAdd >= 100 || impactMs >= (14.5 * rigCrashBoost) / Math.sqrt(this.damageResist)) {
+          this.damage = 100;
+          this.crashed = true;
+          this.lastCrashReason = crashReason;
+          events.push({ type: 'crash', intensity: 1.0, impactMs });
+        } else {
+          this.damage = Math.min(99, this.damage + Math.max(5, dmgAdd));
+          events.push({ type: 'minor', intensity: clamp(impactMs / 10, 0.25, 0.85), impactMs });
+        }
+      }
+      return true;
     }
   }
 

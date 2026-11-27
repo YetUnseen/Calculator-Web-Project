@@ -46,6 +46,7 @@
     calm: { speedBiasKmh: -4, headway: 1.75, minGap: 7.8, accelScale: 0.88, decel: 2.3, politeness: 0.56, lcThreshold: 0.58 },
     commuter: { speedBiasKmh: 0, headway: 1.50, minGap: 6.8, accelScale: 1.00, decel: 2.7, politeness: 0.44, lcThreshold: 0.48 },
     brisk: { speedBiasKmh: 6, headway: 1.32, minGap: 6.0, accelScale: 1.15, decel: 3.1, politeness: 0.34, lcThreshold: 0.42 },
+    spirited: { speedBiasKmh: 11, headway: 1.18, minGap: 5.4, accelScale: 1.28, decel: 3.4, politeness: 0.24, lcThreshold: 0.32 },
     heavy: { speedBiasKmh: -2, headway: 2.05, minGap: 9.5, accelScale: 0.68, decel: 2.1, politeness: 0.65, lcThreshold: 0.66 }
   };
 
@@ -147,12 +148,15 @@
     pickPersonality(typeKey) {
       if (typeKey === 'semi' || typeKey === 'bus' || typeKey === 'van') return 'heavy';
       if (typeKey === 'coupe' || typeKey === 'police') {
-        return this.rng() < 0.65 ? 'brisk' : 'commuter';
+        const r = this.rng();
+        if (r < 0.32) return 'spirited';
+        return r < 0.78 ? 'brisk' : 'commuter';
       }
       const r = this.rng();
-      if (r < 0.28) return 'calm';
-      if (r < 0.75) return 'commuter';
-      return 'brisk';
+      if (r < 0.24) return 'calm';
+      if (r < 0.66) return 'commuter';
+      if (r < 0.88) return 'brisk';
+      return typeKey === 'sedan' || typeKey === 'suv' || typeKey === 'wagon' ? 'spirited' : 'brisk';
     }
 
     createNPC(s, lane, initialSpeedMs, forcedTypeKey) {
@@ -221,7 +225,9 @@
         politeness: pProfile.politeness + (this.rng() - 0.5) * 0.10,
         lcThreshold: pProfile.lcThreshold + (this.rng() - 0.5) * 0.10,
         decisionTimer: 0.25 + this.rng() * 0.85,
-        laneChangeCooldown: 5.0 + this.rng() * 10.0,
+        laneChangeCooldown:
+          personalityName === 'spirited' ? 3.5 + this.rng() * 5.5 : 5.0 + this.rng() * 10.0,
+        passingBoostTimer: 0,
 
         // Lane-change state machine
         laneState: 'KEEP',
@@ -518,21 +524,25 @@
       const movingRight = targetLane > npc.lane;
 
       if (movingRight) {
-        if (gapAhead !== null && gapAhead < Math.max(52, npc.v * 2.3)) return null;
-
-        // Fast-lane courtesy yield if faster vehicle approaches behind in Lane 0
+        // Fast-lane courtesy yield if faster vehicle approaches behind in Lane 0 or 1
         let courtesyBonus = 0;
-        if (npc.lane === 0) {
+        if (npc.lane === 0 || npc.lane === 1) {
           const { follower: rearInCurr, gapBehind: rearGapCurr } = this.findNeighborsInLane(
-            0,
+            npc.lane,
             npc.s,
             npc.length,
             npc.id
           );
-          if (rearInCurr && rearGapCurr < 48 && rearInCurr.v > npc.v + 4.2) {
-            courtesyBonus = 0.46;
+          if (rearInCurr && rearInCurr.v > npc.v + 4.0) {
+            const dynRange = Math.min(130, 48 + Math.max(0, rearInCurr.v - npc.v) * 2.5);
+            if (rearGapCurr < dynRange) {
+              courtesyBonus = npc.lane === 0 ? 0.54 : 0.34;
+            }
           }
         }
+
+        const minRightAhead = courtesyBonus > 0 ? Math.max(24, npc.v * 1.15) : Math.max(52, npc.v * 2.3);
+        if (gapAhead !== null && gapAhead < minRightAhead) return null;
 
         const rightBias = targetLane <= npc.preferredLane ? 0.34 : 0.16;
         const incentive =
@@ -656,9 +666,25 @@
       if (pushLateral) {
         npc.bumpLatVel = clamp(pushLateral * 3.0, -1.8, 1.8);
       }
-      if (npc.laneState === 'SIGNALING') {
+      if (npc.laneState === 'SIGNALING' || npc.laneState === 'CHANGING') {
+        if (npc.laneState === 'CHANGING') {
+          const approxD = npc.d + (pushLateral || 0);
+          let bestLane = npc.lane;
+          let bestDist = Infinity;
+          for (let l = 0; l < LANE_CENTERS.length; l++) {
+            const dist = Math.abs(approxD - LANE_CENTERS[l]);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestLane = l;
+            }
+          }
+          npc.lane = bestLane;
+          npc.targetLane = bestLane;
+        }
         npc.laneState = 'KEEP';
         npc.blinkerDir = 0;
+        npc.yaw = 0;
+        npc.roll = 0;
         npc.laneChangeCooldown = 5.0;
       }
     }
@@ -695,6 +721,35 @@
       // 3. Build sorted lane neighbor tables
       this.rebuildLaneBuckets(player);
 
+      // Break up 4-lane rolling roadblocks ahead of player so there's always an overtake pocket
+      if (player) {
+        let minClusterS = Infinity;
+        let maxClusterS = -Infinity;
+        let lane0Front = null;
+        let allLanesBlocked = true;
+        for (let l = 0; l < 4; l++) {
+          const list = this.laneBuckets[l];
+          let firstAhead = null;
+          for (let j = 0; j < list.length; j++) {
+            const item = list[j];
+            if (!item.isPlayer && item.s - playerS > 18 && item.s - playerS < 210) {
+              firstAhead = item;
+              break;
+            }
+          }
+          if (!firstAhead) {
+            allLanesBlocked = false;
+            break;
+          }
+          if (firstAhead.s < minClusterS) minClusterS = firstAhead.s;
+          if (firstAhead.s > maxClusterS) maxClusterS = firstAhead.s;
+          if (l === 0) lane0Front = firstAhead;
+        }
+        if (allLanesBlocked && lane0Front && maxClusterS - minClusterS < 20) {
+          lane0Front.passingBoostTimer = 3.0;
+        }
+      }
+
       if ((hornActive || highBeamsActive) && player) {
         this.triggerHornYield(player, highBeamsActive ? 130 : 95);
       }
@@ -710,6 +765,7 @@
         if (npc.hornUrgencyTimer > 0) npc.hornUrgencyTimer = Math.max(0, npc.hornUrgencyTimer - clampedDt);
         if (npc.glareFlashTimer > 0) npc.glareFlashTimer = Math.max(0, npc.glareFlashTimer - clampedDt);
         if (npc.glareCooldown > 0) npc.glareCooldown = Math.max(0, npc.glareCooldown - clampedDt);
+        if (npc.passingBoostTimer > 0) npc.passingBoostTimer = Math.max(0, npc.passingBoostTimer - clampedDt);
         if (npc.laneChangeCooldown > 0) {
           npc.laneChangeCooldown = Math.max(0, npc.laneChangeCooldown - clampedDt);
         }
@@ -728,9 +784,11 @@
           npc.glareAccum = Math.max(0, npc.glareAccum - clampedDt * 1.4);
         }
 
-        const effV0 = npc.desiredSpeed * weatherMod.speedScale;
+        const boostV = npc.passingBoostTimer > 0 ? 1.18 : 1.0;
+        const boostA = npc.passingBoostTimer > 0 ? 1.35 : 1.0;
+        const effV0 = npc.desiredSpeed * weatherMod.speedScale * boostV;
         const effT = npc.timeHeadway * weatherMod.headwayScale;
-        const effA = npc.maxAccel * weatherMod.accelScale;
+        const effA = npc.maxAccel * weatherMod.accelScale * boostA;
         const effB = npc.comfortDecel * weatherMod.decelScale;
 
         const { leader: l1, gapAhead: g1 } = this.findNeighborsInLane(
@@ -828,7 +886,7 @@
           npc.steerAngle *= Math.max(0, 1 - 8 * clampedDt);
 
           if (Math.abs(npc.bumpLatVel) > 0.01) {
-            npc.d = clamp(npc.d + npc.bumpLatVel * clampedDt, -6.3, 6.3);
+            npc.d = clamp(npc.d + npc.bumpLatVel * clampedDt, -6.8, 6.8);
             npc.bumpLatVel *= Math.max(0, 1 - 5.5 * clampedDt);
           } else {
             const desiredD = LANE_CENTERS[npc.lane] + npc.laneOffsetBias;

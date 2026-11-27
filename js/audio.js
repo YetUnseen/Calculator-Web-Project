@@ -54,6 +54,8 @@
       this.windFilter = null;
       this.rainGain = null;
       this.rumbleGain = null;
+      this.scrubFilter = null;
+      this.scrubGain = null;
 
       this.hornOsc1 = null;
       this.hornOsc2 = null;
@@ -267,6 +269,21 @@
         this.rumbleGain.connect(this.masterGain);
         rumbleOsc.start();
 
+        // Lateral Tire-Scrub Layer (hard braking / high-G cornering)
+        const scrubSrc = this.ctx.createBufferSource();
+        scrubSrc.buffer = this.windNoiseBuffer;
+        scrubSrc.loop = true;
+        this.scrubFilter = this.ctx.createBiquadFilter();
+        this.scrubFilter.type = 'bandpass';
+        this.scrubFilter.frequency.value = 880;
+        this.scrubFilter.Q.value = 1.8;
+        this.scrubGain = this.ctx.createGain();
+        this.scrubGain.gain.value = 0;
+        scrubSrc.connect(this.scrubFilter);
+        this.scrubFilter.connect(this.scrubGain);
+        this.scrubGain.connect(this.masterGain);
+        scrubSrc.start(0, 0.73);
+
         // Dual-Tone Car Horn Bus
         this.hornFilter = this.ctx.createBiquadFilter();
         this.hornFilter.type = 'lowpass';
@@ -366,6 +383,13 @@
 
       const rumbleVol = tele.onShoulder && speedMs > 6 ? 0.052 : 0.0;
       this.rumbleGain.gain.setTargetAtTime(rumbleVol, now, 0.04);
+
+      if (this.scrubGain && this.scrubFilter) {
+        const slip = clamp(tele.lateralSlip || 0, 0, 1.25);
+        const scrubVol = slip > 0.55 && speedMs > 10 ? Math.min(0.065, (slip - 0.55) * 0.085) : 0;
+        this.scrubFilter.frequency.setTargetAtTime(760 + slip * 420, now, 0.04);
+        this.scrubGain.gain.setTargetAtTime(scrubVol, now, 0.04);
+      }
     }
 
     playTurboBOV(boost) {
@@ -672,6 +696,26 @@
         g.connect(this.masterGain);
         osc.start(now);
         osc.stop(now + 0.03);
+      } catch (e) {}
+    }
+
+    playShiftDenied() {
+      if (!this.initialized || !this.ctx || this.muted || this.suspended) return;
+      try {
+        const now = this.ctx.currentTime;
+        for (let i = 0; i < 2; i++) {
+          const t0 = now + i * 0.065;
+          const osc = this.ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(i === 0 ? 340 : 240, t0);
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0.036, t0);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(t0);
+          osc.stop(t0 + 0.05);
+        }
       } catch (e) {}
     }
 

@@ -298,7 +298,7 @@
       unlockHint: 'Crash 3 times in a row to unlock',
       archetype: 'big_rig',
       baseTopSpeedKmh: 215,
-      baseAccel: 6.4,
+      baseAccel: 3.6,
       baseBrake: 13.8,
       baseGrip: 1.05,
       weatherGrip: 1.32,
@@ -318,14 +318,14 @@
       label: 'Engine Tune',
       category: 'Powertrain',
       costs: [0, 650, 1600, 3400, 6800],
-      effectText: '+6% Accel & +4.5% Top Speed per level'
+      effectText: '+3.5% Accel & +4.5% Top Speed per level'
     },
     turbo: {
       key: 'turbo',
       label: 'Twin-Turbo Kit',
       category: 'Powertrain',
       costs: [0, 750, 1800, 3800, 7500],
-      effectText: '+4% Accel, +2% Top Speed & faster spool'
+      effectText: '+2.8% Accel, +2% Top Speed & faster spool'
     },
     exhaust: {
       key: 'exhaust',
@@ -367,7 +367,7 @@
       label: 'Weight Reduction',
       category: 'Handling',
       costs: [0, 600, 1500, 3200, 6500],
-      effectText: '+4.5% Accel, +4% Brakes & +5% Steering response'
+      effectText: '+2.2% Accel, +4% Brakes & +5% Steering response'
     },
     chassis: {
       key: 'chassis',
@@ -381,7 +381,7 @@
       label: 'Pro ECU & Telemetry',
       category: 'Chassis & Tech',
       costs: [0, 700, 1750, 3600, 7200],
-      effectText: '+12% Cash earnings, +15% Faster streak & +2.5% Accel'
+      effectText: '+12% Cash earnings, +15% Faster streak & +1.2% Accel'
     }
   };
 
@@ -447,7 +447,7 @@
   };
 
   const MAX_UPGRADE_LEVEL = 4;
-  const DEFAULT_SEAT_CONFIG = { y: 0, z: 0, pitchDeg: 0, fov: 68 };
+  const DEFAULT_SEAT_CONFIG = { y: 0, z: 0, pitchDeg: 0, fov: 74 };
 
   function clamp(v, lo, hi) {
     return v < lo ? lo : v > hi ? hi : v;
@@ -461,8 +461,17 @@
       typeof src.pitchDeg === 'number' && isFinite(src.pitchDeg)
         ? Math.round(clamp(src.pitchDeg, -8, 10) * 2) / 2
         : DEFAULT_SEAT_CONFIG.pitchDeg;
-    const fov = typeof src.fov === 'number' && isFinite(src.fov) ? Math.round(clamp(src.fov, 55, 85)) : DEFAULT_SEAT_CONFIG.fov;
+    const fov = typeof src.fov === 'number' && isFinite(src.fov) ? Math.round(clamp(src.fov, 55, 90)) : DEFAULT_SEAT_CONFIG.fov;
     return { y, z, pitchDeg, fov };
+  }
+
+  function estimateZeroTo100(topSpeedKmh, accelPower, gripMult) {
+    const maxV = Math.max(40, (topSpeedKmh || 192) / 3.6);
+    const launchG = Math.min(accelPower * 0.72, 9.81 * clamp(0.55 + 0.52 * (gripMult || 1), 0.45, 1.18));
+    const midU = clamp(15.5 / maxV, 0.08, 0.58);
+    const decayMid = 1 / (1 + 2.85 * Math.pow(midU, 1.35));
+    const avgAccel = Math.max(1.2, launchG * (0.56 + 0.48 * decayMid) - 0.36);
+    return Math.round((27.78 / avgAccel) * 10) / 10;
   }
 
   function makeDefaultUpgrades() {
@@ -611,7 +620,11 @@
         }
 
         if (parsed.seatConfig && typeof parsed.seatConfig === 'object') {
-          this.state.seatConfig = sanitizeSeatConfig(parsed.seatConfig);
+          const s = sanitizeSeatConfig(parsed.seatConfig);
+          if (s.y === 0 && s.z === 0 && s.pitchDeg === 0 && s.fov === 68) {
+            s.fov = DEFAULT_SEAT_CONFIG.fov;
+          }
+          this.state.seatConfig = s;
         }
       } catch (e) {
         // Ignore malformed localStorage
@@ -785,11 +798,11 @@
       const accelPower =
         carDef.baseAccel *
         (1 +
-          (upg.engine || 0) * 0.06 +
-          (upg.turbo || 0) * 0.04 +
-          (upg.transmission || 0) * 0.03 +
-          (upg.weight || 0) * 0.045 +
-          (upg.ecu || 0) * 0.025);
+          (upg.engine || 0) * 0.035 +
+          (upg.turbo || 0) * 0.028 +
+          (upg.transmission || 0) * 0.015 +
+          (upg.weight || 0) * 0.022 +
+          (upg.ecu || 0) * 0.012);
       const brakePower = carDef.baseBrake * (1 + (upg.brakes || 0) * 0.08 + (upg.weight || 0) * 0.04);
       const brakeWeatherBonus = 1 + (upg.brakes || 0) * 0.05;
       const gripMult = carDef.baseGrip * (1 + (upg.tires || 0) * 0.06 + (upg.aero || 0) * 0.05);
@@ -810,6 +823,7 @@
       const earningsMult = 1 + (upg.ecu || 0) * 0.12;
       const streakRateMult = 1 + (upg.ecu || 0) * 0.15;
       const hornType = carDef.hornType || (carDef.archetype === 'police' ? 'police' : 'standard');
+      const zeroTo100Sec = estimateZeroTo100(topSpeedKmh, accelPower, gripMult);
 
       return {
         carId: carDef.id,
@@ -827,6 +841,7 @@
         earningsMult,
         streakRateMult,
         hornType,
+        zeroTo100Sec,
         topSpeedKmh,
         maxSpeedMs: topSpeedKmh / 3.6,
         accelPower,
@@ -847,17 +862,20 @@
     }
 
     /**
-     * Award continuous distance earnings while driving.
+     * Award continuous distance earnings while driving (zero earnings on emergency shoulders).
      */
-    awardDistance(deltaMeters, speedKmh, weatherMult) {
+    awardDistance(deltaMeters, speedKmh, weatherMult, onShoulder) {
       if (!deltaMeters || deltaMeters <= 0 || speedKmh < 10) return 0;
+      const km = deltaMeters / 1000;
+      this.state.totalDistanceKm += km;
+      if (onShoulder) {
+        return 0;
+      }
       const upg = this.getUpgrades();
       const ecuLvl = upg.ecu || 0;
       const earningsMult = 1 + ecuLvl * 0.12;
       const streakRateMult = 1 + ecuLvl * 0.15;
 
-      const km = deltaMeters / 1000;
-      this.state.totalDistanceKm += km;
       this.cleanMeters += deltaMeters;
 
       // Streak gradually rises every 500m of clean driving up to 2.0x
@@ -878,6 +896,40 @@
       this.state.bank += earned;
       this.sessionEarned += earned;
       return earned;
+    }
+
+    decayStreak(amount) {
+      this.cleanMeters = 0;
+      if (this.streakMult > 1.0) {
+        this.streakMult = Math.max(1.0, Math.round((this.streakMult - (amount || 0.1)) * 100) / 100);
+      }
+    }
+
+    awardThreadNeedle(weatherMult) {
+      const upg = this.getUpgrades();
+      const ecuLvl = upg.ecu || 0;
+      const earningsMult = 1 + ecuLvl * 0.12;
+      const streakRateMult = 1 + ecuLvl * 0.15;
+      this.cleanPasses += 1;
+      const earned = Math.round(115 * (weatherMult || 1.0) * this.streakMult * earningsMult);
+      this.streakMult = clamp(
+        Math.round((this.streakMult + 0.12 * streakRateMult) * 100) / 100,
+        1.0,
+        2.0
+      );
+      this.state.bank += earned;
+      this.sessionEarned += earned;
+      this.save();
+      return earned;
+    }
+
+    spendCash(amount) {
+      const cost = Math.max(0, Math.round(amount || 0));
+      if (cost <= 0) return true;
+      if (this.getBank() < cost) return false;
+      this.state.bank -= cost;
+      this.save();
+      return true;
     }
 
     /**

@@ -600,6 +600,10 @@
         if (this.dom.btnCompact) {
           this.dom.btnCompact.textContent = this.compact ? '▸' : '▾';
         }
+        const wrap = this.dom.ytWrap || (this.dom.ytMount && this.dom.ytMount.parentElement);
+        if (wrap) {
+          wrap.classList.toggle('empty', !this.currentSource);
+        }
         if (this.dom.emptyHint) {
           this.dom.emptyHint.classList.toggle('hidden', !!this.currentSource);
         }

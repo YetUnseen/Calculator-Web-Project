@@ -1544,9 +1544,9 @@
     const hoodLen = L * spec.hoodFrac;
     const cowlZ = isBigRig ? -L * 0.5 + 1.95 : -L * 0.5 + hoodLen;
 
-    const driverX = isBigRig ? -W * 0.24 : -W * 0.20;
+    const driverX = isBigRig ? -W * 0.20 : -W * 0.165;
     const eyeY = hoodTopY + 0.265;
-    const eyeZ = cowlZ + 0.86;
+    const eyeZ = cowlZ + 0.98;
 
     const interiorGroup = new THREE.Group();
     interiorGroup.visible = false;
@@ -1591,7 +1591,7 @@
     const pillarPitch = Math.atan2(0.44, eyeY + 0.28 - (dashY + 0.03));
     const pillarGeo = new THREE.BoxGeometry(0.044, pillarLen, 0.055);
     const pillarMidY = (dashY + 0.03 + eyeY + 0.28) * 0.5;
-    const pillarMidZ = cowlZ + 0.24;
+    const pillarMidZ = cowlZ + 0.19;
     addPart(interiorGroup, pillarGeo, pillarMat, -W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, -0.14);
     addPart(interiorGroup, pillarGeo, pillarMat, W * 0.39, pillarMidY, pillarMidZ, 1, 1, 1, pillarPitch, 0, 0.14);
 
@@ -1666,17 +1666,27 @@
     const rightBsmMat = leftBsmMat.clone();
     const bsmGeo = new THREE.PlaneGeometry(0.026, 0.024);
 
-    // Driver Left Side Mirror outside left A-pillar + mirror/A-pillar BSM LED
-    addPart(interiorGroup, shared.boxGeo, bodyMat, -W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), leftMirrorMat, -W * 0.49, dashY + 0.085, cowlZ + 0.245);
-    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.49 - 0.044, dashY + 0.085 + 0.019, cowlZ + 0.247);
-    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, 0.18, 0);
+    // Driver Left Side Mirror outside left A-pillar (with mounting stalk & BSM LED)
+    const leftMirrorGroup = new THREE.Group();
+    leftMirrorGroup.position.set(-W * 0.468, dashY + 0.085, cowlZ + 0.10);
+    leftMirrorGroup.rotation.y = 0.16;
+    interiorGroup.add(leftMirrorGroup);
+    addPart(leftMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.155, 0.090, 0.095);
+    addPart(leftMirrorGroup, makeMirroredPlane(0.132, 0.070), leftMirrorMat, 0, 0, 0.051);
+    addPart(leftMirrorGroup, bsmGeo, leftBsmMat, -0.042, 0.019, 0.053);
+    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, -W * 0.415, dashY + 0.078, cowlZ + 0.10, 0.11, 0.030, 0.045);
+    addPart(interiorGroup, bsmGeo, leftBsmMat, -W * 0.355, dashY + 0.135, cowlZ + 0.16, 1, 1, 1, 0, 0.18, 0);
 
-    // Passenger Right Side Mirror outside right A-pillar + mirror/A-pillar BSM LED
-    addPart(interiorGroup, shared.boxGeo, bodyMat, W * 0.49, dashY + 0.085, cowlZ + 0.19, 0.16, 0.092, 0.10);
-    addPart(interiorGroup, makeMirroredPlane(0.135, 0.072), rightMirrorMat, W * 0.49, dashY + 0.085, cowlZ + 0.245);
-    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.49 + 0.044, dashY + 0.085 + 0.019, cowlZ + 0.247);
-    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.365, dashY + 0.135, cowlZ + 0.19, 1, 1, 1, 0, -0.35, 0);
+    // Passenger Right Side Mirror positioned cleanly within cockpit horizontal frustum (with stalk & BSM LED)
+    const rightMirrorGroup = new THREE.Group();
+    rightMirrorGroup.position.set(W * 0.432, dashY + 0.085, cowlZ - 0.05);
+    rightMirrorGroup.rotation.y = -0.30;
+    interiorGroup.add(rightMirrorGroup);
+    addPart(rightMirrorGroup, shared.boxGeo, bodyMat, 0, 0, 0, 0.155, 0.090, 0.095);
+    addPart(rightMirrorGroup, makeMirroredPlane(0.132, 0.070), rightMirrorMat, 0, 0, 0.051);
+    addPart(rightMirrorGroup, bsmGeo, rightBsmMat, 0.042, 0.019, 0.053);
+    addPart(interiorGroup, shared.boxGeo, shared.darkTrimMat, W * 0.390, dashY + 0.078, cowlZ - 0.05, 0.10, 0.030, 0.045);
+    addPart(interiorGroup, bsmGeo, rightBsmMat, W * 0.355, dashY + 0.135, cowlZ + 0.16, 1, 1, 1, 0, -0.35, 0);
 
     // Subtle interior windshield weather layer (raindrops & snow flecks cleared by wipers)
     const glassCanvas = document.createElement('canvas');
@@ -1712,9 +1722,13 @@
     const infoTex = new THREE.CanvasTexture(infoCanvas);
     if (THREE.sRGBEncoding !== undefined) infoTex.encoding = THREE.sRGBEncoding;
     const infoMat = new THREE.MeshBasicMaterial({ map: infoTex });
-    const infoX = isBigRig ? 0.08 : 0.06;
-    addPart(interiorGroup, shared.boxGeo, leatherMat, infoX, dashY + 0.105, dashZ + 0.17, 0.23, 0.12, 0.025, 0, 0.20, 0);
-    addPart(interiorGroup, new THREE.PlaneGeometry(0.21, 0.10), infoMat, infoX + 0.002, dashY + 0.105, dashZ + 0.185, 1, 1, 1, 0, 0.20, 0);
+    const infoX = isBigRig ? 0.10 : 0.08;
+    const infoMount = new THREE.Group();
+    infoMount.position.set(infoX, dashY + 0.105, dashZ + 0.205);
+    infoMount.rotation.y = -0.18;
+    interiorGroup.add(infoMount);
+    addPart(infoMount, shared.boxGeo, leatherMat, 0, 0, 0, 0.23, 0.12, 0.024);
+    addPart(infoMount, new THREE.PlaneGeometry(0.21, 0.10), infoMat, 0, 0, 0.014);
 
     function drawInfotainment(weatherName, wiperMode, radioTitle, radioPlaying) {
       infoCtx.fillStyle = '#0c1220';
@@ -1770,13 +1784,16 @@
     addPart(interiorGroup, shared.boxGeo, leatherMat, driverX, hoodTopY + 0.125, cowlZ + 0.251, 0.388, 0.162, 0.014, -0.08);
     addPart(interiorGroup, new THREE.PlaneGeometry(0.38, 0.155), clusterMat, driverX, hoodTopY + 0.125, cowlZ + 0.26, 1, 1, 1, -0.08);
 
-    // 5. Animated 3D Steering Wheel + Column + Shift Paddles (framed wide so gauges are unobstructed)
+    // 5. Animated 3D Steering Wheel + Column + Shift Paddles + Driver Hands & Forearms
+    const wheelMountY = hoodTopY + 0.062;
+    const wheelMountZ = cowlZ + 0.64;
+    const wheelMountRotX = -0.16;
     const wheelMount = new THREE.Group();
-    wheelMount.position.set(driverX, hoodTopY + 0.062, cowlZ + 0.54);
-    wheelMount.rotation.x = -0.16;
+    wheelMount.position.set(driverX, wheelMountY, wheelMountZ);
+    wheelMount.rotation.x = wheelMountRotX;
     interiorGroup.add(wheelMount);
 
-    addPart(wheelMount, new THREE.CylinderGeometry(0.024, 0.028, 0.22, 10), leatherMat, 0, -0.022, -0.11, 1, 1, 1, Math.PI / 2);
+    addPart(wheelMount, new THREE.CylinderGeometry(0.024, 0.028, 0.30, 10), leatherMat, 0, -0.022, -0.15, 1, 1, 1, Math.PI / 2);
 
     const wheelSpinGroup = new THREE.Group();
     wheelMount.add(wheelSpinGroup);
@@ -1802,6 +1819,63 @@
     rightPaddlePivot.position.set(0.105, -0.01, -0.025);
     addPart(rightPaddlePivot, shared.boxGeo, trimMat, 0.020, 0.014, 0, 0.026, 0.075, 0.008);
     wheelSpinGroup.add(rightPaddlePivot);
+
+    // Sculpted Racing-Glove Hands gripping the 9-and-3 positions on the wheel rim
+    const gloveMat = new THREE.MeshStandardMaterial({ color: 0x181c24, roughness: 0.62, metalness: 0.10 });
+    const cuffMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.45, metalness: 0.35 });
+    const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.80, metalness: 0.06 });
+
+    function makeDriverHand(side) {
+      const hg = new THREE.Group();
+      hg.position.set(side * 0.198, -0.004, 0.002);
+      // Outer palm gripping rim
+      addPart(hg, shared.boxGeo, gloveMat, side * 0.004, 0, 0.004, 0.036, 0.062, 0.044);
+      // Wrapped fingers behind rim
+      addPart(hg, shared.boxGeo, gloveMat, -side * 0.014, -0.002, -0.013, 0.020, 0.052, 0.020);
+      // Inward thumb resting over spoke
+      addPart(hg, shared.boxGeo, gloveMat, -side * 0.022, 0.018, 0.016, 0.032, 0.016, 0.018, 0, 0, -side * 0.44);
+      // Wrist cuff collar
+      addPart(hg, new THREE.CylinderGeometry(0.022, 0.024, 0.024, 10), cuffMat, side * 0.004, -0.016, 0.026, 1, 1, 1, Math.PI * 0.42);
+      return hg;
+    }
+    wheelSpinGroup.add(makeDriverHand(-1));
+    wheelSpinGroup.add(makeDriverHand(1));
+
+    // Articulated Forearm Sleeves tracking wheel rotation dynamically
+    const forearmGeo = new THREE.CylinderGeometry(0.025, 0.033, 1, 10);
+    const leftForearm = new THREE.Mesh(forearmGeo, sleeveMat);
+    const rightForearm = new THREE.Mesh(forearmGeo, sleeveMat);
+    interiorGroup.add(leftForearm);
+    interiorGroup.add(rightForearm);
+
+    const leftElbowPos = new THREE.Vector3(driverX - 0.18, hoodTopY - 0.145, wheelMountZ + 0.28);
+    const rightElbowPos = new THREE.Vector3(driverX + 0.18, hoodTopY - 0.145, wheelMountZ + 0.28);
+    const _wristWorldVec = new THREE.Vector3();
+    const _armDirVec = new THREE.Vector3();
+    const _armUpAxis = new THREE.Vector3(0, 1, 0);
+
+    function positionForearm(mesh, elbowPos, localX, localY, localZ, rotZ) {
+      const cz = Math.cos(rotZ);
+      const sz = Math.sin(rotZ);
+      const rx = localX * cz - localY * sz;
+      const ry = localX * sz + localY * cz;
+      const cx = Math.cos(wheelMountRotX);
+      const sx = Math.sin(wheelMountRotX);
+      const my = ry * cx - localZ * sx;
+      const mz = ry * sx + localZ * cx;
+
+      _wristWorldVec.set(driverX + rx, wheelMountY + my, wheelMountZ + mz);
+      _armDirVec.copy(_wristWorldVec).sub(elbowPos);
+      const len = _armDirVec.length();
+      if (len > 0.01) {
+        _armDirVec.multiplyScalar(1 / len);
+        mesh.position.copy(elbowPos).add(_wristWorldVec).multiplyScalar(0.5);
+        mesh.scale.set(1, len, 1);
+        mesh.quaternion.setFromUnitVectors(_armUpAxis, _armDirVec);
+      }
+    }
+    positionForearm(leftForearm, leftElbowPos, -0.202, -0.020, 0.032, 0);
+    positionForearm(rightForearm, rightElbowPos, 0.202, -0.020, 0.032, 0);
 
     // 6. Dual Animated Windshield Wipers
     const wiperTiltGroup = new THREE.Group();
@@ -2051,13 +2125,15 @@
         cCtx.textAlign = 'center';
         cCtx.fillText(gearTxt, 320, 126);
 
-        cCtx.fillStyle = state.clutchPressed ? '#fbbf24' : '#94a3b8';
+        cCtx.fillStyle = state.clutchPressed ? '#fbbf24' : state.shiftPrompt ? '#fbbf24' : '#94a3b8';
         cCtx.font = 'bold 13px sans-serif';
         cCtx.fillText(
           state.clutchPressed
             ? 'CLUTCH'
             : state.shiftPrompt === 1
             ? 'SHIFT ▲'
+            : state.shiftPrompt === -1
+            ? 'DOWN ▼'
             : `${(state.distanceKm || 0).toFixed(1)} km`,
           320,
           164
@@ -2363,9 +2439,15 @@
     }
 
     function updateInterior(state, dt) {
-      // Steering wheel rotation + subtle high-speed vibration
+      // Steering wheel rotation (driver steer + subtle curve follow) + high-speed vibration + forearms
       const vibe = state.speedKmh > 40 ? Math.sin((state.elapsed || 0) * 38) * 0.004 : 0;
-      wheelSpinGroup.rotation.z = -(state.steer || 0) * 1.95 + vibe;
+      const curveWheel =
+        Math.max(-0.14, Math.min(0.14, (state.roadCurv || 0) * Math.min(state.speedKmh || 0, 180) * 2.2));
+      const rawWheelRot = -((state.steer || 0) * 1.45 + curveWheel) + vibe;
+      const wheelRot = Math.max(-1.05, Math.min(1.05, rawWheelRot));
+      wheelSpinGroup.rotation.z = wheelRot;
+      positionForearm(leftForearm, leftElbowPos, -0.202, -0.020, 0.032, wheelRot);
+      positionForearm(rightForearm, rightElbowPos, 0.202, -0.020, 0.032, wheelRot);
 
       // Paddle shifter pull animation
       const pTimer = state.paddleAnimTimer || 0;

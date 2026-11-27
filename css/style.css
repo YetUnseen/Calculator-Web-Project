@@ -265,13 +265,24 @@ html, body {
   background: #050810;
   border: 1px solid rgba(255, 255, 255, 0.10);
   position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
-.radio-yt-wrap iframe {
+.radio-yt-wrap iframe,
+#radio-yt-mount {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
+}
+
+.radio-yt-wrap.empty iframe {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .radio-empty-hint {
@@ -541,20 +552,20 @@ html, body {
   top: 86px;
   right: 20px;
   width: min(350px, calc(100vw - 32px));
-  max-height: calc(100vh - 110px);
+  max-height: calc(100vh - 104px);
   overflow-y: auto;
   background: rgba(9, 13, 22, 0.96);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 16px;
-  padding: 15px;
+  padding: 12px 14px;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65);
   pointer-events: auto;
   z-index: 25;
   display: none;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
 }
 
 .drive-setup-drawer.open {
@@ -600,7 +611,7 @@ html, body {
 .drawer-section {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .drawer-label {
@@ -772,7 +783,7 @@ html, body {
   align-items: center;
   gap: 6px;
   pointer-events: none;
-  z-index: 20;
+  z-index: 32;
 }
 
 .hud-toast {
@@ -955,6 +966,16 @@ html, body {
   color: #fca5a5;
 }
 
+.hud-radar-pill.shoulder {
+  border-color: rgba(249, 115, 22, 0.88);
+  background: rgba(67, 20, 7, 0.90);
+  box-shadow: 0 0 14px rgba(249, 115, 22, 0.30);
+}
+
+.hud-radar-pill.shoulder .radar-dist-tag {
+  color: #fdba74;
+}
+
 .signal-strip {
   display: flex;
   align-items: center;
@@ -1049,25 +1070,28 @@ html, body {
   gap: 12px;
 }
 
-@media (max-width: 1220px) {
+@media (max-width: 1280px) {
   .hud-rear-mirror {
     width: 212px;
     height: 58px;
   }
   .hud-center-alerts {
-    top: 88px;
+    top: 86px;
   }
   .status-summary {
     display: none;
   }
+  .hud-pill-btn {
+    padding: 5px 9px;
+  }
 }
 
-@media (max-width: 780px) {
+@media (max-width: 1140px) {
   .hud-rear-mirror {
-    top: 68px;
+    top: 64px;
   }
   .hud-center-alerts {
-    top: 138px;
+    top: 132px;
   }
 }
 
@@ -1658,6 +1682,28 @@ html, body {
   font-size: 0.74rem;
   color: #94a3b8;
   line-height: 1.35;
+}
+
+.car-stat-line {
+  font-size: 0.69rem;
+  font-weight: 700;
+  color: #7dd3fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.hw-btn-repair {
+  width: auto;
+  padding: 8px 13px;
+  border-color: rgba(245, 158, 11, 0.58);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+  white-space: nowrap;
+}
+
+.hw-btn-repair:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.30);
+  border-color: #fbbf24;
+  color: #ffffff;
 }
 
 .car-bars {

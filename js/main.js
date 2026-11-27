@@ -70,6 +70,8 @@
       this.lookWorldVec = new THREE.Vector3();
       this.lastFov = 58;
       this.shakeMag = 0;
+      this.cockpitYawOffset = 0;
+      this.cockpitYawOffset = 0;
 
       // Economy & Progression
       this.economy = new window.HighwayEconomy.HighwayEconomy();
@@ -79,11 +81,14 @@
       // Core simulation modules
       this.env = new window.HighwayEnv.HighwayEnvironment(this.scene, this.gfx);
       this.traffic = new window.HighwayTraffic.HighwayTraffic(this.scene, this.env, {
-        targetCount: 20,
+        targetCount: 26,
         castShadow: !!this.gfx.shadowsEnabled
       });
       this.player = new window.HighwayPlayer.HighwayPlayer({
         getCurvature: window.HighwayEnv.getCurvature,
+        getSlope: window.HighwayEnv.getSlope,
+        getRadarInfo: window.HighwayEnv.getRadarInfo,
+        getShoulderHazardInfo: window.HighwayEnv.getShoulderHazardInfo,
         transmissionMode: this.economy.getTransmission(),
         specs: activeSpecs
       });
@@ -214,6 +219,7 @@
 
         garageModal: document.getElementById('modal-garage'),
         garageBank: document.getElementById('garage-bank'),
+        garageRepairBtn: document.getElementById('btn-garage-repair'),
         garageActiveCar: document.getElementById('garage-active-car'),
         shopTabVehicles: document.getElementById('shop-tab-vehicles'),
         filterCarsAll: document.getElementById('filter-cars-all'),
@@ -860,6 +866,16 @@
       const bank = this.economy.getBank();
       const specs = this.economy.getActiveCarSpecs();
       if (this.dom.garageBank) this.dom.garageBank.textContent = this.formatMoney(bank);
+      if (this.dom.garageRepairBtn) {
+        const dmg = this.player ? Math.round(this.player.damage) : 0;
+        const showRepair = dmg > 0 && this.player && !this.player.crashed;
+        this.dom.garageRepairBtn.classList.toggle('hidden', !showRepair);
+        if (showRepair) {
+          const cost = Math.max(20, Math.round(dmg * 4));
+          this.dom.garageRepairBtn.textContent = `Repair (${this.formatMoney(cost)})`;
+          this.dom.garageRepairBtn.disabled = bank < cost;
+        }
+      }
       if (this.dom.garageActiveCar) {
         this.dom.garageActiveCar.textContent = `Active: ${specs.name} • ${Math.round(specs.topSpeedKmh)} km/h`;
       }
@@ -867,6 +883,21 @@
       this.renderGarageUpgrades(bank);
       this.renderGaragePaints();
       this.renderGarageCustomization();
+    }
+
+    clearNearbyTrafficAroundPlayer() {
+      if (!this.traffic || !this.traffic.vehicles || !this.player) return;
+      for (let i = this.traffic.vehicles.length - 1; i >= 0; i--) {
+        const npc = this.traffic.vehicles[i];
+        const ds = Math.abs(npc.s - this.player.s);
+        const dd = Math.abs(npc.d - this.player.d);
+        if (
+          ds < (this.player.length + npc.length) * 0.5 + 4.5 &&
+          dd < (this.player.width + npc.width) * 0.5 + 0.9
+        ) {
+          this.traffic.removeNPCAt(i);
+        }
+      }
     }
 
     renderGarageVehicles(bank) {
@@ -935,6 +966,7 @@
                 <span class="car-shop-price">${priceBadge}</span>
               </div>
               <p class="car-shop-desc">${c.desc}</p>
+              <div class="car-stat-line">${Math.round(merged.topSpeedKmh)} km/h · 0-100: ${merged.zeroTo100Sec.toFixed(1)}s</div>
               <div class="car-bars">
                 <div class="car-bar-row"><span>Top Speed</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${speedPct.toFixed(0)}%"></div></div></div>
                 <div class="car-bar-row"><span>Accel</span><div class="car-bar-track"><div class="car-bar-fill" style="width:${accelPct.toFixed(0)}%"></div></div></div>
@@ -949,7 +981,9 @@
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-select-car');
           if (this.economy.selectCar(id)) {
+            this.player.damage = 0;
             this.rebuildPlayerMesh();
+            this.clearNearbyTrafficAroundPlayer();
             this.syncActiveCarUI();
             this.renderGarage();
             this.updateHUD();
@@ -963,7 +997,9 @@
           const id = btn.getAttribute('data-buy-car');
           const res = this.economy.buyCar(id);
           if (res.ok) {
+            this.player.damage = 0;
             this.rebuildPlayerMesh();
+            this.clearNearbyTrafficAroundPlayer();
             this.syncActiveCarUI();
             this.renderGarage();
             this.updateHUD();
@@ -1130,6 +1166,7 @@
       this.toggleSetupDrawer(false);
       this.closeGarage(true);
       this.shakeMag = 0;
+      this.cockpitYawOffset = 0;
       if (this.dom.pauseModal) this.dom.pauseModal.classList.remove('open');
       if (this.dom.crashModal) this.dom.crashModal.classList.remove('open');
 
@@ -1435,6 +1472,19 @@
         if (document.hidden) this.clearInputs();
       });
 
+      window.addEventListener('paste', (e) => {
+        if (!this.calcLocked || !e.clipboardData) return;
+        const txt = e.clipboardData.getData('text') || '';
+        if (!txt) return;
+        e.preventDefault();
+        for (let i = 0; i < txt.length && i < 32; i++) {
+          const ch = txt[i];
+          if (/^[0-9.+\-*/=]$/.test(ch)) {
+            this.handleCalcInput(ch);
+          }
+        }
+      });
+
       window.addEventListener('keydown', (e) => {
         if (this.calcLocked) {
           const key = e.key;
@@ -1456,7 +1506,7 @@
           } else if (key === 'Backspace') {
             e.preventDefault();
             this.handleCalcInput('BACK');
-          } else if (key === 'Escape' || key === 'c' || key === 'C') {
+          } else if (key === 'Escape' || key === 'Delete' || key === 'c' || key === 'C') {
             e.preventDefault();
             this.handleCalcInput('AC');
           }
@@ -1755,6 +1805,17 @@
       bindClick('btn-pause', () => this.setPaused(!this.paused));
       bindClick('btn-open-garage', () => this.openGarage());
       bindClick('btn-close-garage', () => this.closeGarage());
+      bindClick('btn-garage-repair', () => {
+        if (!this.player || this.player.damage <= 0 || this.player.crashed) return;
+        const cost = Math.max(20, Math.round(this.player.damage * 4));
+        if (this.economy.spendCash(cost)) {
+          this.player.damage = 0;
+          if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(true);
+          this.renderGarage();
+          this.updateHUD();
+          this.showToast('Vehicle Repaired (100%)', 1.5);
+        }
+      });
       bindClick('btn-restart', () => this.restartDrive());
       bindClick('btn-radio', () => {
         if (this.radio) this.radio.togglePanel();
@@ -1765,6 +1826,7 @@
             dock: document.getElementById('hud-radio-dock'),
             btnClose: document.getElementById('btn-radio-close'),
             btnCompact: document.getElementById('btn-radio-compact'),
+            ytWrap: document.getElementById('radio-yt-wrap'),
             ytMount: document.getElementById('radio-yt-mount'),
             emptyHint: document.getElementById('radio-empty-hint'),
             nowPlaying: document.getElementById('radio-now-playing'),
@@ -1849,9 +1911,13 @@
       const isHood = this.cameraMode === 3;
 
       this.playerMesh.group.position.set(p.x, p.y, p.z);
-      this.playerMesh.group.rotation.set(p.pitch, -(p.yaw + this.player.yawRel), 0);
+      this.playerMesh.group.rotation.set(
+        p.pitch,
+        -(p.yaw + this.player.yawRel + (this.player.slipAngle || 0) * 0.32),
+        0
+      );
       this.playerMesh.setBodyTilt(this.player.pitch, this.player.roll);
-      this.playerMesh.updateWheels(this.player.speed, dt, this.player.steer * 0.25);
+      this.playerMesh.updateWheels(this.player.speed, dt, this.player.frontWheelAngle || 0);
       this.playerMesh.setBraking(this.player.braking);
       const baseHl = Math.max(0.12, preset.headlightStrength);
       this.playerMesh.setHeadlights(baseHl);
@@ -1914,6 +1980,7 @@
               streakMult: this.economy.streakMult,
               weatherName: preset.name,
               precip: preset.precip,
+              roadCurv: window.HighwayEnv.getCurvature(this.player.s),
               paddleAnimTimer: this.player.paddleAnimTimer,
               paddleAnimDir: this.player.paddleAnimDir,
               clutchPressed: this.player.clutchPressed,
@@ -1942,13 +2009,19 @@
         const eyeZWithSeat = eye.z + seat.z;
         const lookDist = Math.abs(eyeZWithSeat - eye.lookZ);
         const pitchOffsetY = Math.tan((seat.pitchDeg * Math.PI) / 180) * lookDist;
+        let targetGlance = this.player.steer * 0.055;
+        if (this.signalMode === 1) targetGlance += 0.085;
+        else if (this.signalMode === -1) targetGlance -= 0.045;
+        targetGlance = clamp(targetGlance, -0.10, 0.13);
+        this.cockpitYawOffset += (targetGlance - this.cockpitYawOffset) * (snap ? 1 : Math.min(1, 7.5 * dt));
+        const glanceOffsetX = Math.tan(this.cockpitYawOffset) * lookDist;
         this.eyeWorldVec.set(
           eye.x - this.player.roll * 0.25,
           eyeYWithSeat - this.player.pitch * 0.14,
           eyeZWithSeat + this.player.camSurgeZ * 0.22
         );
         this.lookWorldVec.set(
-          eye.x,
+          eye.x + glanceOffsetX,
           eye.lookY + seat.y + pitchOffsetY + this.player.pitch * 0.35,
           eye.lookZ
         );
@@ -1958,16 +2031,16 @@
         this.camLook.copy(this.lookWorldVec);
       } else if (isHood) {
         const isBigRig = spec && spec.id === 'big_rig';
-        const hoodS = this.player.s + (isBigRig ? spec.length * 0.5 - 1.55 : 0.65);
+        const hoodS = this.player.s + (isBigRig ? spec.length * 0.5 - 1.55 : spec.length * 0.18);
         const hoodH = isBigRig
           ? spec.clearance + 1.95
-          : Math.max(1.08, spec.clearance + (spec.height - spec.clearance) * 0.48 + 0.25);
+          : Math.max(1.14, spec.clearance + (spec.height - spec.clearance) * 0.48 + 0.32);
         this.env.project(hoodS, this.player.d, this.camPosProj, hoodH);
         this.env.project(
           this.player.s + 54,
           this.player.d + Math.sin(this.player.yawRel) * 35,
           this.camLookTarget,
-          isBigRig ? 1.55 : 1.02
+          isBigRig ? 1.55 : 1.04
         );
         this.camPos.set(this.camPosProj.x, this.camPosProj.y, this.camPosProj.z);
         this.camLook.set(this.camLookTarget.x, this.camLookTarget.y, this.camLookTarget.z);
@@ -1979,10 +2052,11 @@
           this.player.camSurgeZ * 1.15;
         const height =
           this.cameraMode === 1 ? 3.55 + extraH * 1.12 : 2.55 + extraH * 1.05;
-        const camD = this.player.d * 0.92;
+        const camD = this.player.d * 0.97 - Math.sin(this.player.yawRel) * (backDist * 0.44);
+        const lookD = this.player.d * 0.95 + Math.sin(this.player.yawRel) * 9.5;
 
         this.env.project(this.player.s - backDist, camD, this.camPosProj, height);
-        this.env.project(this.player.s + 38, this.player.d * 0.65, this.camLookTarget, 1.15 + extraH * 0.45);
+        this.env.project(this.player.s + 38, lookD, this.camLookTarget, 1.15 + extraH * 0.45);
 
         const damp = snap ? 1 : Math.min(1, 10 * dt);
         this.camPos.x += (this.camPosProj.x - this.camPos.x) * damp;
@@ -2083,17 +2157,24 @@
       if (this.dom.radarLimitNum) {
         this.dom.radarLimitNum.textContent = String(limitDisp);
       }
+      const onShoulderNow = !!(this.player.onShoulder && !this.player.crashed);
       if (this.dom.radarDist) {
         const distM = Math.max(0, Math.round(radarInfo.distToRadar));
-        if (radarInfo.nearby) {
+        if (onShoulderNow) {
+          this.dom.radarDist.textContent = 'SHOULDER · $0 EARNED';
+        } else if (radarInfo.nearby) {
           this.dom.radarDist.textContent = speeding ? `SLOW! RADAR ${distM}m` : `RADAR ${distM}m`;
         } else {
           this.dom.radarDist.textContent = speeding ? 'OVER LIMIT' : `LIMIT ${limitDisp}`;
         }
       }
       if (this.dom.radarPill) {
-        this.dom.radarPill.classList.toggle('speeding', speeding && radarInfo.nearby);
-        this.dom.radarPill.classList.toggle('warning', (speeding && !radarInfo.nearby) || (!speeding && radarInfo.nearby));
+        this.dom.radarPill.classList.toggle('shoulder', onShoulderNow);
+        this.dom.radarPill.classList.toggle('speeding', !onShoulderNow && speeding && radarInfo.nearby);
+        this.dom.radarPill.classList.toggle(
+          'warning',
+          !onShoulderNow && ((speeding && !radarInfo.nearby) || (!speeding && radarInfo.nearby))
+        );
       }
 
       if (!this.dom.speed) return;
@@ -2224,7 +2305,7 @@
       this.env.project(rearS, this.player.d, this.mirrorCamPos, rearH);
       this.env.project(
         this.player.s - 65,
-        this.player.d + Math.sin(this.player.yawRel) * 18,
+        this.player.d - Math.sin(this.player.yawRel) * 55,
         this.mirrorLookPos,
         isBigRig ? 1.45 : 1.05
       );
@@ -2244,7 +2325,12 @@
         this.mirrorCamera.updateProjectionMatrix();
 
         this.env.project(sideS, this.player.d - sideW, this.mirrorCamPos, sideH);
-        this.env.project(this.player.s - 45, this.player.d - (sideW + 3.1), this.mirrorLookPos, isBigRig ? 1.35 : 0.95);
+        this.env.project(
+          this.player.s - 45,
+          this.player.d - (sideW + 3.1) - Math.sin(this.player.yawRel) * 38,
+          this.mirrorLookPos,
+          isBigRig ? 1.35 : 0.95
+        );
         this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
         this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
         this.renderer.setRenderTarget(this.leftMirrorRT);
@@ -2252,7 +2338,12 @@
         this.renderer.render(this.scene, this.mirrorCamera);
 
         this.env.project(sideS, this.player.d + sideW, this.mirrorCamPos, sideH);
-        this.env.project(this.player.s - 45, this.player.d + (sideW + 3.1), this.mirrorLookPos, isBigRig ? 1.35 : 0.95);
+        this.env.project(
+          this.player.s - 45,
+          this.player.d + (sideW + 3.1) - Math.sin(this.player.yawRel) * 38,
+          this.mirrorLookPos,
+          isBigRig ? 1.35 : 0.95
+        );
         this.mirrorCamera.position.set(this.mirrorCamPos.x, this.mirrorCamPos.y, this.mirrorCamPos.z);
         this.mirrorCamera.lookAt(this.mirrorLookPos.x, this.mirrorLookPos.y, this.mirrorLookPos.z);
         this.renderer.setRenderTarget(this.rightMirrorRT);
@@ -2448,6 +2539,10 @@
         const prevDist = this.player.distanceMeters;
         const prevS = this.player.s;
 
+        this.traffic.targetCount = Math.round(
+          clamp(25 + Math.max(0, this.player.speedKmh - 140) / 28, 25, 30)
+        );
+
         for (let s = 0; s < substeps; s++) {
           const events = this.player.step(subDt, stepInput, this.traffic, preset.grip);
           this.traffic.step(
@@ -2465,9 +2560,17 @@
               if (window.HighwayAudio) window.HighwayAudio.playShift(ev.mode, ev.dir);
             } else if (ev.type === 'turbo_bov') {
               if (window.HighwayAudio) window.HighwayAudio.playTurboBOV(ev.boost);
+            } else if (ev.type === 'shift_denied') {
+              if (window.HighwayAudio) window.HighwayAudio.playShiftDenied();
+              this.showToast('RPM too high to downshift!', 1.2);
             } else if (ev.type === 'shift_grind') {
               if (window.HighwayAudio) window.HighwayAudio.playGearGrind();
-              this.showToast('Hold Left Shift (Clutch) to shift!', 1.2);
+              this.showToast(
+                ev.reason === 'overrev'
+                  ? 'Speed too high for lower gear!'
+                  : 'Hold Left Shift (Clutch) to shift!',
+                1.2
+              );
             } else if (ev.type === 'clean_pass') {
               const earned = this.economy.awardCleanPass(
                 ev.relSpeedKmh,
@@ -2475,6 +2578,9 @@
                 preset.weatherMult
               );
               this.showBonusToast(`+${this.formatMoney(earned)} ${ev.isClose ? 'Close Pass' : 'Clean Pass'}`);
+            } else if (ev.type === 'thread_needle') {
+              const earned = this.economy.awardThreadNeedle(preset.weatherMult);
+              this.showBonusToast(`+${this.formatMoney(earned)} Thread the Needle!`);
             } else {
               this.shakeMag = Math.max(
                 this.shakeMag,
@@ -2499,7 +2605,24 @@
 
         const deltaMeters = this.player.distanceMeters - prevDist;
         if (deltaMeters > 0) {
-          this.economy.awardDistance(deltaMeters, this.player.speedKmh, preset.weatherMult);
+          this.economy.awardDistance(
+            deltaMeters,
+            this.player.speedKmh,
+            preset.weatherMult,
+            this.player.onShoulder
+          );
+        }
+
+        // Anti-shoulder farming: cancel Cruise Control & decay clean streak on emergency shoulder
+        if (this.player.shoulderTime > 0.6 && this.speedAssistMode === 'cruise') {
+          this.speedAssistMode = 'off';
+          this.speedAssistAutoZone = false;
+          if (window.HighwayAudio) window.HighwayAudio.playSwitchClick(false);
+          this.syncSettingsUI();
+          this.showToast('Cruise Disabled on Emergency Shoulder!', 1.6);
+        }
+        if (this.player.shoulderTime > 1.0) {
+          this.economy.decayStreak(0.25 * dt);
         }
 
         if (this.blindSpotChirpCooldown > 0) {
@@ -2539,6 +2662,7 @@
             turboLevel: this.player.turboLevel,
             exhaustLevel: this.player.exhaustLevel,
             onShoulder: this.player.onShoulder,
+            lateralSlip: this.player.lateralSlip,
             precip: preset.precip,
             hitRevLimiter: this.player.hitRevLimiter
           });

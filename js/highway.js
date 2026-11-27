@@ -214,6 +214,9 @@
   const RADAR_WARN_DIST = 380;
   const RADAR_LIMITS_KMH = [110, 130, 100, 120, 90, 140];
 
+  const HAZARD_FIRST_S = 680;
+  const HAZARD_STEP = 1120;
+
   function getRadarBySlot(slot) {
     const k = Math.max(0, Math.floor(slot || 0));
     const jitter = k === 0 ? 0 : Math.round((hash01(k * 17.3 + 5.1) - 0.5) * 600);
@@ -240,20 +243,54 @@
     };
   }
 
+  function getShoulderHazardBySlot(slot) {
+    const k = Math.max(0, Math.floor(slot || 0));
+    const jitter = Math.round((hash01(k * 29.7 + 3.4) - 0.5) * 260);
+    let hazardS = HAZARD_FIRST_S + k * HAZARD_STEP + jitter;
+    const nearRadar = getRadarInfo(Math.max(0, hazardS - 200));
+    if (nearRadar && Math.abs(hazardS - nearRadar.radarS) < 180) {
+      hazardS += 240;
+    }
+    return { slot: k, hazardS, d: 8.72, length: 4.65, width: 1.86 };
+  }
+
+  function getShoulderHazardInfo(s) {
+    const currS = s || 0;
+    let slot =
+      currS <= HAZARD_FIRST_S - 260
+        ? 0
+        : Math.max(0, Math.floor((currS - HAZARD_FIRST_S) / HAZARD_STEP) - 1);
+    let info = getShoulderHazardBySlot(slot);
+    while (info.hazardS < currS - 12) {
+      slot++;
+      info = getShoulderHazardBySlot(slot);
+    }
+    return {
+      slot: info.slot,
+      hazardS: info.hazardS,
+      distToHazard: info.hazardS - currS,
+      d: info.d,
+      length: info.length,
+      width: info.width
+    };
+  }
+
   // Pure curvilinear highway math (deterministic, C-infinity smooth, zero seams)
   function getCurvature(s) {
     return (
-      0.00055 * Math.sin(s * 0.0017) +
-      0.00042 * Math.sin(s * 0.0031 + 1.1) +
-      0.00024 * Math.sin(s * 0.0053 + 2.4)
+      0.00155 * Math.sin(s * 0.0022) +
+      0.00105 * Math.sin(s * 0.0047 + 1.1) +
+      0.00068 * Math.sin(s * 0.0083 + 2.4) +
+      0.00032 * Math.sin(s * 0.0131 + 0.6)
     );
   }
 
   function getHeading(s) {
     return (
-      (-0.00055 / 0.0017) * Math.cos(s * 0.0017) +
-      (-0.00042 / 0.0031) * Math.cos(s * 0.0031 + 1.1) +
-      (-0.00024 / 0.0053) * Math.cos(s * 0.0053 + 2.4)
+      (-0.00155 / 0.0022) * Math.cos(s * 0.0022) +
+      (-0.00105 / 0.0047) * Math.cos(s * 0.0047 + 1.1) +
+      (-0.00068 / 0.0083) * Math.cos(s * 0.0083 + 2.4) +
+      (-0.00032 / 0.0131) * Math.cos(s * 0.0131 + 0.6)
     );
   }
 
@@ -261,6 +298,13 @@
     return (
       3.4 * Math.sin(s * 0.0022) +
       1.7 * Math.sin(s * 0.0041 + 0.9)
+    );
+  }
+
+  function getSlope(s) {
+    return (
+      3.4 * 0.0022 * Math.cos(s * 0.0022) +
+      1.7 * 0.0041 * Math.cos(s * 0.0041 + 0.9)
     );
   }
 
@@ -341,6 +385,8 @@
       this.initGantriesAndSigns();
       this.radarFlashes = {};
       this.initRadars();
+      this.initShoulderHazards();
+      this.initCurveChevrons();
       this.initFoliage();
       this.initPrecipitation();
       this.initOncomingTraffic();
@@ -484,8 +530,8 @@
       this.sunLight.shadow.mapSize.set(smSize, smSize);
       this.sunLight.shadow.camera.near = 10;
       this.sunLight.shadow.camera.far = 360;
-      this.sunLight.shadow.camera.left = -42;
-      this.sunLight.shadow.camera.right = 42;
+      this.sunLight.shadow.camera.left = -56;
+      this.sunLight.shadow.camera.right = 56;
       this.sunLight.shadow.camera.top = 90;
       this.sunLight.shadow.camera.bottom = -25;
       this.sunLight.shadow.bias = -0.0002;
@@ -756,8 +802,8 @@
       const terrainMat = new THREE.MeshLambertMaterial({
         vertexColors: true
       });
-      this.rightTerrainOffsets = [10.35, 13.0, 22.0, 52.0, 115.0, 240.0];
-      this.leftTerrainOffsets = [-240.0, -115.0, -52.0, -34.0, -27.5, -25.65];
+      this.rightTerrainOffsets = [10.35, 13.0, 22.0, 52.0, 105.0, 195.0];
+      this.leftTerrainOffsets = [-195.0, -105.0, -52.0, -34.0, -27.5, -25.65];
       this.rightTerrainStrip = this.buildStripMesh(this.rightTerrainOffsets.length, terrainMat, {
         vertexColors: true,
         receiveShadow: true
@@ -1169,6 +1215,108 @@
     triggerRadarFlash(slot) {
       this.radarFlashes[slot] = 1.0;
       if (this.radarAlerts) this.radarAlerts[slot] = 4.0;
+    }
+
+    initShoulderHazards() {
+      this.hazardPool = [];
+      const coneGeo = new THREE.ConeGeometry(0.18, 0.52, 8);
+      coneGeo.translate(0, 0.26, 0);
+      const coneBaseGeo = new THREE.BoxGeometry(0.36, 0.05, 0.36);
+      coneBaseGeo.translate(0, 0.025, 0);
+      const coneMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.45 });
+      const coneStripMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+      const coneBaseMat = new THREE.MeshStandardMaterial({ color: 0x181c24, roughness: 0.8 });
+      const stripGeo = new THREE.CylinderGeometry(0.11, 0.14, 0.12, 8);
+      stripGeo.translate(0, 0.30, 0);
+
+      for (let i = 0; i < 2; i++) {
+        const hg = new THREE.Group();
+        const isSuv = i % 2 === 1;
+        let carMesh = null;
+        if (root.HighwayVehicles && root.HighwayVehicles.createVehicleMesh) {
+          carMesh = root.HighwayVehicles.createVehicleMesh({
+            archetype: isSuv ? 'suv' : 'sedan',
+            color: isSuv ? 0x991b1b : 0x475569,
+            castShadow: false
+          });
+          carMesh.group.rotation.y = 0.05;
+          carMesh.setHeadlights(0.15);
+          hg.add(carMesh.group);
+        }
+
+        // 3 reflective orange traffic cones placed behind the broken-down car
+        for (let c = 0; c < 3; c++) {
+          const cg = new THREE.Group();
+          cg.position.set(-0.35 + c * 0.12, 0, 5.2 + c * 5.2);
+          cg.add(new THREE.Mesh(coneGeo, coneMat));
+          cg.add(new THREE.Mesh(stripGeo, coneStripMat));
+          cg.add(new THREE.Mesh(coneBaseGeo, coneBaseMat));
+          hg.add(cg);
+        }
+
+        this.scene.add(hg);
+        this.hazardPool.push({ group: hg, carMesh });
+      }
+    }
+
+    makeChevronTexture(dir) {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(5, 5, 118, 118);
+
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 22;
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
+      ctx.beginPath();
+      if (dir > 0) {
+        ctx.moveTo(42, 24);
+        ctx.lineTo(88, 64);
+        ctx.lineTo(42, 104);
+      } else {
+        ctx.moveTo(86, 24);
+        ctx.lineTo(40, 64);
+        ctx.lineTo(86, 104);
+      }
+      ctx.stroke();
+
+      const tex = new THREE.CanvasTexture(c);
+      if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    initCurveChevrons() {
+      this.chevronStep = 36;
+      this.chevronTexRight = this.makeChevronTexture(1);
+      this.chevronTexLeft = this.makeChevronTexture(-1);
+      const postMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.55, metalness: 0.5 });
+      const backMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
+      const postGeo = new THREE.CylinderGeometry(0.045, 0.055, 2.05, 6);
+      postGeo.translate(0, 1.02, 0);
+      const faceGeo = new THREE.PlaneGeometry(1.05, 1.05);
+      const backGeo = new THREE.BoxGeometry(1.08, 1.08, 0.05);
+
+      this.chevronPool = [];
+      for (let i = 0; i < 12; i++) {
+        const g = new THREE.Group();
+        g.add(new THREE.Mesh(postGeo, postMat));
+        const mat = new THREE.MeshBasicMaterial({ map: this.chevronTexRight });
+        const face = new THREE.Mesh(faceGeo, mat);
+        face.position.set(0, 1.85, 0.035);
+        g.add(face);
+        const back = new THREE.Mesh(backGeo, backMat);
+        back.position.set(0, 1.85, 0);
+        g.add(back);
+        g.visible = false;
+        this.scene.add(g);
+        this.chevronPool.push({ group: g, mat, lastDir: 1 });
+      }
     }
 
     initFoliage() {
@@ -1771,7 +1919,7 @@
             rObj.group.visible = false;
           } else {
             rObj.group.visible = true;
-            this.project(info.radarS, 9.45, p, 0);
+            this.project(info.radarS, 9.15, p, 0);
             rObj.group.position.set(p.x, p.y, p.z);
             rObj.group.rotation.set(p.pitch, -p.yaw, 0);
             if (rObj.carMesh) {
@@ -1813,6 +1961,58 @@
             wObj.group.rotation.set(0, -p.yaw, 0);
             applyReflect(wObj.plateMat, warnS - s0);
           }
+        }
+      }
+
+      // 5c. Broken-Down Emergency Shoulder Vehicles with Hazard Blinkers & Cones
+      if (this.hazardPool) {
+        const hStartSlot = Math.max(0, getShoulderHazardInfo(Math.max(0, s0 - 120)).slot);
+        const tNow = this.skyUniforms ? this.skyUniforms.uTime.value : 0;
+        const hazBlink = Math.floor(tNow * 2.4) % 2 === 0;
+        for (let i = 0; i < this.hazardPool.length; i++) {
+          const info = getShoulderHazardBySlot(hStartSlot + i);
+          const hObj = this.hazardPool[i];
+          if (info.hazardS < s0 - 120 || info.hazardS > s0 + 660) {
+            hObj.group.visible = false;
+          } else {
+            hObj.group.visible = true;
+            this.project(info.hazardS, info.d, p, 0);
+            hObj.group.position.set(p.x, p.y, p.z);
+            hObj.group.rotation.set(p.pitch, -p.yaw, 0);
+            if (hObj.carMesh) {
+              hObj.carMesh.setHeadlights(isNight ? 0.35 : 0.08);
+              hObj.carMesh.setBlinker(2, hazBlink);
+            }
+          }
+        }
+      }
+
+      // 5d. Outer-Bend Curve Warning Chevron Signs
+      if (this.chevronPool) {
+        const cStartSlot = Math.floor((s0 - 40) / this.chevronStep);
+        let poolIdx = 0;
+        for (let sl = 0; sl < 20 && poolIdx < this.chevronPool.length; sl++) {
+          const slot = cStartSlot + sl;
+          const s = slot * this.chevronStep;
+          if (s < s0 - 40 || s > s0 + 580) continue;
+          const curv = getCurvature(s);
+          if (Math.abs(curv) < 0.00185) continue;
+          const dir = curv > 0 ? 1 : -1;
+          const cObj = this.chevronPool[poolIdx++];
+          cObj.group.visible = true;
+          if (cObj.lastDir !== dir) {
+            cObj.lastDir = dir;
+            cObj.mat.map = dir > 0 ? this.chevronTexRight : this.chevronTexLeft;
+            cObj.mat.needsUpdate = true;
+          }
+          const dPos = dir > 0 ? -9.95 : 11.25;
+          this.project(s, dPos, p, 0);
+          cObj.group.position.set(p.x, p.y, p.z);
+          cObj.group.rotation.set(0, -p.yaw, 0);
+          applyReflect(cObj.mat, s - s0);
+        }
+        for (let k = poolIdx; k < this.chevronPool.length; k++) {
+          this.chevronPool[k].group.visible = false;
         }
       }
 
@@ -1947,8 +2147,11 @@
     getCurvature,
     getHeading,
     getElevation,
+    getSlope,
     getRadarInfo,
-    getRadarBySlot
+    getRadarBySlot,
+    getShoulderHazardInfo,
+    getShoulderHazardBySlot
   };
 
   if (typeof window !== 'undefined') {
